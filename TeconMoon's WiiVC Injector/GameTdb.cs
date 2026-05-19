@@ -132,4 +132,3 @@ namespace TeconMoon_s_WiiVC_Injector
         }
     }
 }
-

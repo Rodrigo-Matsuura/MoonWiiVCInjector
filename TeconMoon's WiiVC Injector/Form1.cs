@@ -374,7 +374,7 @@ namespace TeconMoon_s_WiiVC_Injector
                     DRCUSE = "1";
                 }
 
-                string inputId = StringUtil.PromptInput("Enter your installed Wii Channel's 4-letter Title ID. If you don't know it, open a WAD for the channel in something like ShowMiiWads to view it.", "Enter your WAD's Title ID", "XXXX");
+                string inputId = GuiUtil.PromptInput("Enter your installed Wii Channel's 4-letter Title ID. If you don't know it, open a WAD for the channel in something like ShowMiiWads to view it.", "Enter your WAD's Title ID", "XXXX");
 
                 if (string.IsNullOrEmpty(inputId))
                 {
@@ -1659,17 +1659,17 @@ namespace TeconMoon_s_WiiVC_Injector
 
                 if (Directory.Exists("Rhythm Heaven Fever [VAKE01]"))
                 {
-                    StringUtil.CopyDirectory("Rhythm Heaven Fever [VAKE01]", JNUSToolDownloads + "Rhythm Heaven Fever [VAKE01]");
+                    FileUtil.CopyDirectory("Rhythm Heaven Fever [VAKE01]", JNUSToolDownloads + "Rhythm Heaven Fever [VAKE01]");
                     Directory.Delete("Rhythm Heaven Fever [VAKE01]", true);
                 }
                 if (Directory.Exists("0005001010004000"))
                 {
-                    StringUtil.CopyDirectory("0005001010004000", JNUSToolDownloads + "0005001010004000");
+                    FileUtil.CopyDirectory("0005001010004000", JNUSToolDownloads + "0005001010004000");
                     Directory.Delete("0005001010004000", true);
                 }
                 if (Directory.Exists("0005001010004001"))
                 {
-                    StringUtil.CopyDirectory("0005001010004001", JNUSToolDownloads + "0005001010004001");
+                    FileUtil.CopyDirectory("0005001010004001", JNUSToolDownloads + "0005001010004001");
                     Directory.Delete("0005001010004001", true);
                 }
 
@@ -1706,11 +1706,11 @@ namespace TeconMoon_s_WiiVC_Injector
             //Copy downloaded files to the build directory
             BuildStatus.Text = "Copying base files to temporary build directory...";
             BuildStatus.Refresh();
-            StringUtil.CopyDirectory(JNUSToolDownloads + "Rhythm Heaven Fever [VAKE01]", TempBuildPath);
+            FileUtil.CopyDirectory(JNUSToolDownloads + "Rhythm Heaven Fever [VAKE01]", TempBuildPath);
             if (C2WPatchFlag.Checked)
             {
-                StringUtil.CopyDirectory(JNUSToolDownloads + "0005001010004000", TempBuildPath);
-                StringUtil.CopyDirectory(JNUSToolDownloads + "0005001010004001", TempBuildPath);
+                FileUtil.CopyDirectory(JNUSToolDownloads + "0005001010004000", TempBuildPath);
+                FileUtil.CopyDirectory(JNUSToolDownloads + "0005001010004001", TempBuildPath);
                 string[] AncastKeyCopy = { AncastKey.Text };
                 File.WriteAllLines(TempToolsPath + "C2W\\starbuck_key.txt", AncastKeyCopy);
                 File.Copy(TempBuildPath + "code\\c2w.img", TempToolsPath + "C2W\\c2w.img");
@@ -1842,7 +1842,7 @@ namespace TeconMoon_s_WiiVC_Injector
             if (SystemType == "dol")
             {
                 Directory.CreateDirectory(TempSourcePath + "TEMPISOBASE");
-                StringUtil.CopyDirectory(TempToolsPath + "BASE", TempSourcePath + "TEMPISOBASE");
+                FileUtil.CopyDirectory(TempToolsPath + "BASE", TempSourcePath + "TEMPISOBASE");
                 File.Copy(OpenGame.FileName, TempSourcePath + "TEMPISOBASE\\sys\\main.dol");
                 LaunchProgram(TempToolsPath + "WIT\\wit.exe", "copy " + TempSourcePath + "TEMPISOBASE" + " --DEST " + TempSourcePath + "game.iso" + " -ovv --links --iso", true);
                 Directory.Delete(TempSourcePath + "TEMPISOBASE", true);
@@ -1851,7 +1851,7 @@ namespace TeconMoon_s_WiiVC_Injector
             if (SystemType == "wiiware")
             {
                 Directory.CreateDirectory(TempSourcePath + "TEMPISOBASE");
-                StringUtil.CopyDirectory(TempToolsPath + "BASE", TempSourcePath + "TEMPISOBASE");
+                FileUtil.CopyDirectory(TempToolsPath + "BASE", TempSourcePath + "TEMPISOBASE");
                 if (Force43NAND.Checked)
                 {
                     File.Copy(TempToolsPath + "DOL\\FIX94_wiivc_chan_booter_force43.dol", TempSourcePath + "TEMPISOBASE\\sys\\main.dol");
@@ -1869,7 +1869,7 @@ namespace TeconMoon_s_WiiVC_Injector
             if (SystemType == "gcn")
             {
                 Directory.CreateDirectory(TempSourcePath + "TEMPISOBASE");
-                StringUtil.CopyDirectory(TempToolsPath + "BASE", TempSourcePath + "TEMPISOBASE");
+                FileUtil.CopyDirectory(TempToolsPath + "BASE", TempSourcePath + "TEMPISOBASE");
                 if (Force43NINTENDONT.Checked)
                 {
                     if (ForceInterlacedNINTENDONT.Checked)
