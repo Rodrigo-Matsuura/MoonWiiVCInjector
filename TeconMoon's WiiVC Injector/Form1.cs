@@ -13,7 +13,6 @@ using System.Net.Http;
 using System.IO.Compression;
 using System.Diagnostics;
 using System.Reflection;
-using Microsoft.VisualBasic.FileIO;
 
 namespace TeconMoon_s_WiiVC_Injector
 {
@@ -103,11 +102,17 @@ namespace TeconMoon_s_WiiVC_Injector
         {
             ProcessStartInfo launcher = new ProcessStartInfo(exeFile);
             launcher.Arguments = arguments;
+            launcher.UseShellExecute = false;
+            launcher.WorkingDirectory = Directory.GetCurrentDirectory();
             if (hideProcess)
             {
                 launcher.WindowStyle = ProcessWindowStyle.Hidden;
+                launcher.CreateNoWindow = true;
             }
-            Process.Start(launcher).WaitForExit();
+            using (Process process = Process.Start(launcher))
+            {
+                process?.WaitForExit();
+            }
         }
 
         public void CleanUp()
@@ -179,7 +184,7 @@ namespace TeconMoon_s_WiiVC_Injector
                                 , MessageBoxIcon.Exclamation
                                 , MessageBoxDefaultButton.Button1
                                 , (MessageBoxOptions)0x40000);
-                                LaunchProgram("appwiz.cpl", "", false);
+                LaunchProgram("appwiz.cpl", "", false);
                 Environment.Exit(0);
             }
         }
@@ -369,7 +374,7 @@ namespace TeconMoon_s_WiiVC_Injector
                     DRCUSE = "1";
                 }
 
-                string inputId = Microsoft.VisualBasic.Interaction.InputBox("Enter your installed Wii Channel's 4-letter Title ID. If you don't know it, open a WAD for the channel in something like ShowMiiWads to view it.", "Enter your WAD's Title ID", "XXXX", 0, 0);
+                string inputId = StringUtil.PromptInput("Enter your installed Wii Channel's 4-letter Title ID. If you don't know it, open a WAD for the channel in something like ShowMiiWads to view it.", "Enter your WAD's Title ID", "XXXX");
 
                 if (string.IsNullOrEmpty(inputId))
                 {
@@ -1654,17 +1659,17 @@ namespace TeconMoon_s_WiiVC_Injector
 
                 if (Directory.Exists("Rhythm Heaven Fever [VAKE01]"))
                 {
-                    FileSystem.CopyDirectory("Rhythm Heaven Fever [VAKE01]", JNUSToolDownloads + "Rhythm Heaven Fever [VAKE01]", true);
+                    StringUtil.CopyDirectory("Rhythm Heaven Fever [VAKE01]", JNUSToolDownloads + "Rhythm Heaven Fever [VAKE01]");
                     Directory.Delete("Rhythm Heaven Fever [VAKE01]", true);
                 }
                 if (Directory.Exists("0005001010004000"))
                 {
-                    FileSystem.CopyDirectory("0005001010004000", JNUSToolDownloads + "0005001010004000", true);
+                    StringUtil.CopyDirectory("0005001010004000", JNUSToolDownloads + "0005001010004000");
                     Directory.Delete("0005001010004000", true);
                 }
                 if (Directory.Exists("0005001010004001"))
                 {
-                    FileSystem.CopyDirectory("0005001010004001", JNUSToolDownloads + "0005001010004001", true);
+                    StringUtil.CopyDirectory("0005001010004001", JNUSToolDownloads + "0005001010004001");
                     Directory.Delete("0005001010004001", true);
                 }
 
@@ -1701,11 +1706,11 @@ namespace TeconMoon_s_WiiVC_Injector
             //Copy downloaded files to the build directory
             BuildStatus.Text = "Copying base files to temporary build directory...";
             BuildStatus.Refresh();
-            FileSystem.CopyDirectory(JNUSToolDownloads + "Rhythm Heaven Fever [VAKE01]", TempBuildPath);
+            StringUtil.CopyDirectory(JNUSToolDownloads + "Rhythm Heaven Fever [VAKE01]", TempBuildPath);
             if (C2WPatchFlag.Checked)
             {
-                FileSystem.CopyDirectory(JNUSToolDownloads + "0005001010004000", TempBuildPath);
-                FileSystem.CopyDirectory(JNUSToolDownloads + "0005001010004001", TempBuildPath);
+                StringUtil.CopyDirectory(JNUSToolDownloads + "0005001010004000", TempBuildPath);
+                StringUtil.CopyDirectory(JNUSToolDownloads + "0005001010004001", TempBuildPath);
                 string[] AncastKeyCopy = { AncastKey.Text };
                 File.WriteAllLines(TempToolsPath + "C2W\\starbuck_key.txt", AncastKeyCopy);
                 File.Copy(TempBuildPath + "code\\c2w.img", TempToolsPath + "C2W\\c2w.img");
@@ -1815,7 +1820,7 @@ namespace TeconMoon_s_WiiVC_Injector
                                         , MessageBoxIcon.Information
                                         , MessageBoxDefaultButton.Button1
                                         , (MessageBoxOptions)0x40000);
-                                        LaunchProgram(TempToolsPath + "EXE\\wii-vmc.exe", "\"" + TempSourcePath + "ISOEXTRACT\\sys\\main.dol\"", false);
+                        LaunchProgram(TempToolsPath + "EXE\\wii-vmc.exe", "\"" + TempSourcePath + "ISOEXTRACT\\sys\\main.dol\"", false);
                         MessageBox.Show("Conversion will now continue..."
                                         , "Information"
                                         , MessageBoxButtons.OK
@@ -1836,8 +1841,8 @@ namespace TeconMoon_s_WiiVC_Injector
             }
             if (SystemType == "dol")
             {
-                FileSystem.CreateDirectory(TempSourcePath + "TEMPISOBASE");
-                FileSystem.CopyDirectory(TempToolsPath + "BASE", TempSourcePath + "TEMPISOBASE");
+                Directory.CreateDirectory(TempSourcePath + "TEMPISOBASE");
+                StringUtil.CopyDirectory(TempToolsPath + "BASE", TempSourcePath + "TEMPISOBASE");
                 File.Copy(OpenGame.FileName, TempSourcePath + "TEMPISOBASE\\sys\\main.dol");
                 LaunchProgram(TempToolsPath + "WIT\\wit.exe", "copy " + TempSourcePath + "TEMPISOBASE" + " --DEST " + TempSourcePath + "game.iso" + " -ovv --links --iso", true);
                 Directory.Delete(TempSourcePath + "TEMPISOBASE", true);
@@ -1845,8 +1850,8 @@ namespace TeconMoon_s_WiiVC_Injector
             }
             if (SystemType == "wiiware")
             {
-                FileSystem.CreateDirectory(TempSourcePath + "TEMPISOBASE");
-                FileSystem.CopyDirectory(TempToolsPath + "BASE", TempSourcePath + "TEMPISOBASE");
+                Directory.CreateDirectory(TempSourcePath + "TEMPISOBASE");
+                StringUtil.CopyDirectory(TempToolsPath + "BASE", TempSourcePath + "TEMPISOBASE");
                 if (Force43NAND.Checked)
                 {
                     File.Copy(TempToolsPath + "DOL\\FIX94_wiivc_chan_booter_force43.dol", TempSourcePath + "TEMPISOBASE\\sys\\main.dol");
@@ -1863,8 +1868,8 @@ namespace TeconMoon_s_WiiVC_Injector
             }
             if (SystemType == "gcn")
             {
-                FileSystem.CreateDirectory(TempSourcePath + "TEMPISOBASE");
-                FileSystem.CopyDirectory(TempToolsPath + "BASE", TempSourcePath + "TEMPISOBASE");
+                Directory.CreateDirectory(TempSourcePath + "TEMPISOBASE");
+                StringUtil.CopyDirectory(TempToolsPath + "BASE", TempSourcePath + "TEMPISOBASE");
                 if (Force43NINTENDONT.Checked)
                 {
                     if (ForceInterlacedNINTENDONT.Checked)
@@ -1952,19 +1957,19 @@ namespace TeconMoon_s_WiiVC_Injector
             switch (SystemType)
             {
                 case "wii":
-                LaunchProgram(nfsExe, "-enc" + nfspatchflag + lrpatchflag + " -iso \"" + OpenGame.FileName + "\"", true);
+                    LaunchProgram(nfsExe, "-enc" + nfspatchflag + lrpatchflag + " -iso \"" + OpenGame.FileName + "\"", true);
                     break;
 
                 case "dol":
-                LaunchProgram(nfsExe, "-enc -homebrew" + passpatch + " -iso \"" + OpenGame.FileName + "\"", true);
+                    LaunchProgram(nfsExe, "-enc -homebrew" + passpatch + " -iso \"" + OpenGame.FileName + "\"", true);
                     break;
 
                 case "wiiware":
-                LaunchProgram(nfsExe, "-enc -homebrew" + nfspatchflag + lrpatchflag + " -iso \"" + OpenGame.FileName + "\"", true);
+                    LaunchProgram(nfsExe, "-enc -homebrew" + nfspatchflag + lrpatchflag + " -iso \"" + OpenGame.FileName + "\"", true);
                     break;
 
                 case "gcn":
-                LaunchProgram(nfsExe, "-enc -homebrew -passthrough -iso \"" + OpenGame.FileName + "\"", true);
+                    LaunchProgram(nfsExe, "-enc -homebrew -passthrough -iso \"" + OpenGame.FileName + "\"", true);
                     break;
             }
 
