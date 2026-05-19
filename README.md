@@ -39,8 +39,8 @@ Here is the detailed changelog and architectural refactoring breakdown of all ch
 * **Linux/Mono Friendly**: Disabled ClickOnce manifest generation in the `.csproj` file, resolving a classic Mono/MSBuild bug that blocked direct Linux compilation. You can now build and package the `.exe` seamlessly on any operating system!
 
 ### 🧹 7. Native Dialogs & Clean Dependencies
-* **No Legacy CodePack**: Removed the desupported `Microsoft.WindowsAPICodePack` dependency. The project now uses the native `FolderBrowserDialog` from .NET Framework 4.8, which automatically uses the modern Vista/Windows 10+ explorer style layout.
-* **NuGet Purge**: Cleaned up the `packages.config` and `.csproj` of dozens of redundant .NET Standard transitive packages, linking standard System APIs directly through the native .NET 4.8 GAC assemblies.
+* **No Legacy CodePack**: Removed the desupported `Microsoft.WindowsAPICodePack` dependency. The project now uses the native `FolderBrowserDialog` from .NET Framework 4.8.1, which automatically uses the modern Vista/Windows 10+ explorer style layout.
+* **NuGet Purge**: Cleaned up the `packages.config` and `.csproj` of dozens of redundant .NET Standard transitive packages, linking standard System APIs directly through the native .NET 4.8.1 GAC assemblies.
 
 ---
 
