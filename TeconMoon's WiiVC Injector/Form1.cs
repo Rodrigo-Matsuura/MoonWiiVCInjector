@@ -917,17 +917,16 @@ namespace TeconMoon_s_WiiVC_Injector
                             , (MessageBoxOptions)0x40000);
             if (OpenDrc.ShowDialog() == DialogResult.OK)
             {
+                pngtemppath = TempDrcPath;
+                if (File.Exists(pngtemppath)) { File.Delete(pngtemppath); }
+
                 if (Path.GetExtension(OpenDrc.FileName) == ".tga")
                 {
-                    pngtemppath = Path.GetTempPath() + "WiiVCInjector\\SOURCETEMP\\bootDrcTex.png";
-                    if (File.Exists(pngtemppath)) { File.Delete(pngtemppath); }
-                    LaunchProgram(TempToolsPath + "IMG\\tga2pngcmd.exe", "-i \"" + OpenDrc.FileName + "\" -o \"" + Path.GetDirectoryName(pngtemppath) + "\"", true);
-                    File.Move(Path.GetDirectoryName(pngtemppath) + "\\" + Path.GetFileNameWithoutExtension(OpenDrc.FileName) + ".png", pngtemppath);
+                    LaunchProgram(Path.Combine(TempToolsPath, "IMG", "tga2pngcmd.exe"), "-i \"" + OpenDrc.FileName + "\" -o \"" + Path.GetDirectoryName(pngtemppath) + "\"", true);
+                    File.Move(Path.Combine(Path.GetDirectoryName(pngtemppath), Path.GetFileNameWithoutExtension(OpenDrc.FileName) + ".png"), pngtemppath);
                 }
                 else
                 {
-                    pngtemppath = Path.GetTempPath() + "WiiVCInjector\\SOURCETEMP\\bootDrcTex.png";
-                    if (File.Exists(pngtemppath)) { File.Delete(pngtemppath); }
                     Image.FromFile(OpenDrc.FileName).Save(pngtemppath, System.Drawing.Imaging.ImageFormat.Png);
                 }
                 FileStream tempstream = new FileStream(pngtemppath, FileMode.Open);
@@ -957,17 +956,16 @@ namespace TeconMoon_s_WiiVC_Injector
                             , (MessageBoxOptions)0x40000);
             if (OpenLogo.ShowDialog() == DialogResult.OK)
             {
+                pngtemppath = TempLogoPath;
+                if (File.Exists(pngtemppath)) { File.Delete(pngtemppath); }
+
                 if (Path.GetExtension(OpenLogo.FileName) == ".tga")
                 {
-                    pngtemppath = Path.GetTempPath() + "WiiVCInjector\\SOURCETEMP\\bootLogoTex.png";
-                    if (File.Exists(pngtemppath)) { File.Delete(pngtemppath); }
-                    LaunchProgram(TempToolsPath + "IMG\\tga2pngcmd.exe", "-i \"" + OpenLogo.FileName + "\" -o \"" + Path.GetDirectoryName(pngtemppath) + "\"", true);
-                    File.Move(Path.GetDirectoryName(pngtemppath) + "\\" + Path.GetFileNameWithoutExtension(OpenLogo.FileName) + ".png", pngtemppath);
+                    LaunchProgram(Path.Combine(TempToolsPath, "IMG", "tga2pngcmd.exe"), "-i \"" + OpenLogo.FileName + "\" -o \"" + Path.GetDirectoryName(pngtemppath) + "\"", true);
+                    File.Move(Path.Combine(Path.GetDirectoryName(pngtemppath), Path.GetFileNameWithoutExtension(OpenLogo.FileName) + ".png"), pngtemppath);
                 }
                 else
                 {
-                    pngtemppath = Path.GetTempPath() + "WiiVCInjector\\SOURCETEMP\\bootLogoTex.png";
-                    if (File.Exists(pngtemppath)) { File.Delete(pngtemppath); }
                     Image.FromFile(OpenLogo.FileName).Save(pngtemppath, System.Drawing.Imaging.ImageFormat.Png);
                 }
                 FileStream tempstream = new FileStream(pngtemppath, FileMode.Open);
@@ -1712,15 +1710,15 @@ namespace TeconMoon_s_WiiVC_Injector
                 FileUtil.CopyDirectory(JNUSToolDownloads + "0005001010004000", TempBuildPath);
                 FileUtil.CopyDirectory(JNUSToolDownloads + "0005001010004001", TempBuildPath);
                 string[] AncastKeyCopy = { AncastKey.Text };
-                File.WriteAllLines(TempToolsPath + "C2W\\starbuck_key.txt", AncastKeyCopy);
-                File.Copy(TempBuildPath + "code\\c2w.img", TempToolsPath + "C2W\\c2w.img");
-                Directory.SetCurrentDirectory(TempToolsPath + "C2W");
+                File.WriteAllLines(Path.Combine(TempToolsPath, "C2W", "starbuck_key.txt"), AncastKeyCopy);
+                File.Copy(Path.Combine(TempBuildPath, "code", "c2w.img"), Path.Combine(TempToolsPath, "C2W", "c2w.img"));
+                Directory.SetCurrentDirectory(Path.Combine(TempToolsPath, "C2W"));
                 LaunchProgram("c2w_patcher.exe", "-nc", true);
-                File.Delete(TempBuildPath + "code\\c2w.img");
-                File.Copy(TempToolsPath + "C2W\\c2p.img", TempBuildPath + "code\\c2w.img", true);
-                File.Delete(TempToolsPath + "C2W\\c2p.img");
-                File.Delete(TempToolsPath + "C2W\\c2w.img");
-                File.Delete(TempToolsPath + "C2W\\starbuck_key.txt");
+                File.Delete(Path.Combine(TempBuildPath, "code", "c2w.img"));
+                File.Copy(Path.Combine(TempToolsPath, "C2W", "c2p.img"), Path.Combine(TempBuildPath, "code", "c2w.img"), true);
+                File.Delete(Path.Combine(TempToolsPath, "C2W", "c2p.img"));
+                File.Delete(Path.Combine(TempToolsPath, "C2W", "c2w.img"));
+                File.Delete(Path.Combine(TempToolsPath, "C2W", "starbuck_key.txt"));
             }
             BuildProgress.Value = 50;
             //////////////////////////////////////////////
@@ -1729,16 +1727,16 @@ namespace TeconMoon_s_WiiVC_Injector
             BuildStatus.Text = "Generating app.xml and meta.xml";
             BuildStatus.Refresh();
             string[] AppXML = { "<?xml version=\"1.0\" encoding=\"utf-8\"?>", "<app type=\"complex\" access=\"777\">", "  <version type=\"unsignedInt\" length=\"4\">16</version>", "  <os_version type=\"hexBinary\" length=\"8\">000500101000400A</os_version>", "  <title_id type=\"hexBinary\" length=\"8\">" + PackedTitleIDLine.Text + "</title_id>", "  <title_version type=\"hexBinary\" length=\"2\">0000</title_version>", "  <sdk_version type=\"unsignedInt\" length=\"4\">21204</sdk_version>", "  <app_type type=\"hexBinary\" length=\"4\">8000002E</app_type>", "  <group_id type=\"hexBinary\" length=\"4\">" + TitleIDHex + "</group_id>", "  <os_mask type=\"hexBinary\" length=\"32\">0000000000000000000000000000000000000000000000000000000000000000</os_mask>", "  <common_id type=\"hexBinary\" length=\"8\">0000000000000000</common_id>", "</app>" };
-            File.WriteAllLines(TempBuildPath + "code\\app.xml", AppXML);
+            File.WriteAllLines(Path.Combine(TempBuildPath, "code", "app.xml"), AppXML);
             if (EnablePackedLine2.Checked)
             {
                 string[] MetaXML = { "<?xml version=\"1.0\" encoding=\"utf-8\"?>", "<menu type=\"complex\" access=\"777\">", "  <version type=\"unsignedInt\" length=\"4\">33</version>", "  <product_code type=\"string\" length=\"32\">WUP-N-" + TitleIDText + "</product_code>", "  <content_platform type=\"string\" length=\"32\">WUP</content_platform>", "  <company_code type=\"string\" length=\"8\">0001</company_code>", "  <mastering_date type=\"string\" length=\"32\"></mastering_date>", "  <logo_type type=\"unsignedInt\" length=\"4\">0</logo_type>", "  <app_launch_type type=\"hexBinary\" length=\"4\">00000000</app_launch_type>", "  <invisible_flag type=\"hexBinary\" length=\"4\">00000000</invisible_flag>", "  <no_managed_flag type=\"hexBinary\" length=\"4\">00000000</no_managed_flag>", "  <no_event_log type=\"hexBinary\" length=\"4\">00000002</no_event_log>", "  <no_icon_database type=\"hexBinary\" length=\"4\">00000000</no_icon_database>", "  <launching_flag type=\"hexBinary\" length=\"4\">00000004</launching_flag>", "  <install_flag type=\"hexBinary\" length=\"4\">00000000</install_flag>", "  <closing_msg type=\"unsignedInt\" length=\"4\">0</closing_msg>", "  <title_version type=\"unsignedInt\" length=\"4\">0</title_version>", "  <title_id type=\"hexBinary\" length=\"8\">" + PackedTitleIDLine.Text + "</title_id>", "  <group_id type=\"hexBinary\" length=\"4\">" + TitleIDHex + "</group_id>", "  <boss_id type=\"hexBinary\" length=\"8\">0000000000000000</boss_id>", "  <os_version type=\"hexBinary\" length=\"8\">000500101000400A</os_version>", "  <app_size type=\"hexBinary\" length=\"8\">0000000000000000</app_size>", "  <common_save_size type=\"hexBinary\" length=\"8\">0000000000000000</common_save_size>", "  <account_save_size type=\"hexBinary\" length=\"8\">0000000000000000</account_save_size>", "  <common_boss_size type=\"hexBinary\" length=\"8\">0000000000000000</common_boss_size>", "  <account_boss_size type=\"hexBinary\" length=\"8\">0000000000000000</account_boss_size>", "  <save_no_rollback type=\"unsignedInt\" length=\"4\">0</save_no_rollback>", "  <join_game_id type=\"hexBinary\" length=\"4\">00000000</join_game_id>", "  <join_game_mode_mask type=\"hexBinary\" length=\"8\">0000000000000000</join_game_mode_mask>", "  <bg_daemon_enable type=\"unsignedInt\" length=\"4\">0</bg_daemon_enable>", "  <olv_accesskey type=\"unsignedInt\" length=\"4\">3921400692</olv_accesskey>", "  <wood_tin type=\"unsignedInt\" length=\"4\">0</wood_tin>", "  <e_manual type=\"unsignedInt\" length=\"4\">0</e_manual>", "  <e_manual_version type=\"unsignedInt\" length=\"4\">0</e_manual_version>", "  <region type=\"hexBinary\" length=\"4\">00000002</region>", "  <pc_cero type=\"unsignedInt\" length=\"4\">128</pc_cero>", "  <pc_esrb type=\"unsignedInt\" length=\"4\">6</pc_esrb>", "  <pc_bbfc type=\"unsignedInt\" length=\"4\">192</pc_bbfc>", "  <pc_usk type=\"unsignedInt\" length=\"4\">128</pc_usk>", "  <pc_pegi_gen type=\"unsignedInt\" length=\"4\">128</pc_pegi_gen>", "  <pc_pegi_fin type=\"unsignedInt\" length=\"4\">192</pc_pegi_fin>", "  <pc_pegi_prt type=\"unsignedInt\" length=\"4\">128</pc_pegi_prt>", "  <pc_pegi_bbfc type=\"unsignedInt\" length=\"4\">128</pc_pegi_bbfc>", "  <pc_cob type=\"unsignedInt\" length=\"4\">128</pc_cob>", "  <pc_grb type=\"unsignedInt\" length=\"4\">128</pc_grb>", "  <pc_cgsrr type=\"unsignedInt\" length=\"4\">128</pc_cgsrr>", "  <pc_oflc type=\"unsignedInt\" length=\"4\">128</pc_oflc>", "  <pc_reserved0 type=\"unsignedInt\" length=\"4\">192</pc_reserved0>", "  <pc_reserved1 type=\"unsignedInt\" length=\"4\">192</pc_reserved1>", "  <pc_reserved2 type=\"unsignedInt\" length=\"4\">192</pc_reserved2>", "  <pc_reserved3 type=\"unsignedInt\" length=\"4\">192</pc_reserved3>", "  <ext_dev_nunchaku type=\"unsignedInt\" length=\"4\">0</ext_dev_nunchaku>", "  <ext_dev_classic type=\"unsignedInt\" length=\"4\">0</ext_dev_classic>", "  <ext_dev_urcc type=\"unsignedInt\" length=\"4\">0</ext_dev_urcc>", "  <ext_dev_board type=\"unsignedInt\" length=\"4\">0</ext_dev_board>", "  <ext_dev_usb_keyboard type=\"unsignedInt\" length=\"4\">0</ext_dev_usb_keyboard>", "  <ext_dev_etc type=\"unsignedInt\" length=\"4\">0</ext_dev_etc>", "  <ext_dev_etc_name type=\"string\" length=\"512\"></ext_dev_etc_name>", "  <eula_version type=\"unsignedInt\" length=\"4\">0</eula_version>", "  <drc_use type=\"unsignedInt\" length=\"4\">" + DRCUSE + "</drc_use>", "  <network_use type=\"unsignedInt\" length=\"4\">0</network_use>", "  <online_account_use type=\"unsignedInt\" length=\"4\">0</online_account_use>", "  <direct_boot type=\"unsignedInt\" length=\"4\">0</direct_boot>", "  <reserved_flag0 type=\"hexBinary\" length=\"4\">00010001</reserved_flag0>", "  <reserved_flag1 type=\"hexBinary\" length=\"4\">00080023</reserved_flag1>", "  <reserved_flag2 type=\"hexBinary\" length=\"4\">" + TitleIDHex + "</reserved_flag2>", "  <reserved_flag3 type=\"hexBinary\" length=\"4\">00000000</reserved_flag3>", "  <reserved_flag4 type=\"hexBinary\" length=\"4\">00000000</reserved_flag4>", "  <reserved_flag5 type=\"hexBinary\" length=\"4\">00000000</reserved_flag5>", "  <reserved_flag6 type=\"hexBinary\" length=\"4\">00000003</reserved_flag6>", "  <reserved_flag7 type=\"hexBinary\" length=\"4\">00000005</reserved_flag7>", "  <longname_ja type=\"string\" length=\"512\">" + PackedTitleLine1.Text, PackedTitleLine2.Text + "</longname_ja>", "  <longname_en type=\"string\" length=\"512\">" + PackedTitleLine1.Text, PackedTitleLine2.Text + "</longname_en>", "  <longname_fr type=\"string\" length=\"512\">" + PackedTitleLine1.Text, PackedTitleLine2.Text + "</longname_fr>", "  <longname_de type=\"string\" length=\"512\">" + PackedTitleLine1.Text, PackedTitleLine2.Text + "</longname_de>", "  <longname_it type=\"string\" length=\"512\">" + PackedTitleLine1.Text, PackedTitleLine2.Text + "</longname_it>", "  <longname_es type=\"string\" length=\"512\">" + PackedTitleLine1.Text, PackedTitleLine2.Text + "</longname_es>", "  <longname_zhs type=\"string\" length=\"512\">" + PackedTitleLine1.Text, PackedTitleLine2.Text + "</longname_zhs>", "  <longname_ko type=\"string\" length=\"512\">" + PackedTitleLine1.Text, PackedTitleLine2.Text + "</longname_ko>", "  <longname_nl type=\"string\" length=\"512\">" + PackedTitleLine1.Text, PackedTitleLine2.Text + "</longname_nl>", "  <longname_pt type=\"string\" length=\"512\">" + PackedTitleLine1.Text, PackedTitleLine2.Text + "</longname_pt>", "  <longname_ru type=\"string\" length=\"512\">" + PackedTitleLine1.Text, PackedTitleLine2.Text + "</longname_ru>", "  <longname_zht type=\"string\" length=\"512\">" + PackedTitleLine1.Text, PackedTitleLine2.Text + "</longname_zht>", "  <shortname_ja type=\"string\" length=\"512\">" + PackedTitleLine1.Text + "</shortname_ja>", "  <shortname_en type=\"string\" length=\"512\">" + PackedTitleLine1.Text + "</shortname_en>", "  <shortname_fr type=\"string\" length=\"512\">" + PackedTitleLine1.Text + "</shortname_fr>", "  <shortname_de type=\"string\" length=\"512\">" + PackedTitleLine1.Text + "</shortname_de>", "  <shortname_it type=\"string\" length=\"512\">" + PackedTitleLine1.Text + "</shortname_it>", "  <shortname_es type=\"string\" length=\"512\">" + PackedTitleLine1.Text + "</shortname_es>", "  <shortname_zhs type=\"string\" length=\"512\">" + PackedTitleLine1.Text + "</shortname_zhs>", "  <shortname_ko type=\"string\" length=\"512\">" + PackedTitleLine1.Text + "</shortname_ko>", "  <shortname_nl type=\"string\" length=\"512\">" + PackedTitleLine1.Text + "</shortname_nl>", "  <shortname_pt type=\"string\" length=\"512\">" + PackedTitleLine1.Text + "</shortname_pt>", "  <shortname_ru type=\"string\" length=\"512\">" + PackedTitleLine1.Text + "</shortname_ru>", "  <shortname_zht type=\"string\" length=\"512\">" + PackedTitleLine1.Text + "</shortname_zht>", "  <publisher_ja type=\"string\" length=\"256\"></publisher_ja>", "  <publisher_en type=\"string\" length=\"256\"></publisher_en>", "  <publisher_fr type=\"string\" length=\"256\"></publisher_fr>", "  <publisher_de type=\"string\" length=\"256\"></publisher_de>", "  <publisher_it type=\"string\" length=\"256\"></publisher_it>", "  <publisher_es type=\"string\" length=\"256\"></publisher_es>", "  <publisher_zhs type=\"string\" length=\"256\"></publisher_zhs>", "  <publisher_ko type=\"string\" length=\"256\"></publisher_ko>", "  <publisher_nl type=\"string\" length=\"256\"></publisher_nl>", "  <publisher_pt type=\"string\" length=\"256\"></publisher_pt>", "  <publisher_ru type=\"string\" length=\"256\"></publisher_ru>", "  <publisher_zht type=\"string\" length=\"256\"></publisher_zht>", "  <add_on_unique_id0 type=\"hexBinary\" length=\"4\">00000000</add_on_unique_id0>", "  <add_on_unique_id1 type=\"hexBinary\" length=\"4\">00000000</add_on_unique_id1>", "  <add_on_unique_id2 type=\"hexBinary\" length=\"4\">00000000</add_on_unique_id2>", "  <add_on_unique_id3 type=\"hexBinary\" length=\"4\">00000000</add_on_unique_id3>", "  <add_on_unique_id4 type=\"hexBinary\" length=\"4\">00000000</add_on_unique_id4>", "  <add_on_unique_id5 type=\"hexBinary\" length=\"4\">00000000</add_on_unique_id5>", "  <add_on_unique_id6 type=\"hexBinary\" length=\"4\">00000000</add_on_unique_id6>", "  <add_on_unique_id7 type=\"hexBinary\" length=\"4\">00000000</add_on_unique_id7>", "  <add_on_unique_id8 type=\"hexBinary\" length=\"4\">00000000</add_on_unique_id8>", "  <add_on_unique_id9 type=\"hexBinary\" length=\"4\">00000000</add_on_unique_id9>", "  <add_on_unique_id10 type=\"hexBinary\" length=\"4\">00000000</add_on_unique_id10>", "  <add_on_unique_id11 type=\"hexBinary\" length=\"4\">00000000</add_on_unique_id11>", "  <add_on_unique_id12 type=\"hexBinary\" length=\"4\">00000000</add_on_unique_id12>", "  <add_on_unique_id13 type=\"hexBinary\" length=\"4\">00000000</add_on_unique_id13>", "  <add_on_unique_id14 type=\"hexBinary\" length=\"4\">00000000</add_on_unique_id14>", "  <add_on_unique_id15 type=\"hexBinary\" length=\"4\">00000000</add_on_unique_id15>", "  <add_on_unique_id16 type=\"hexBinary\" length=\"4\">00000000</add_on_unique_id16>", "  <add_on_unique_id17 type=\"hexBinary\" length=\"4\">00000000</add_on_unique_id17>", "  <add_on_unique_id18 type=\"hexBinary\" length=\"4\">00000000</add_on_unique_id18>", "  <add_on_unique_id19 type=\"hexBinary\" length=\"4\">00000000</add_on_unique_id19>", "  <add_on_unique_id20 type=\"hexBinary\" length=\"4\">00000000</add_on_unique_id20>", "  <add_on_unique_id21 type=\"hexBinary\" length=\"4\">00000000</add_on_unique_id21>", "  <add_on_unique_id22 type=\"hexBinary\" length=\"4\">00000000</add_on_unique_id22>", "  <add_on_unique_id23 type=\"hexBinary\" length=\"4\">00000000</add_on_unique_id23>", "  <add_on_unique_id24 type=\"hexBinary\" length=\"4\">00000000</add_on_unique_id24>", "  <add_on_unique_id25 type=\"hexBinary\" length=\"4\">00000000</add_on_unique_id25>", "  <add_on_unique_id26 type=\"hexBinary\" length=\"4\">00000000</add_on_unique_id26>", "  <add_on_unique_id27 type=\"hexBinary\" length=\"4\">00000000</add_on_unique_id27>", "  <add_on_unique_id28 type=\"hexBinary\" length=\"4\">00000000</add_on_unique_id28>", "  <add_on_unique_id29 type=\"hexBinary\" length=\"4\">00000000</add_on_unique_id29>", "  <add_on_unique_id30 type=\"hexBinary\" length=\"4\">00000000</add_on_unique_id30>", "  <add_on_unique_id31 type=\"hexBinary\" length=\"4\">00000000</add_on_unique_id31>", "</menu>" };
-                File.WriteAllLines(TempBuildPath + "meta\\meta.xml", MetaXML);
+                File.WriteAllLines(Path.Combine(TempBuildPath, "meta", "meta.xml"), MetaXML);
             }
             else
             {
                 string[] MetaXML = { "<?xml version=\"1.0\" encoding=\"utf-8\"?>", "<menu type=\"complex\" access=\"777\">", "  <version type=\"unsignedInt\" length=\"4\">33</version>", "  <product_code type=\"string\" length=\"32\">WUP-N-" + TitleIDText + "</product_code>", "  <content_platform type=\"string\" length=\"32\">WUP</content_platform>", "  <company_code type=\"string\" length=\"8\">0001</company_code>", "  <mastering_date type=\"string\" length=\"32\"></mastering_date>", "  <logo_type type=\"unsignedInt\" length=\"4\">0</logo_type>", "  <app_launch_type type=\"hexBinary\" length=\"4\">00000000</app_launch_type>", "  <invisible_flag type=\"hexBinary\" length=\"4\">00000000</invisible_flag>", "  <no_managed_flag type=\"hexBinary\" length=\"4\">00000000</no_managed_flag>", "  <no_event_log type=\"hexBinary\" length=\"4\">00000002</no_event_log>", "  <no_icon_database type=\"hexBinary\" length=\"4\">00000000</no_icon_database>", "  <launching_flag type=\"hexBinary\" length=\"4\">00000004</launching_flag>", "  <install_flag type=\"hexBinary\" length=\"4\">00000000</install_flag>", "  <closing_msg type=\"unsignedInt\" length=\"4\">0</closing_msg>", "  <title_version type=\"unsignedInt\" length=\"4\">0</title_version>", "  <title_id type=\"hexBinary\" length=\"8\">" + PackedTitleIDLine.Text + "</title_id>", "  <group_id type=\"hexBinary\" length=\"4\">" + TitleIDHex + "</group_id>", "  <boss_id type=\"hexBinary\" length=\"8\">0000000000000000</boss_id>", "  <os_version type=\"hexBinary\" length=\"8\">000500101000400A</os_version>", "  <app_size type=\"hexBinary\" length=\"8\">0000000000000000</app_size>", "  <common_save_size type=\"hexBinary\" length=\"8\">0000000000000000</common_save_size>", "  <account_save_size type=\"hexBinary\" length=\"8\">0000000000000000</account_save_size>", "  <common_boss_size type=\"hexBinary\" length=\"8\">0000000000000000</common_boss_size>", "  <account_boss_size type=\"hexBinary\" length=\"8\">0000000000000000</account_boss_size>", "  <save_no_rollback type=\"unsignedInt\" length=\"4\">0</save_no_rollback>", "  <join_game_id type=\"hexBinary\" length=\"4\">00000000</join_game_id>", "  <join_game_mode_mask type=\"hexBinary\" length=\"8\">0000000000000000</join_game_mode_mask>", "  <bg_daemon_enable type=\"unsignedInt\" length=\"4\">0</bg_daemon_enable>", "  <olv_accesskey type=\"unsignedInt\" length=\"4\">3921400692</olv_accesskey>", "  <wood_tin type=\"unsignedInt\" length=\"4\">0</wood_tin>", "  <e_manual type=\"unsignedInt\" length=\"4\">0</e_manual>", "  <e_manual_version type=\"unsignedInt\" length=\"4\">0</e_manual_version>", "  <region type=\"hexBinary\" length=\"4\">00000002</region>", "  <pc_cero type=\"unsignedInt\" length=\"4\">128</pc_cero>", "  <pc_esrb type=\"unsignedInt\" length=\"4\">6</pc_esrb>", "  <pc_bbfc type=\"unsignedInt\" length=\"4\">192</pc_bbfc>", "  <pc_usk type=\"unsignedInt\" length=\"4\">128</pc_usk>", "  <pc_pegi_gen type=\"unsignedInt\" length=\"4\">128</pc_pegi_gen>", "  <pc_pegi_fin type=\"unsignedInt\" length=\"4\">192</pc_pegi_fin>", "  <pc_pegi_prt type=\"unsignedInt\" length=\"4\">128</pc_pegi_prt>", "  <pc_pegi_bbfc type=\"unsignedInt\" length=\"4\">128</pc_pegi_bbfc>", "  <pc_cob type=\"unsignedInt\" length=\"4\">128</pc_cob>", "  <pc_grb type=\"unsignedInt\" length=\"4\">128</pc_grb>", "  <pc_cgsrr type=\"unsignedInt\" length=\"4\">128</pc_cgsrr>", "  <pc_oflc type=\"unsignedInt\" length=\"4\">128</pc_oflc>", "  <pc_reserved0 type=\"unsignedInt\" length=\"4\">192</pc_reserved0>", "  <pc_reserved1 type=\"unsignedInt\" length=\"4\">192</pc_reserved1>", "  <pc_reserved2 type=\"unsignedInt\" length=\"4\">192</pc_reserved2>", "  <pc_reserved3 type=\"unsignedInt\" length=\"4\">192</pc_reserved3>", "  <ext_dev_nunchaku type=\"unsignedInt\" length=\"4\">0</ext_dev_nunchaku>", "  <ext_dev_classic type=\"unsignedInt\" length=\"4\">0</ext_dev_classic>", "  <ext_dev_urcc type=\"unsignedInt\" length=\"4\">0</ext_dev_urcc>", "  <ext_dev_board type=\"unsignedInt\" length=\"4\">0</ext_dev_board>", "  <ext_dev_usb_keyboard type=\"unsignedInt\" length=\"4\">0</ext_dev_usb_keyboard>", "  <ext_dev_etc type=\"unsignedInt\" length=\"4\">0</ext_dev_etc>", "  <ext_dev_etc_name type=\"string\" length=\"512\"></ext_dev_etc_name>", "  <eula_version type=\"unsignedInt\" length=\"4\">0</eula_version>", "  <drc_use type=\"unsignedInt\" length=\"4\">" + DRCUSE + "</drc_use>", "  <network_use type=\"unsignedInt\" length=\"4\">0</network_use>", "  <online_account_use type=\"unsignedInt\" length=\"4\">0</online_account_use>", "  <direct_boot type=\"unsignedInt\" length=\"4\">0</direct_boot>", "  <reserved_flag0 type=\"hexBinary\" length=\"4\">00010001</reserved_flag0>", "  <reserved_flag1 type=\"hexBinary\" length=\"4\">00080023</reserved_flag1>", "  <reserved_flag2 type=\"hexBinary\" length=\"4\">" + TitleIDHex + "</reserved_flag2>", "  <reserved_flag3 type=\"hexBinary\" length=\"4\">00000000</reserved_flag3>", "  <reserved_flag4 type=\"hexBinary\" length=\"4\">00000000</reserved_flag4>", "  <reserved_flag5 type=\"hexBinary\" length=\"4\">00000000</reserved_flag5>", "  <reserved_flag6 type=\"hexBinary\" length=\"4\">00000003</reserved_flag6>", "  <reserved_flag7 type=\"hexBinary\" length=\"4\">00000005</reserved_flag7>", "  <longname_ja type=\"string\" length=\"512\">" + PackedTitleLine1.Text + "</longname_ja>", "  <longname_en type=\"string\" length=\"512\">" + PackedTitleLine1.Text + "</longname_en>", "  <longname_fr type=\"string\" length=\"512\">" + PackedTitleLine1.Text + "</longname_fr>", "  <longname_de type=\"string\" length=\"512\">" + PackedTitleLine1.Text + "</longname_de>", "  <longname_it type=\"string\" length=\"512\">" + PackedTitleLine1.Text + "</longname_it>", "  <longname_es type=\"string\" length=\"512\">" + PackedTitleLine1.Text + "</longname_es>", "  <longname_zhs type=\"string\" length=\"512\">" + PackedTitleLine1.Text + "</longname_zhs>", "  <longname_ko type=\"string\" length=\"512\">" + PackedTitleLine1.Text + "</longname_ko>", "  <longname_nl type=\"string\" length=\"512\">" + PackedTitleLine1.Text + "</longname_nl>", "  <longname_pt type=\"string\" length=\"512\">" + PackedTitleLine1.Text + "</longname_pt>", "  <longname_ru type=\"string\" length=\"512\">" + PackedTitleLine1.Text + "</longname_ru>", "  <longname_zht type=\"string\" length=\"512\">" + PackedTitleLine1.Text + "</longname_zht>", "  <shortname_ja type=\"string\" length=\"512\">" + PackedTitleLine1.Text + "</shortname_ja>", "  <shortname_en type=\"string\" length=\"512\">" + PackedTitleLine1.Text + "</shortname_en>", "  <shortname_fr type=\"string\" length=\"512\">" + PackedTitleLine1.Text + "</shortname_fr>", "  <shortname_de type=\"string\" length=\"512\">" + PackedTitleLine1.Text + "</shortname_de>", "  <shortname_it type=\"string\" length=\"512\">" + PackedTitleLine1.Text + "</shortname_it>", "  <shortname_es type=\"string\" length=\"512\">" + PackedTitleLine1.Text + "</shortname_es>", "  <shortname_zhs type=\"string\" length=\"512\">" + PackedTitleLine1.Text + "</shortname_zhs>", "  <shortname_ko type=\"string\" length=\"512\">" + PackedTitleLine1.Text + "</shortname_ko>", "  <shortname_nl type=\"string\" length=\"512\">" + PackedTitleLine1.Text + "</shortname_nl>", "  <shortname_pt type=\"string\" length=\"512\">" + PackedTitleLine1.Text + "</shortname_pt>", "  <shortname_ru type=\"string\" length=\"512\">" + PackedTitleLine1.Text + "</shortname_ru>", "  <shortname_zht type=\"string\" length=\"512\">" + PackedTitleLine1.Text + "</shortname_zht>", "  <publisher_ja type=\"string\" length=\"256\"></publisher_ja>", "  <publisher_en type=\"string\" length=\"256\"></publisher_en>", "  <publisher_fr type=\"string\" length=\"256\"></publisher_fr>", "  <publisher_de type=\"string\" length=\"256\"></publisher_de>", "  <publisher_it type=\"string\" length=\"256\"></publisher_it>", "  <publisher_es type=\"string\" length=\"256\"></publisher_es>", "  <publisher_zhs type=\"string\" length=\"256\"></publisher_zhs>", "  <publisher_ko type=\"string\" length=\"256\"></publisher_ko>", "  <publisher_nl type=\"string\" length=\"256\"></publisher_nl>", "  <publisher_pt type=\"string\" length=\"256\"></publisher_pt>", "  <publisher_ru type=\"string\" length=\"256\"></publisher_ru>", "  <publisher_zht type=\"string\" length=\"256\"></publisher_zht>", "  <add_on_unique_id0 type=\"hexBinary\" length=\"4\">00000000</add_on_unique_id0>", "  <add_on_unique_id1 type=\"hexBinary\" length=\"4\">00000000</add_on_unique_id1>", "  <add_on_unique_id2 type=\"hexBinary\" length=\"4\">00000000</add_on_unique_id2>", "  <add_on_unique_id3 type=\"hexBinary\" length=\"4\">00000000</add_on_unique_id3>", "  <add_on_unique_id4 type=\"hexBinary\" length=\"4\">00000000</add_on_unique_id4>", "  <add_on_unique_id5 type=\"hexBinary\" length=\"4\">00000000</add_on_unique_id5>", "  <add_on_unique_id6 type=\"hexBinary\" length=\"4\">00000000</add_on_unique_id6>", "  <add_on_unique_id7 type=\"hexBinary\" length=\"4\">00000000</add_on_unique_id7>", "  <add_on_unique_id8 type=\"hexBinary\" length=\"4\">00000000</add_on_unique_id8>", "  <add_on_unique_id9 type=\"hexBinary\" length=\"4\">00000000</add_on_unique_id9>", "  <add_on_unique_id10 type=\"hexBinary\" length=\"4\">00000000</add_on_unique_id10>", "  <add_on_unique_id11 type=\"hexBinary\" length=\"4\">00000000</add_on_unique_id11>", "  <add_on_unique_id12 type=\"hexBinary\" length=\"4\">00000000</add_on_unique_id12>", "  <add_on_unique_id13 type=\"hexBinary\" length=\"4\">00000000</add_on_unique_id13>", "  <add_on_unique_id14 type=\"hexBinary\" length=\"4\">00000000</add_on_unique_id14>", "  <add_on_unique_id15 type=\"hexBinary\" length=\"4\">00000000</add_on_unique_id15>", "  <add_on_unique_id16 type=\"hexBinary\" length=\"4\">00000000</add_on_unique_id16>", "  <add_on_unique_id17 type=\"hexBinary\" length=\"4\">00000000</add_on_unique_id17>", "  <add_on_unique_id18 type=\"hexBinary\" length=\"4\">00000000</add_on_unique_id18>", "  <add_on_unique_id19 type=\"hexBinary\" length=\"4\">00000000</add_on_unique_id19>", "  <add_on_unique_id20 type=\"hexBinary\" length=\"4\">00000000</add_on_unique_id20>", "  <add_on_unique_id21 type=\"hexBinary\" length=\"4\">00000000</add_on_unique_id21>", "  <add_on_unique_id22 type=\"hexBinary\" length=\"4\">00000000</add_on_unique_id22>", "  <add_on_unique_id23 type=\"hexBinary\" length=\"4\">00000000</add_on_unique_id23>", "  <add_on_unique_id24 type=\"hexBinary\" length=\"4\">00000000</add_on_unique_id24>", "  <add_on_unique_id25 type=\"hexBinary\" length=\"4\">00000000</add_on_unique_id25>", "  <add_on_unique_id26 type=\"hexBinary\" length=\"4\">00000000</add_on_unique_id26>", "  <add_on_unique_id27 type=\"hexBinary\" length=\"4\">00000000</add_on_unique_id27>", "  <add_on_unique_id28 type=\"hexBinary\" length=\"4\">00000000</add_on_unique_id28>", "  <add_on_unique_id29 type=\"hexBinary\" length=\"4\">00000000</add_on_unique_id29>", "  <add_on_unique_id30 type=\"hexBinary\" length=\"4\">00000000</add_on_unique_id30>", "  <add_on_unique_id31 type=\"hexBinary\" length=\"4\">00000000</add_on_unique_id31>", "</menu>" };
-                File.WriteAllLines(TempBuildPath + "meta\\meta.xml", MetaXML);
+                File.WriteAllLines(Path.Combine(TempBuildPath, "meta", "meta.xml"), MetaXML);
             }
             BuildProgress.Value = 52;
             /////////////////////////////
@@ -1746,16 +1744,16 @@ namespace TeconMoon_s_WiiVC_Injector
             //Convert PNG files to TGA
             BuildStatus.Text = "Converting all image sources to expected TGA specification...";
             BuildStatus.Refresh();
-            LaunchProgram(TempToolsPath + "IMG\\png2tgacmd.exe", "-i \"" + TempIconPath + "\" -o \"" + TempBuildPath + "meta\" --width=128 --height=128 --tga-bpp=32 --tga-compression=none", true);
-            LaunchProgram(TempToolsPath + "IMG\\png2tgacmd.exe", "-i \"" + TempBannerPath + "\" -o \"" + TempBuildPath + "meta\" --width=1280 --height=720 --tga-bpp=24 --tga-compression=none", true);
+            LaunchProgram(Path.Combine(TempToolsPath, "IMG", "png2tgacmd.exe"), "-i \"" + TempIconPath + "\" -o \"" + Path.Combine(TempBuildPath, "meta") + "\" --width=128 --height=128 --tga-bpp=32 --tga-compression=none", true);
+            LaunchProgram(Path.Combine(TempToolsPath, "IMG", "png2tgacmd.exe"), "-i \"" + TempBannerPath + "\" -o \"" + Path.Combine(TempBuildPath, "meta") + "\" --width=1280 --height=720 --tga-bpp=24 --tga-compression=none", true);
             if (FlagDrcSpecified == false)
             {
                 File.Copy(TempBannerPath, TempDrcPath);
             }
-            LaunchProgram(TempToolsPath + "IMG\\png2tgacmd.exe", "-i \"" + TempDrcPath + "\" -o \"" + TempBuildPath + "meta\" --width=854 --height=480 --tga-bpp=24 --tga-compression=none", true);
+            LaunchProgram(Path.Combine(TempToolsPath, "IMG", "png2tgacmd.exe"), "-i \"" + TempDrcPath + "\" -o \"" + Path.Combine(TempBuildPath, "meta") + "\" --width=854 --height=480 --tga-bpp=24 --tga-compression=none", true);
             if (FlagLogoSpecified)
             {
-                LaunchProgram(TempToolsPath + "IMG\\png2tgacmd.exe", "-i \"" + TempLogoPath + "\" -o \"" + TempBuildPath + "meta\" --width=170 --height=42 --tga-bpp=32 --tga-compression=none", true);
+                LaunchProgram(Path.Combine(TempToolsPath, "IMG", "png2tgacmd.exe"), "-i \"" + TempLogoPath + "\" -o \"" + Path.Combine(TempBuildPath, "meta") + "\" --width=170 --height=42 --tga-bpp=32 --tga-compression=none", true);
             }
             if (FlagDrcSpecified == false) { File.Delete(TempDrcPath); }
             BuildProgress.Value = 55;
@@ -1766,9 +1764,9 @@ namespace TeconMoon_s_WiiVC_Injector
             {
                 BuildStatus.Text = "Converting user-provided sound to btsnd format...";
                 BuildStatus.Refresh();
-                LaunchProgram(TempToolsPath + "SOX\\sox.exe", "\"" + OpenBootSound.FileName + "\" -b 16 \"" + TempSoundPath + "\" channels 2 rate 48k trim 0 6", true);
-                File.Delete(TempBuildPath + "meta\\bootSound.btsnd");
-                LaunchProgram(TempToolsPath + "JAR\\wav2btsnd.exe", "-in \"" + TempSoundPath + "\" -out \"" + TempBuildPath + "meta\\bootSound.btsnd\"" + LoopString, true);
+                LaunchProgram(Path.Combine(TempToolsPath, "SOX", "sox.exe"), "\"" + OpenBootSound.FileName + "\" -b 16 \"" + TempSoundPath + "\" channels 2 rate 48k trim 0 6", true);
+                File.Delete(Path.Combine(TempBuildPath, "meta", "bootSound.btsnd"));
+                LaunchProgram(Path.Combine(TempToolsPath, "JAR", "wav2btsnd.exe"), "-in \"" + TempSoundPath + "\" -out \"" + Path.Combine(TempBuildPath, "meta", "bootSound.btsnd") + "\"" + LoopString, true);
                 File.Delete(TempSoundPath);
             }
             BuildProgress.Value = 60;
@@ -1782,33 +1780,33 @@ namespace TeconMoon_s_WiiVC_Injector
             {
                 if (FlagWBFS)
                 {
-                    LaunchProgram(TempToolsPath + "EXE\\wbfs_file.exe", "\"" + OpenGame.FileName + "\" convert \"" + TempSourcePath + "wbfsconvert.iso\"", true);
-                    OpenGame.FileName = TempSourcePath + "wbfsconvert.iso";
+                    LaunchProgram(Path.Combine(TempToolsPath, "EXE", "wbfs_file.exe"), "\"" + OpenGame.FileName + "\" convert \"" + Path.Combine(TempSourcePath, "wbfsconvert.iso") + "\"", true);
+                    OpenGame.FileName = Path.Combine(TempSourcePath, "wbfsconvert.iso");
                 }
                 if (FlagNKIT || FlagNASOS)
                 {
-                    if (Directory.Exists(TempToolsPath + "NKIT\\Processed"))
+                    if (Directory.Exists(Path.Combine(TempToolsPath, "NKIT", "Processed")))
                     {
-                        Directory.Delete(TempToolsPath + "NKIT\\Processed", true);
+                        Directory.Delete(Path.Combine(TempToolsPath, "NKIT", "Processed"), true);
                     }
                     BuildStatus.Text = "Unscrubbing game for NFS Conversion...";
                     BuildStatus.Refresh();
-                    LaunchProgram(TempToolsPath + "NKIT\\ConvertToISO.exe", "\"" + OpenGame.FileName + "\"", true);
-                    OpenGame.FileName = TempSourcePath + "game.iso";
+                    LaunchProgram(Path.Combine(TempToolsPath, "NKIT", "ConvertToISO.exe"), "\"" + OpenGame.FileName + "\"", true);
+                    OpenGame.FileName = Path.Combine(TempSourcePath, "game.iso");
                     if (FlagNKIT)
-                        File.Move(Directory.GetFiles(TempToolsPath + "NKIT\\Processed\\Temp", "*.tmp")[0], OpenGame.FileName);
+                        File.Move(Directory.GetFiles(Path.Combine(TempToolsPath, "NKIT", "Processed", "Temp"), "*.tmp")[0], OpenGame.FileName);
                     else
-                        File.Move(Directory.GetFiles(TempToolsPath + "NKIT\\Processed\\Wii_MatchFail", "*.iso")[0], OpenGame.FileName);
+                        File.Move(Directory.GetFiles(Path.Combine(TempToolsPath, "NKIT", "Processed", "Wii_MatchFail"), "*.iso")[0], OpenGame.FileName);
 
                 }
                 if (DisableTrimming.Checked == false)
                 {
                     BuildStatus.Text = "Extracting game for NFS Conversion...";
                     BuildStatus.Refresh();
-                    LaunchProgram(TempToolsPath + "WIT\\wit.exe", "extract " + "\"" + OpenGame.FileName + "\"" + " --DEST " + TempSourcePath + "ISOEXTRACT" + " --psel data,-update -ovv", true); // EXTRACT WII ISO
+                    LaunchProgram(Path.Combine(TempToolsPath, "WIT", "wit.exe"), "extract " + "\"" + OpenGame.FileName + "\"" + " --DEST " + Path.Combine(TempSourcePath, "ISOEXTRACT") + " --psel data,-update -ovv", true); // EXTRACT WII ISO
                     if (ForceCC.Checked)
                     {
-                        LaunchProgram(TempToolsPath + "EXE\\GetExtTypePatcher.exe", "\"" + TempSourcePath + "ISOEXTRACT\\sys\\main.dol\" -nc", true);
+                        LaunchProgram(Path.Combine(TempToolsPath, "EXE", "GetExtTypePatcher.exe"), "\"" + Path.Combine(TempSourcePath, "ISOEXTRACT", "sys", "main.dol") + "\" -nc", true);
                     }
                     if (WiiVMC.Checked)
                     {
@@ -1820,7 +1818,7 @@ namespace TeconMoon_s_WiiVC_Injector
                                         , MessageBoxIcon.Information
                                         , MessageBoxDefaultButton.Button1
                                         , (MessageBoxOptions)0x40000);
-                        LaunchProgram(TempToolsPath + "EXE\\wii-vmc.exe", "\"" + TempSourcePath + "ISOEXTRACT\\sys\\main.dol\"", false);
+                        LaunchProgram(Path.Combine(TempToolsPath, "EXE", "wii-vmc.exe"), "\"" + Path.Combine(TempSourcePath, "ISOEXTRACT", "sys", "main.dol") + "\"", false);
                         MessageBox.Show("Conversion will now continue..."
                                         , "Information"
                                         , MessageBoxButtons.OK
@@ -1834,120 +1832,120 @@ namespace TeconMoon_s_WiiVC_Injector
                     {
                         wiimmfiOption = "";
                     }
-                    LaunchProgram(Path.Combine(TempToolsPath, "WIT", "wit.exe"), "copy " + TempSourcePath + "ISOEXTRACT" + " --DEST " + TempSourcePath + "game.iso" + " -ovv --links --iso" + wiimmfiOption, true); // REBUILD WII ISO
-                    if (File.Exists(TempSourcePath + "wbfsconvert.iso")) { File.Delete(TempSourcePath + "wbfsconvert.iso"); }
-                    OpenGame.FileName = TempSourcePath + "game.iso";
+                    LaunchProgram(Path.Combine(TempToolsPath, "WIT", "wit.exe"), "copy " + Path.Combine(TempSourcePath, "ISOEXTRACT") + " --DEST " + Path.Combine(TempSourcePath, "game.iso") + " -ovv --links --iso" + wiimmfiOption, true); // REBUILD WII ISO
+                    if (File.Exists(Path.Combine(TempSourcePath, "wbfsconvert.iso"))) { File.Delete(Path.Combine(TempSourcePath, "wbfsconvert.iso")); }
+                    OpenGame.FileName = Path.Combine(TempSourcePath, "game.iso");
                 }
             }
             if (SystemType == "dol")
             {
-                Directory.CreateDirectory(TempSourcePath + "TEMPISOBASE");
-                FileUtil.CopyDirectory(TempToolsPath + "BASE", TempSourcePath + "TEMPISOBASE");
-                File.Copy(OpenGame.FileName, TempSourcePath + "TEMPISOBASE\\sys\\main.dol");
-                LaunchProgram(TempToolsPath + "WIT\\wit.exe", "copy " + TempSourcePath + "TEMPISOBASE" + " --DEST " + TempSourcePath + "game.iso" + " -ovv --links --iso", true);
-                Directory.Delete(TempSourcePath + "TEMPISOBASE", true);
-                OpenGame.FileName = TempSourcePath + "game.iso";
+                Directory.CreateDirectory(Path.Combine(TempSourcePath, "TEMPISOBASE"));
+                FileUtil.CopyDirectory(Path.Combine(TempToolsPath, "BASE"), Path.Combine(TempSourcePath, "TEMPISOBASE"));
+                File.Copy(OpenGame.FileName, Path.Combine(TempSourcePath, "TEMPISOBASE", "sys", "main.dol"));
+                LaunchProgram(Path.Combine(TempToolsPath, "WIT", "wit.exe"), "copy " + Path.Combine(TempSourcePath, "TEMPISOBASE") + " --DEST " + Path.Combine(TempSourcePath, "game.iso") + " -ovv --links --iso", true);
+                Directory.Delete(Path.Combine(TempSourcePath, "TEMPISOBASE"), true);
+                OpenGame.FileName = Path.Combine(TempSourcePath, "game.iso");
             }
             if (SystemType == "wiiware")
             {
-                Directory.CreateDirectory(TempSourcePath + "TEMPISOBASE");
-                FileUtil.CopyDirectory(TempToolsPath + "BASE", TempSourcePath + "TEMPISOBASE");
+                Directory.CreateDirectory(Path.Combine(TempSourcePath, "TEMPISOBASE"));
+                FileUtil.CopyDirectory(Path.Combine(TempToolsPath, "BASE"), Path.Combine(TempSourcePath, "TEMPISOBASE"));
                 if (Force43NAND.Checked)
                 {
-                    File.Copy(TempToolsPath + "DOL\\FIX94_wiivc_chan_booter_force43.dol", TempSourcePath + "TEMPISOBASE\\sys\\main.dol");
+                    File.Copy(Path.Combine(TempToolsPath, "DOL", "FIX94_wiivc_chan_booter_force43.dol"), Path.Combine(TempSourcePath, "TEMPISOBASE", "sys", "main.dol"));
                 }
                 else
                 {
-                    File.Copy(TempToolsPath + "DOL\\FIX94_wiivc_chan_booter.dol", TempSourcePath + "TEMPISOBASE\\sys\\main.dol");
+                    File.Copy(Path.Combine(TempToolsPath, "DOL", "FIX94_wiivc_chan_booter.dol"), Path.Combine(TempSourcePath, "TEMPISOBASE", "sys", "main.dol"));
                 }
                 string[] TitleTXT = { GameSourceDirectory.Text };
-                File.WriteAllLines(TempSourcePath + "TEMPISOBASE\\files\\title.txt", TitleTXT);
-                LaunchProgram(TempToolsPath + "WIT\\wit.exe", "copy " + TempSourcePath + "TEMPISOBASE" + " --DEST " + TempSourcePath + "game.iso" + " -ovv --links --iso", true);
-                Directory.Delete(TempSourcePath + "TEMPISOBASE", true);
-                OpenGame.FileName = TempSourcePath + "game.iso";
+                File.WriteAllLines(Path.Combine(TempSourcePath, "TEMPISOBASE", "files", "title.txt"), TitleTXT);
+                LaunchProgram(Path.Combine(TempToolsPath, "WIT", "wit.exe"), "copy " + Path.Combine(TempSourcePath, "TEMPISOBASE") + " --DEST " + Path.Combine(TempSourcePath, "game.iso") + " -ovv --links --iso", true);
+                Directory.Delete(Path.Combine(TempSourcePath, "TEMPISOBASE"), true);
+                OpenGame.FileName = Path.Combine(TempSourcePath, "game.iso");
             }
             if (SystemType == "gcn")
             {
-                Directory.CreateDirectory(TempSourcePath + "TEMPISOBASE");
-                FileUtil.CopyDirectory(TempToolsPath + "BASE", TempSourcePath + "TEMPISOBASE");
+                Directory.CreateDirectory(Path.Combine(TempSourcePath, "TEMPISOBASE"));
+                FileUtil.CopyDirectory(Path.Combine(TempToolsPath, "BASE"), Path.Combine(TempSourcePath, "TEMPISOBASE"));
                 if (Force43NINTENDONT.Checked)
                 {
                     if (ForceInterlacedNINTENDONT.Checked)
                     {
-                        File.Copy(TempToolsPath + "DOL\\nintendont_force_43_interlaced_autobooter.dol", TempSourcePath + "TEMPISOBASE\\sys\\main.dol");
+                        File.Copy(Path.Combine(TempToolsPath, "DOL", "nintendont_force_43_interlaced_autobooter.dol"), Path.Combine(TempSourcePath, "TEMPISOBASE", "sys", "main.dol"));
                     }
                     else
                     {
-                        File.Copy(TempToolsPath + "DOL\\nintendont_force_4_by_3_autobooter.dol", TempSourcePath + "TEMPISOBASE\\sys\\main.dol");
+                        File.Copy(Path.Combine(TempToolsPath, "DOL", "nintendont_force_4_by_3_autobooter.dol"), Path.Combine(TempSourcePath, "TEMPISOBASE", "sys", "main.dol"));
                     }
                 }
 
                 else if (ForceInterlacedNINTENDONT.Checked)
                 {
-                    File.Copy(TempToolsPath + "DOL\\nintendont_force_interlaced_autobooter.dol", TempSourcePath + "TEMPISOBASE\\sys\\main.dol");
+                    File.Copy(Path.Combine(TempToolsPath, "DOL", "nintendont_force_interlaced_autobooter.dol"), Path.Combine(TempSourcePath, "TEMPISOBASE", "sys", "main.dol"));
                 }
                 else if (CustomMainDol.Checked)
                 {
-                    File.Copy(OpenMainDol.FileName, TempSourcePath + "TEMPISOBASE\\sys\\main.dol");
+                    File.Copy(OpenMainDol.FileName, Path.Combine(TempSourcePath, "TEMPISOBASE", "sys", "main.dol"));
                 }
                 else if (DisableNintendontAutoboot.Checked)
                 {
-                    File.Copy(TempToolsPath + "DOL\\nintendont_forwarder.dol", TempSourcePath + "TEMPISOBASE\\sys\\main.dol");
+                    File.Copy(Path.Combine(TempToolsPath, "DOL", "nintendont_forwarder.dol"), Path.Combine(TempSourcePath, "TEMPISOBASE", "sys", "main.dol"));
                 }
                 else
                 {
-                    File.Copy(TempToolsPath + "DOL\\nintendont_default_autobooter.dol", TempSourcePath + "TEMPISOBASE\\sys\\main.dol");
+                    File.Copy(Path.Combine(TempToolsPath, "DOL", "nintendont_default_autobooter.dol"), Path.Combine(TempSourcePath, "TEMPISOBASE", "sys", "main.dol"));
                 }
 
                 if (FlagNKIT)
                 {
-                    if (Directory.Exists(TempToolsPath + "NKIT\\Processed\\Temp"))
+                    if (Directory.Exists(Path.Combine(TempToolsPath, "NKIT", "Processed", "Temp")))
                     {
-                        Directory.Delete(TempToolsPath + "NKIT\\Processed\\Temp", true);
+                        Directory.Delete(Path.Combine(TempToolsPath, "NKIT", "Processed", "Temp"), true);
                     }
                     BuildStatus.Text = "Unscrubbing game for NFS Conversion...";
                     BuildStatus.Refresh();
-                    LaunchProgram(TempToolsPath + "NKIT\\ConvertToISO.exe", "\"" + OpenGame.FileName, true); // CONVERT TO ISO
-                    File.Move(Directory.GetFiles(TempToolsPath + "NKIT\\Processed\\GameCube_MatchFail", "*.iso")[0], TempSourcePath + "TEMPISOBASE\\files\\game.iso");
+                    LaunchProgram(Path.Combine(TempToolsPath, "NKIT", "ConvertToISO.exe"), "\"" + OpenGame.FileName, true); // CONVERT TO ISO
+                    File.Move(Directory.GetFiles(Path.Combine(TempToolsPath, "NKIT", "Processed", "GameCube_MatchFail"), "*.iso")[0], Path.Combine(TempSourcePath, "TEMPISOBASE", "files", "game.iso"));
                 }
                 else
                 {
-                    File.Copy(OpenGame.FileName, TempSourcePath + "TEMPISOBASE\\files\\game.iso");
+                    File.Copy(OpenGame.FileName, Path.Combine(TempSourcePath, "TEMPISOBASE", "files", "game.iso"));
                 }
 
                 if (FlagGC2Specified)
                 {
                     if (FlagNKIT)
                     {
-                        if (Directory.Exists(TempToolsPath + "NKIT\\Processed\\Temp"))
+                        if (Directory.Exists(Path.Combine(TempToolsPath, "NKIT", "Processed", "Temp")))
                         {
-                            Directory.Delete(TempToolsPath + "NKIT\\Processed\\Temp", true);
+                            Directory.Delete(Path.Combine(TempToolsPath, "NKIT", "Processed", "Temp"), true);
                         }
                         BuildStatus.Text = "Unscrubbing second disc for NFS Conversion...";
                         BuildStatus.Refresh();
-                        LaunchProgram(TempToolsPath + "NKIT\\ConvertToISO.exe", "\"" + OpenGC2.FileName + "\"", true); // CONVERT DISC 2 TO ISO
-                        File.Move(Directory.GetFiles(TempToolsPath + "NKIT\\Processed\\GameCube_MatchFail", "*.iso")[0], TempSourcePath + "TEMPISOBASE\\files\\disc2.iso");
+                        LaunchProgram(Path.Combine(TempToolsPath, "NKIT", "ConvertToISO.exe"), "\"" + OpenGC2.FileName + "\"", true); // CONVERT DISC 2 TO ISO
+                        File.Move(Directory.GetFiles(Path.Combine(TempToolsPath, "NKIT", "Processed", "GameCube_MatchFail"), "*.iso")[0], Path.Combine(TempSourcePath, "TEMPISOBASE", "files", "disc2.iso"));
                     }
                     else
                     {
-                        File.Copy(OpenGC2.FileName, TempSourcePath + "TEMPISOBASE\\files\\disc2.iso");
+                        File.Copy(OpenGC2.FileName, Path.Combine(TempSourcePath, "TEMPISOBASE", "files", "disc2.iso"));
                     }
                 }
-                LaunchProgram(TempToolsPath + "WIT\\wit.exe", "copy " + TempSourcePath + "TEMPISOBASE" + " --DEST " + TempSourcePath + "game.iso" + " -ovv --links --iso", true); // BUILD FINAL GAMECUBE ISO
-                Directory.Delete(TempSourcePath + "TEMPISOBASE", true);
-                OpenGame.FileName = TempSourcePath + "game.iso";
+                LaunchProgram(Path.Combine(TempToolsPath, "WIT", "wit.exe"), "copy " + Path.Combine(TempSourcePath, "TEMPISOBASE") + " --DEST " + Path.Combine(TempSourcePath, "game.iso") + " -ovv --links --iso", true); // BUILD FINAL GAMECUBE ISO
+                Directory.Delete(Path.Combine(TempSourcePath, "TEMPISOBASE"), true);
+                OpenGame.FileName = Path.Combine(TempSourcePath, "game.iso");
             }
-            LaunchProgram(TempToolsPath + "WIT\\wit.exe", "extract " + OpenGame.FileName + " --psel data --psel -update --files +tmd.bin --files +ticket.bin --dest " + TempSourcePath + "TIKTEMP" + " -vv1", true);
-            File.Copy(TempSourcePath + "TIKTEMP\\tmd.bin", TempBuildPath + "code\\rvlt.tmd");
-            File.Copy(TempSourcePath + "TIKTEMP\\ticket.bin", TempBuildPath + "code\\rvlt.tik");
-            Directory.Delete(TempSourcePath + "TIKTEMP", true);
+            LaunchProgram(Path.Combine(TempToolsPath, "WIT", "wit.exe"), "extract " + OpenGame.FileName + " --psel data --psel -update --files +tmd.bin --files +ticket.bin --dest " + Path.Combine(TempSourcePath, "TIKTEMP") + " -vv1", true);
+            File.Copy(Path.Combine(TempSourcePath, "TIKTEMP", "tmd.bin"), Path.Combine(TempBuildPath, "code", "rvlt.tmd"));
+            File.Copy(Path.Combine(TempSourcePath, "TIKTEMP", "ticket.bin"), Path.Combine(TempBuildPath, "code", "rvlt.tik"));
+            Directory.Delete(Path.Combine(TempSourcePath, "TIKTEMP"), true);
             BuildProgress.Value = 70;
             ////////////////////////////////////////////////
 
             //Convert ISO to NFS format
             BuildStatus.Text = "Converting processed game to NFS format...";
             BuildStatus.Refresh();
-            Directory.SetCurrentDirectory(TempBuildPath + "content");
+            Directory.SetCurrentDirectory(Path.Combine(TempBuildPath, "content"));
             string lrpatchflag = "";
             if (LRPatch.Checked)
             {
@@ -1989,16 +1987,16 @@ namespace TeconMoon_s_WiiVC_Injector
             BuildStatus.Refresh();
             Directory.SetCurrentDirectory(TempRootPath);
             string sanitizedGameName = SanitizeFilename(PackedTitleLine1.Text);
-            string outputPath = selectedOutputPath + "\\" + sanitizedGameName + " WUP-N-" + TitleIDText + "_" + PackedTitleIDLine.Text;
-            LaunchProgram(TempToolsPath + "JAR\\NUSPacker.exe", "-in BUILDDIR -out \"" + outputPath + "\" -encryptKeyWith " + WiiUCommonKey.Text, true);
+            string outputPath = Path.Combine(selectedOutputPath, sanitizedGameName + " WUP-N-" + TitleIDText + "_" + PackedTitleIDLine.Text);
+            LaunchProgram(Path.Combine(TempToolsPath, "JAR", "NUSPacker.exe"), "-in BUILDDIR -out \"" + outputPath + "\" -encryptKeyWith " + WiiUCommonKey.Text, true);
             BuildProgress.Value = 100;
             /////////////////////////////////
 
             //Delete Temp Directories
             Directory.SetCurrentDirectory(Application.StartupPath);
             DeleteFolder(TempBuildPath, true);
-            DeleteFolder(TempRootPath + "output", true);
-            DeleteFolder(TempRootPath + "tmp", true);
+            DeleteFolder(Path.Combine(TempRootPath, "output"), true);
+            DeleteFolder(Path.Combine(TempRootPath, "tmp"), true);
             Directory.CreateDirectory(TempBuildPath);
             /////////////////////////
 
