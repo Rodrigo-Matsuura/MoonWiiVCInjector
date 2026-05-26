@@ -109,8 +109,24 @@ namespace TeconMoon_s_WiiVC_Injector
         //call options
         public void LaunchProgram(string exeFile, string arguments = "", bool hideProcess = true)
         {
-            ProcessStartInfo launcher = new ProcessStartInfo(exeFile);
-            launcher.Arguments = arguments;
+            string targetExe = exeFile;
+            string targetArgs = arguments;
+
+            // Detect if running on Linux or macOS (Unix)
+            if (Environment.OSVersion.Platform == PlatformID.Unix)
+            {
+                // Route Windows executables or control panels through Wine
+                if (exeFile.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) || 
+                    exeFile.Contains("/TOOLDIR/") || 
+                    exeFile.EndsWith(".cpl", StringComparison.OrdinalIgnoreCase))
+                {
+                    targetExe = "wine";
+                    targetArgs = $"\"{exeFile}\" {arguments}";
+                }
+            }
+
+            ProcessStartInfo launcher = new ProcessStartInfo(targetExe);
+            launcher.Arguments = targetArgs;
             launcher.UseShellExecute = false;
             launcher.WorkingDirectory = Directory.GetCurrentDirectory();
             if (hideProcess)
