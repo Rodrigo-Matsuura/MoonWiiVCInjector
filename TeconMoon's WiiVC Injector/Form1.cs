@@ -22,6 +22,8 @@ namespace TeconMoon_s_WiiVC_Injector
         {
             InitializeComponent();
             this.Text = string.Format(this.Text, Assembly.GetExecutingAssembly().GetName().Version.ToString());
+            AncastKey.Visible = false;
+            SaveAncastKeyButton.Visible = false;
 
             // Check for if .Net v3.5 component is installed
             CheckForNet35();
@@ -29,9 +31,17 @@ namespace TeconMoon_s_WiiVC_Injector
             // Delete Temporary Root Folder if it exists
             if (Directory.Exists(TempRootPath))
             {
-                Directory.Delete(TempRootPath, true);
+                try
+                {
+                    Directory.Delete(TempRootPath, true);
+                }
+                catch { }
             }
-            Directory.CreateDirectory(TempRootPath);
+            try
+            {
+                Directory.CreateDirectory(TempRootPath);
+            }
+            catch { }
 
             // Extract Tools to temp folder
             string toolZipPath = Path.Combine(TempRootPath, "TOOLDIR.zip");
@@ -71,7 +81,6 @@ namespace TeconMoon_s_WiiVC_Injector
         bool CommonKeyGood;
         bool TitleKeyGood;
         bool AncastKeyGood;
-        bool FlagRepo;
         int TitleIDInt;
         long GameType;
         string CucholixRepoID = "";
@@ -129,7 +138,9 @@ namespace TeconMoon_s_WiiVC_Injector
             FlagIconSpecified = false;
             FlagBannerSpecified = false;
             IconSourceDirectory.Text = "Icon file has not been specified";
+            IconSourceDirectory.ForeColor = Color.Red;
             BannerSourceDirectory.Text = "Banner file has not been specified";
+            BannerSourceDirectory.ForeColor = Color.Red;
         }
 
         public void DownloadFromRepo(string cucholixRepoID)
@@ -155,7 +166,6 @@ namespace TeconMoon_s_WiiVC_Injector
             BannerSourceDirectory.Text = "bootTvTex.png downloaded from Cucholix's Repo";
             BannerSourceDirectory.ForeColor = Color.Black;
             FlagBannerSpecified = true;
-            FlagRepo = true;
         }
         //Called from RepoDownload_Click to check if files exist before downloading
         private bool RemoteFileExists(string url)
@@ -194,7 +204,11 @@ namespace TeconMoon_s_WiiVC_Injector
         {
             base.OnFormClosing(e);
 
-            if (e.CloseReason == CloseReason.WindowsShutDown) { Directory.Delete(TempRootPath, true); return; }
+            if (e.CloseReason == CloseReason.WindowsShutDown)
+            {
+                try { Directory.Delete(TempRootPath, true); } catch { }
+                return;
+            }
 
             // Confirm user wants to close
             switch (MessageBox.Show(this, "Are you sure you want to close?"
@@ -208,7 +222,7 @@ namespace TeconMoon_s_WiiVC_Injector
                     e.Cancel = true;
                     break;
                 default:
-                    Directory.Delete(TempRootPath, true);
+                    try { Directory.Delete(TempRootPath, true); } catch { }
                     break;
             }
         }
@@ -713,16 +727,6 @@ namespace TeconMoon_s_WiiVC_Injector
 
         private void IconSourceButton_Click(object sender, EventArgs e)
         {
-            if (FlagRepo)
-            {
-                IconPreviewBox.Image = null;
-                BannerPreviewBox.Image = null;
-                FlagIconSpecified = false;
-                FlagBannerSpecified = false;
-                FlagRepo = false;
-                pngtemppath = "";
-            }
-
             MessageBox.Show("Make sure your icon is 128x128 (1:1) to prevent distortion",
                 "Icon Size Information",
                 MessageBoxButtons.OK,
@@ -737,10 +741,10 @@ namespace TeconMoon_s_WiiVC_Injector
 
                 if (Path.GetExtension(OpenIcon.FileName).Equals(".tga", StringComparison.OrdinalIgnoreCase))
                 {
-                    LaunchProgram(Path.Combine(TempToolsPath, "IMG", "tga2pngcmd.exe"), $"-i \"{OpenIcon.FileName}\" -o \"{Path.GetDirectoryName(pngtemppath)}\"", true);
-
-                    string convertedPng = Path.Combine(Path.GetDirectoryName(pngtemppath), Path.GetFileNameWithoutExtension(OpenIcon.FileName) + ".png");
-                    File.Move(convertedPng, pngtemppath);
+                    using (Bitmap bmp = TgaReader.LoadTga(OpenIcon.FileName))
+                    {
+                        bmp.Save(pngtemppath, System.Drawing.Imaging.ImageFormat.Png);
+                    }
                 }
                 else
                 {
@@ -758,7 +762,6 @@ namespace TeconMoon_s_WiiVC_Injector
                 IconSourceDirectory.Text = OpenIcon.FileName;
                 IconSourceDirectory.ForeColor = Color.Black;
                 FlagIconSpecified = true;
-                FlagRepo = false;
             }
             else
             {
@@ -766,20 +769,11 @@ namespace TeconMoon_s_WiiVC_Injector
                 IconSourceDirectory.Text = "Icon has not been specified";
                 IconSourceDirectory.ForeColor = Color.Red;
                 FlagIconSpecified = false;
-                FlagRepo = false;
                 pngtemppath = "";
             }
         }
         private void BannerSourceButton_Click(object sender, EventArgs e)
         {
-            if (FlagRepo)
-            {
-                BannerPreviewBox.Image = null;
-                FlagBannerSpecified = false;
-                FlagRepo = false;
-                pngtemppath = "";
-            }
-
             MessageBox.Show("Make sure your Banner is 1280x720 (16:9) to prevent distortion",
                 "Banner Size Information",
                 MessageBoxButtons.OK,
@@ -794,10 +788,10 @@ namespace TeconMoon_s_WiiVC_Injector
 
                 if (Path.GetExtension(OpenBanner.FileName).Equals(".tga", StringComparison.OrdinalIgnoreCase))
                 {
-                    LaunchProgram(Path.Combine(TempToolsPath, "IMG", "tga2pngcmd.exe"), $"-i \"{OpenBanner.FileName}\" -o \"{Path.GetDirectoryName(pngtemppath)}\"", true);
-
-                    string convertedPng = Path.Combine(Path.GetDirectoryName(pngtemppath), Path.GetFileNameWithoutExtension(OpenBanner.FileName) + ".png");
-                    File.Move(convertedPng, pngtemppath);
+                    using (Bitmap bmp = TgaReader.LoadTga(OpenBanner.FileName))
+                    {
+                        bmp.Save(pngtemppath, System.Drawing.Imaging.ImageFormat.Png);
+                    }
                 }
                 else
                 {
@@ -815,7 +809,6 @@ namespace TeconMoon_s_WiiVC_Injector
                 BannerSourceDirectory.Text = OpenBanner.FileName;
                 BannerSourceDirectory.ForeColor = Color.Black;
                 FlagBannerSpecified = true;
-                FlagRepo = false;
             }
             else
             {
@@ -823,7 +816,6 @@ namespace TeconMoon_s_WiiVC_Injector
                 BannerSourceDirectory.Text = "Banner has not been specified";
                 BannerSourceDirectory.ForeColor = Color.Red;
                 FlagBannerSpecified = false;
-                FlagRepo = false;
                 pngtemppath = "";
             }
         }
@@ -837,13 +829,11 @@ namespace TeconMoon_s_WiiVC_Injector
                                 , MessageBoxIcon.Information
                                 , MessageBoxDefaultButton.Button1
                                 , (MessageBoxOptions)0x40000);
-                FlagRepo = false;
             }
             else
             {
                 if (!TryDownloadImages(CucholixRepoID))
                 {
-                    FlagRepo = false;
                     if (MessageBox.Show("Cucholix's Repo does not have assets for your game. You will need to provide your own. Would you like to visit the GBAtemp request thread?"
                                         , "Game not found on Repo"
                                         , MessageBoxButtons.YesNo
@@ -920,23 +910,27 @@ namespace TeconMoon_s_WiiVC_Injector
                 pngtemppath = TempDrcPath;
                 if (File.Exists(pngtemppath)) { File.Delete(pngtemppath); }
 
-                if (Path.GetExtension(OpenDrc.FileName) == ".tga")
+                if (Path.GetExtension(OpenDrc.FileName).Equals(".tga", StringComparison.OrdinalIgnoreCase))
                 {
-                    LaunchProgram(Path.Combine(TempToolsPath, "IMG", "tga2pngcmd.exe"), "-i \"" + OpenDrc.FileName + "\" -o \"" + Path.GetDirectoryName(pngtemppath) + "\"", true);
-                    File.Move(Path.Combine(Path.GetDirectoryName(pngtemppath), Path.GetFileNameWithoutExtension(OpenDrc.FileName) + ".png"), pngtemppath);
+                    using (Bitmap bmp = TgaReader.LoadTga(OpenDrc.FileName))
+                    {
+                        bmp.Save(pngtemppath, System.Drawing.Imaging.ImageFormat.Png);
+                    }
                 }
                 else
                 {
-                    Image.FromFile(OpenDrc.FileName).Save(pngtemppath, System.Drawing.Imaging.ImageFormat.Png);
+                    using (var img = Image.FromFile(OpenDrc.FileName))
+                    {
+                        img.Save(pngtemppath, System.Drawing.Imaging.ImageFormat.Png);
+                    }
                 }
-                FileStream tempstream = new FileStream(pngtemppath, FileMode.Open);
-                var tempimage = Image.FromStream(tempstream);
-                DrcPreviewBox.Image = tempimage;
-                tempstream.Close();
+                using (FileStream tempstream = new FileStream(pngtemppath, FileMode.Open, FileAccess.Read))
+                {
+                    DrcPreviewBox.Image = Image.FromStream(tempstream);
+                }
                 DrcSourceDirectory.Text = OpenDrc.FileName;
                 DrcSourceDirectory.ForeColor = Color.Black;
                 FlagDrcSpecified = true;
-                FlagRepo = false;
             }
             else
             {
@@ -959,28 +953,32 @@ namespace TeconMoon_s_WiiVC_Injector
                 pngtemppath = TempLogoPath;
                 if (File.Exists(pngtemppath)) { File.Delete(pngtemppath); }
 
-                if (Path.GetExtension(OpenLogo.FileName) == ".tga")
+                if (Path.GetExtension(OpenLogo.FileName).Equals(".tga", StringComparison.OrdinalIgnoreCase))
                 {
-                    LaunchProgram(Path.Combine(TempToolsPath, "IMG", "tga2pngcmd.exe"), "-i \"" + OpenLogo.FileName + "\" -o \"" + Path.GetDirectoryName(pngtemppath) + "\"", true);
-                    File.Move(Path.Combine(Path.GetDirectoryName(pngtemppath), Path.GetFileNameWithoutExtension(OpenLogo.FileName) + ".png"), pngtemppath);
+                    using (Bitmap bmp = TgaReader.LoadTga(OpenLogo.FileName))
+                    {
+                        bmp.Save(pngtemppath, System.Drawing.Imaging.ImageFormat.Png);
+                    }
                 }
                 else
                 {
-                    Image.FromFile(OpenLogo.FileName).Save(pngtemppath, System.Drawing.Imaging.ImageFormat.Png);
+                    using (var img = Image.FromFile(OpenLogo.FileName))
+                    {
+                        img.Save(pngtemppath, System.Drawing.Imaging.ImageFormat.Png);
+                    }
                 }
-                FileStream tempstream = new FileStream(pngtemppath, FileMode.Open);
-                var tempimage = Image.FromStream(tempstream);
-                LogoPreviewBox.Image = tempimage;
-                tempstream.Close();
+                using (FileStream tempstream = new FileStream(pngtemppath, FileMode.Open, FileAccess.Read))
+                {
+                    LogoPreviewBox.Image = Image.FromStream(tempstream);
+                }
                 LogoSourceDirectory.Text = OpenLogo.FileName;
                 LogoSourceDirectory.ForeColor = Color.Black;
                 FlagLogoSpecified = true;
-                FlagRepo = false;
             }
             else
             {
                 LogoPreviewBox.Image = null;
-                LogoSourceDirectory.Text = "GamePad Banner has not been specified";
+                LogoSourceDirectory.Text = "Boot Logo has not been specified";
                 LogoSourceDirectory.ForeColor = Color.Red;
                 pngtemppath = "";
             }
@@ -1273,6 +1271,9 @@ namespace TeconMoon_s_WiiVC_Injector
         }
         private void C2WPatchFlag_CheckedChanged(object sender, EventArgs e)
         {
+            AncastKey.Visible = C2WPatchFlag.Checked;
+            SaveAncastKeyButton.Visible = C2WPatchFlag.Checked;
+
             if (C2WPatchFlag.Checked)
             {
                 AncastKey.ReadOnly = false;
@@ -1744,16 +1745,28 @@ namespace TeconMoon_s_WiiVC_Injector
             //Convert PNG files to TGA
             BuildStatus.Text = "Converting all image sources to expected TGA specification...";
             BuildStatus.Refresh();
-            LaunchProgram(Path.Combine(TempToolsPath, "IMG", "png2tgacmd.exe"), "-i \"" + TempIconPath + "\" -o \"" + Path.Combine(TempBuildPath, "meta") + "\" --width=128 --height=128 --tga-bpp=32 --tga-compression=none", true);
-            LaunchProgram(Path.Combine(TempToolsPath, "IMG", "png2tgacmd.exe"), "-i \"" + TempBannerPath + "\" -o \"" + Path.Combine(TempBuildPath, "meta") + "\" --width=1280 --height=720 --tga-bpp=24 --tga-compression=none", true);
+            using (Image img = Image.FromFile(TempIconPath))
+            {
+                TgaReader.SaveAsTga(img, Path.Combine(TempBuildPath, "meta", "iconTex.tga"), 128, 128, 32);
+            }
+            using (Image img = Image.FromFile(TempBannerPath))
+            {
+                TgaReader.SaveAsTga(img, Path.Combine(TempBuildPath, "meta", "bootTvTex.tga"), 1280, 720, 24);
+            }
             if (FlagDrcSpecified == false)
             {
                 File.Copy(TempBannerPath, TempDrcPath);
             }
-            LaunchProgram(Path.Combine(TempToolsPath, "IMG", "png2tgacmd.exe"), "-i \"" + TempDrcPath + "\" -o \"" + Path.Combine(TempBuildPath, "meta") + "\" --width=854 --height=480 --tga-bpp=24 --tga-compression=none", true);
+            using (Image img = Image.FromFile(TempDrcPath))
+            {
+                TgaReader.SaveAsTga(img, Path.Combine(TempBuildPath, "meta", "bootDrcTex.tga"), 854, 480, 24);
+            }
             if (FlagLogoSpecified)
             {
-                LaunchProgram(Path.Combine(TempToolsPath, "IMG", "png2tgacmd.exe"), "-i \"" + TempLogoPath + "\" -o \"" + Path.Combine(TempBuildPath, "meta") + "\" --width=170 --height=42 --tga-bpp=32 --tga-compression=none", true);
+                using (Image img = Image.FromFile(TempLogoPath))
+                {
+                    TgaReader.SaveAsTga(img, Path.Combine(TempBuildPath, "meta", "bootLogoTex.tga"), 170, 42, 32);
+                }
             }
             if (FlagDrcSpecified == false) { File.Delete(TempDrcPath); }
             BuildProgress.Value = 55;
