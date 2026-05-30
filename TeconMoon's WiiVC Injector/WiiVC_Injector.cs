@@ -1975,30 +1975,54 @@ namespace TeconMoon_s_WiiVC_Injector
             BuildStatus.Text = "Converting processed game to NFS format...";
             BuildStatus.Refresh();
             Directory.SetCurrentDirectory(Path.Combine(TempBuildPath, "content"));
-            string lrpatchflag = "";
+
+            // Build arguments array for in-process Nfs2Iso2Nfs conversion
+            List<string> nfsArgs = new List<string> { "-enc" };
+            
+            if (SystemType == "dol" || SystemType == "wiiware" || SystemType == "gcn")
+            {
+                nfsArgs.Add("-homebrew");
+            }
+
+            if (SystemType == "gcn")
+            {
+                nfsArgs.Add("-passthrough");
+            }
+            else if (SystemType == "dol")
+            {
+                if (passpatch.Contains("-passthrough"))
+                {
+                    nfsArgs.Add("-passthrough");
+                }
+            }
+
+            if (nfspatchflag.Contains("-horizontal"))
+            {
+                nfsArgs.Add("-horizontal");
+            }
+            else if (nfspatchflag.Contains("-wiimote"))
+            {
+                nfsArgs.Add("-wiimote");
+            }
+            else if (nfspatchflag.Contains("-instantcc"))
+            {
+                nfsArgs.Add("-instantcc");
+            }
+            else if (nfspatchflag.Contains("-nocc"))
+            {
+                nfsArgs.Add("-nocc");
+            }
+
             if (LRPatch.Checked)
             {
-                lrpatchflag = " -lrpatch";
+                nfsArgs.Add("-lrpatch");
             }
-            string nfsExe = Path.Combine(TempToolsPath, "EXE", "nfs2iso2nfs.exe");
-            switch (SystemType)
-            {
-                case "wii":
-                    LaunchProgram(nfsExe, "-enc" + nfspatchflag + lrpatchflag + " -iso \"" + OpenGame.FileName + "\"", true);
-                    break;
 
-                case "dol":
-                    LaunchProgram(nfsExe, "-enc -homebrew" + passpatch + " -iso \"" + OpenGame.FileName + "\"", true);
-                    break;
+            nfsArgs.Add("-iso");
+            nfsArgs.Add(OpenGame.FileName);
 
-                case "wiiware":
-                    LaunchProgram(nfsExe, "-enc -homebrew" + nfspatchflag + lrpatchflag + " -iso \"" + OpenGame.FileName + "\"", true);
-                    break;
-
-                case "gcn":
-                    LaunchProgram(nfsExe, "-enc -homebrew -passthrough -iso \"" + OpenGame.FileName + "\"", true);
-                    break;
-            }
+            // Execute in-process conversion using native C# class instead of executing external nfs2iso2nfs.exe
+            Nfs2Iso2Nfs.ConvertNfs(nfsArgs.ToArray());
 
             if (DisableTrimming.Checked == false)
             {
