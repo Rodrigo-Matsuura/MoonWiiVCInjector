@@ -2029,23 +2029,43 @@ namespace TeconMoon_s_WiiVC_Injector
             Directory.CreateDirectory(TempBuildPath);
             /////////////////////////
 
-            //END
-            BuildStatus.Text = "Conversion complete...";
-            BuildStatus.Refresh();
-
-            DialogResult finalDialogResult = MessageBox.Show("Conversion Complete! Your packed game can be found here:\n" + outputPath + "\n\n" +
-                                                            "Install your title using WUP Installer GX2 with signature patches enabled (CBHC, Haxchi, etc)." +
-                                                            "Make sure you have signature patches enabled when launching your title.\n\n" +
-                                                            "Open the output folder now?"
-                                                            , PackedTitleLine1.Text + "Conversion Complete"
-                                                            , MessageBoxButtons.YesNo
-                                                            , MessageBoxIcon.Information
-                                                            , MessageBoxDefaultButton.Button1
-                                                            , (MessageBoxOptions)0x40000);
-
-            if (finalDialogResult == DialogResult.Yes)
+            if (!Directory.Exists(outputPath))
             {
-                Process.Start(outputPath);
+                MessageBox.Show("Conversion Failed! The output folder could not be created:\n" + outputPath + "\n\n" +
+                                "Please make sure that Java (JRE) is installed on your computer, as it is required by NUSPacker to encrypt the WUP package.",
+                                "Conversion Failed",
+                                MessageBoxButtons.OK,
+                                MessageBoxIcon.Error,
+                                MessageBoxDefaultButton.Button1,
+                                (MessageBoxOptions)0x40000);
+            }
+            else
+            {
+                //END
+                BuildStatus.Text = "Conversion complete...";
+                BuildStatus.Refresh();
+
+                DialogResult finalDialogResult = MessageBox.Show("Conversion Complete! Your packed game can be found here:\n" + outputPath + "\n\n" +
+                                                                "Install your title using WUP Installer GX2 with signature patches enabled (CBHC, Haxchi, etc)." +
+                                                                "Make sure you have signature patches enabled when launching your title.\n\n" +
+                                                                "Open the output folder now?"
+                                                                , PackedTitleLine1.Text + "Conversion Complete"
+                                                                , MessageBoxButtons.YesNo
+                                                                , MessageBoxIcon.Information
+                                                                , MessageBoxDefaultButton.Button1
+                                                                , (MessageBoxOptions)0x40000);
+
+                if (finalDialogResult == DialogResult.Yes)
+                {
+                    try
+                    {
+                        Process.Start(new ProcessStartInfo(outputPath) { UseShellExecute = true });
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show("Could not open the output folder:\n" + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
+                }
             }
 
             if (OGfilepath != null) { OpenGame.FileName = OGfilepath; }
