@@ -1,9 +1,3 @@
-using System;
-using System.IO;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Security.Cryptography;
 
 namespace TeconMoon_s_WiiVC_Injector
@@ -66,7 +60,7 @@ namespace TeconMoon_s_WiiVC_Injector
         {
             if (index + 1 >= args.Length)
             {
-                value = null;
+                value = string.Empty;
                 return false;
             }
 
@@ -109,7 +103,7 @@ namespace TeconMoon_s_WiiVC_Injector
             for (long offset = 0; offset <= lastOffset; offset++)
             {
                 stream.Position = offset;
-                stream.Read(buffer, 0, buffer.Length);
+                stream.ReadExactly(buffer, 0, buffer.Length);
 
                 if (ByteArrayCompare(buffer, pattern))
                 {
@@ -202,7 +196,7 @@ namespace TeconMoon_s_WiiVC_Injector
             Console.WriteLine();
             if (checkArgs(args) == -1)
                 return -1;
-            byte[] key = checkKeyFiles();
+            byte[]? key = checkKeyFiles();
             if (key == null)
                 return -1;
             if (dec)
@@ -223,7 +217,11 @@ namespace TeconMoon_s_WiiVC_Injector
             {
                 if (!keepLegit || horiz_wiimote || vert_wiimote || map_shoulder_to_trigger)
                     DoThePatching(fw_file);
-                long[] size = manipulateISO(isoFile, "hif_unpack.nfs", false);
+                long[]? size = manipulateISO(isoFile, "hif_unpack.nfs", false);
+                if (size == null)
+                {
+                    return -1;
+                }
                 byte[] header = packNFS("hif_unpack.nfs", "hif_dec.nfs", size);
                 if (!keepFiles)
                     File.Delete("hif_unpack.nfs");
@@ -372,7 +370,7 @@ namespace TeconMoon_s_WiiVC_Injector
             return 0;
         }
 
-        public static byte[] checkKeyFiles()
+        public static byte[]? checkKeyFiles()
         {
             Console.WriteLine("Searching for AES key file...");
             if (!File.Exists(keyFile))
@@ -380,7 +378,7 @@ namespace TeconMoon_s_WiiVC_Injector
                 Console.WriteLine("ERROR: Could not find AES key file! Exiting...");
                 return null;
             }
-            byte[] key = getKey(keyFile);
+            byte[]? key = getKey(keyFile);
             if (key == null)
             {
                 Console.WriteLine("ERROR: AES key file has wrong file size! Exiting...");
@@ -396,12 +394,13 @@ namespace TeconMoon_s_WiiVC_Injector
                     Console.WriteLine("ERROR: Could not find Wii common key file! Exiting...");
                     return null;
                 }
-                WII_COMMON_KEY = getKey(wiiKeyFile);
-                if (WII_COMMON_KEY == null)
+                byte[]? wiiKey = getKey(wiiKeyFile);
+                if (wiiKey == null)
                 {
                     Console.WriteLine("ERROR: Wii common key file has wrong file size! Exiting...");
                     return null;
                 }
+                WII_COMMON_KEY = wiiKey;
                 Console.WriteLine("Wii Common Key file found!");
             }
             else Console.WriteLine("Wii common key found in source code!");
@@ -410,7 +409,7 @@ namespace TeconMoon_s_WiiVC_Injector
             return key;
         }
 
-        public static byte[] getKey(string keyDir)
+        public static byte[]? getKey(string keyDir)
         {
             using (var keyFile = new BinaryReader(File.OpenRead(keyDir)))
             {
@@ -486,7 +485,7 @@ namespace TeconMoon_s_WiiVC_Injector
             }
         }
 
-        public static long[] manipulateISO(string InFile, string OutFile, bool enc)
+        public static long[]? manipulateISO(string InFile, string OutFile, bool enc)
         {
             using (var er = new BinaryReader(File.OpenRead(InFile)))
             using (var ew = new BinaryWriter(File.Create(OutFile)))
@@ -803,8 +802,9 @@ namespace TeconMoon_s_WiiVC_Injector
 
         public static byte[] aes_128_cbc(byte[] key, byte[] iv, byte[] data, bool enc)
         {
-            if (key == null || iv == null || data == null)
-                return null;
+            if (key == null) throw new ArgumentNullException(nameof(key));
+            if (iv == null) throw new ArgumentNullException(nameof(iv));
+            if (data == null) throw new ArgumentNullException(nameof(data));
 
             try
             {
@@ -826,13 +826,15 @@ namespace TeconMoon_s_WiiVC_Injector
             catch (CryptographicException e)
             {
                 Console.WriteLine("A cryptographic error occurred: {0}", e.Message);
-                return null;
+                throw;
             }
         }
 
         public static int[,] sort(int[,] list, int size)
         {
-            if (list == null || size <= 0)
+            if (list == null)
+                throw new ArgumentNullException(nameof(list));
+            if (size <= 0)
                 return list;
 
             var items = new List<KeyValuePair<int, int>>(size);
@@ -855,7 +857,9 @@ namespace TeconMoon_s_WiiVC_Injector
 
         public static int[] sort(int[] list, int size)
         {
-            if (list == null || size <= 0 || size > list.Length)
+            if (list == null)
+                throw new ArgumentNullException(nameof(list));
+            if (size <= 0 || size > list.Length)
                 return list;
 
             Array.Sort(list, 0, size);

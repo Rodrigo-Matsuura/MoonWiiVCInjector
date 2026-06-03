@@ -1,0 +1,15 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="TeconMoon_s_WiiVC_Injector.MainWindow"
+        Title="WiiVC Injector"
+        Width="900"
+        Height="680">
+  <Grid RowDefinitions="Auto,*" Margin="12">
+    <TextBlock Text="Avalonia port in progress" FontSize="24" FontWeight="Bold" />
+    <TextBlock Grid.Row="1" TextWrapping="Wrap" Margin="0,12,0,0">
+      This application now starts with Avalonia on Linux and Windows.
+      The legacy WinForms UI files are preserved for reference but excluded from compilation.
+      Continue porting the existing UI and logic into Avalonia views and view models.
+    </TextBlock>
+  </Grid>
+</Window>

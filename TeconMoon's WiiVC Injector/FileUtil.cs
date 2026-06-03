@@ -1,6 +1,3 @@
-using System;
-using System.IO;
-
 namespace TeconMoon_s_WiiVC_Injector
 {
     public static class FileUtil

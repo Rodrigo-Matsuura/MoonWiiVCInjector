@@ -1,6 +1,5 @@
-using System;
-using System.Net.Http;
-using System.Windows.Forms;
+using Avalonia;
+using Avalonia.Controls.ApplicationLifetimes;
 
 namespace TeconMoon_s_WiiVC_Injector
 {
@@ -8,16 +7,16 @@ namespace TeconMoon_s_WiiVC_Injector
     {
         public static readonly HttpClient Client = new HttpClient();
 
-        /// <summary>
-        /// The main entry point for the application.
-        /// </summary>
         [STAThread]
-        static void Main()
+        static void Main(string[] args)
         {
-            Application.EnableVisualStyles();
-            Application.SetCompatibleTextRenderingDefault(false);
-            Application.Run(new WiiVC_Injector());
+            BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
         }
+
+        public static AppBuilder BuildAvaloniaApp()
+            => AppBuilder.Configure<App>()
+                .UsePlatformDetect()
+                .LogToTrace();
 
         public static bool CheckForInternetConnection()
         {

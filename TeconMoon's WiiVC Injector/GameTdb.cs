@@ -1,7 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
 using System.Reflection;
 
 namespace TeconMoon_s_WiiVC_Injector
@@ -25,7 +21,7 @@ namespace TeconMoon_s_WiiVC_Injector
                     if (stream == null) return;
                     using (var reader = new StreamReader(stream))
                     {
-                        string line;
+                        string? line;
                         while ((line = reader.ReadLine()) != null)
                         {
                             if (line.StartsWith("TITLES =", StringComparison.Ordinal))
@@ -57,7 +53,7 @@ namespace TeconMoon_s_WiiVC_Injector
             }
         }
 
-        public static string GetName(string id)
+        public static string? GetName(string id)
         {
             if (string.IsNullOrEmpty(id)) return null;
             return NameById.TryGetValue(id, out var name) ? name : null;

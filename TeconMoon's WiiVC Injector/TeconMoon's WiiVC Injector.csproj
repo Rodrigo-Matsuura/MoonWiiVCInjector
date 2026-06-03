@@ -1,22 +1,33 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net9.0-windows</TargetFramework>
-    <UseWindowsForms>true</UseWindowsForms>
-    <SupportedOSPlatformVersion>6.1</SupportedOSPlatformVersion>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
     <RootNamespace>TeconMoon_s_WiiVC_Injector</RootNamespace>
     <AssemblyName>TeconMoon's WiiVC Injector</AssemblyName>
     <ApplicationIcon>WiiU.ico</ApplicationIcon>
     <NoWin32Manifest>true</NoWin32Manifest>
-    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <GenerateResourceUsePreserializedResources>true</GenerateResourceUsePreserializedResources>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" PrivateAssets="All" Version="1.0.3" />
-    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies.net481" PrivateAssets="All" Version="1.0.3" />
-    <PackageReference Include="System.Resources.Extensions" Version="9.0.16" />
+    <PackageReference Include="Avalonia" Version="11.0.0" />
+    <PackageReference Include="Avalonia.Desktop" Version="11.0.0" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="11.0.0" />
+    <PackageReference Include="System.Configuration.ConfigurationManager" Version="9.0.0" />
+    <PackageReference Include="System.Resources.Extensions" Version="9.0.0" />
+    <PackageReference Include="SkiaSharp" Version="2.88.8" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Remove="WiiVC_Injector.cs" />
+    <Compile Remove="WiiVC_Injector.Designer.cs" />
+    <Compile Remove="SettingsForm.cs" />
+    <Compile Remove="SettingsForm.Designer.cs" />
+    <Compile Remove="SDCardMenu.cs" />
+    <Compile Remove="SDCardMenu.Designer.cs" />
+    <Compile Remove="GuiUtil.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Update="Resources\TOOLDIR.zip">
