@@ -265,7 +265,6 @@ namespace TeconMoon_s_WiiVC_Injector
         //Radio Buttons for desired injection type
         private void WiiRetail_CheckedChanged(object sender, EventArgs e)
         {
-            i
             if (WiiRetail.Checked)
             {
                 WiiVMC.Enabled = true;
