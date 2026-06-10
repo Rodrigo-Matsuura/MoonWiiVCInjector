@@ -1,0 +1,24 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug WiiVC Injector",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build",
+            "program": "${workspaceFolder}/TeconMoon's WiiVC Injector/bin/Debug/net9.0/TeconMoon's WiiVC Injector.dll",
+            "args": [],
+            "cwd": "${workspaceFolder}/TeconMoon's WiiVC Injector",
+            "console": "internalConsole",
+            "stopAtEntry": false,
+            "env": {
+                "DOTNET_ENVIRONMENT": "Development"
+            }
+        },
+        {
+            "name": "Attach to Process",
+            "type": "coreclr",
+            "request": "attach"
+        }
+    ]
+}

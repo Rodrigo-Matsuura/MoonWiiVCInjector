@@ -16,7 +16,6 @@
     <PackageReference Include="Avalonia" Version="11.0.0" />
     <PackageReference Include="Avalonia.Desktop" Version="11.0.0" />
     <PackageReference Include="Avalonia.Themes.Fluent" Version="11.0.0" />
-    <PackageReference Include="System.Configuration.ConfigurationManager" Version="9.0.0" />
     <PackageReference Include="System.Resources.Extensions" Version="9.0.0" />
     <PackageReference Include="SkiaSharp" Version="2.88.8" />
   </ItemGroup>

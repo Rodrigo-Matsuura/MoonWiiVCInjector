@@ -51,22 +51,54 @@ namespace TeconMoon_s_WiiVC_Injector
 
                 int bytesPerPixel = bpp / 8;
                 bool topToBottom = (descriptor & 0x20) != 0;
-
-                byte[] pixelData = new byte[width * height * bytesPerPixel];
+                int dstStride = bitmap.RowBytes;
 
                 if (imageType == 2)
                 {
                     // Uncompressed
-                    int bytesToRead = width * height * bytesPerPixel;
-                    int bytesRead = reader.Read(pixelData, 0, bytesToRead);
-                    if (bytesRead < bytesToRead)
+                    if (bytesPerPixel == 4)
                     {
-                        Array.Clear(pixelData, bytesRead, bytesToRead - bytesRead);
+                        unsafe
+                        {
+                            byte* destPtr = (byte*)bitmap.GetPixels().ToPointer();
+                            for (int y = 0; y < height; y++)
+                            {
+                                int targetY = topToBottom ? y : (height - 1 - y);
+                                byte* destRow = destPtr + (targetY * dstStride);
+                                Span<byte> rowSpan = new Span<byte>(destRow, width * 4);
+                                stream.ReadExactly(rowSpan);
+                            }
+                        }
+                        return bitmap;
+                    }
+                    else if (bytesPerPixel == 3)
+                    {
+                        byte[] rowBuffer = new byte[width * 3];
+                        unsafe
+                        {
+                            byte* destPtr = (byte*)bitmap.GetPixels().ToPointer();
+                            for (int y = 0; y < height; y++)
+                            {
+                                stream.ReadExactly(rowBuffer);
+                                int targetY = topToBottom ? y : (height - 1 - y);
+                                byte* destRow = destPtr + (targetY * dstStride);
+                                for (int x = 0; x < width; x++)
+                                {
+                                    destRow[x * 4] = rowBuffer[x * 3];       // B
+                                    destRow[x * 4 + 1] = rowBuffer[x * 3 + 1];   // G
+                                    destRow[x * 4 + 2] = rowBuffer[x * 3 + 2];   // R
+                                    destRow[x * 4 + 3] = 255;                 // A
+                                }
+                            }
+                        }
+                        return bitmap;
                     }
                 }
-                else if (imageType == 10)
+
+                // Fallback for RLE compressed TGA (ImageType == 10)
+                byte[] pixelData = new byte[width * height * bytesPerPixel];
+                if (imageType == 10)
                 {
-                    // RLE compressed
                     int totalPixels = width * height;
                     int pixelCount = 0;
                     int offset = 0;
@@ -116,10 +148,8 @@ namespace TeconMoon_s_WiiVC_Injector
                     }
                 }
 
-                // Copy to SKBitmap destination memory
+                // Copy RLE pixelData to SKBitmap destination memory
                 IntPtr dstPtr = bitmap.GetPixels();
-                int dstStride = bitmap.RowBytes;
-
                 unsafe
                 {
                     byte* destPtr = (byte*)dstPtr.ToPointer();

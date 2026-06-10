@@ -27,11 +27,11 @@ namespace TeconMoon_s_WiiVC_Injector
                             if (line.StartsWith("TITLES =", StringComparison.Ordinal))
                                 continue;
 
-                            var split = line.Split(new[] { " = " }, 2, StringSplitOptions.None);
-                            if (split.Length < 2) continue;
+                            int idx = line.IndexOf(" = ", StringComparison.Ordinal);
+                            if (idx < 0) continue;
 
-                            string id = split[0];
-                            string name = split[1];
+                            string id = line.Substring(0, idx);
+                            string name = line.Substring(idx + 3);
 
                             NameById[id] = name;
 
@@ -70,13 +70,15 @@ namespace TeconMoon_s_WiiVC_Injector
             var ids = new List<string>();
             if (string.IsNullOrEmpty(idStart)) return ids;
 
+            var idStartSpan = idStart.AsSpan();
+
             foreach (var id in SortedIds)
             {
                 if (id.StartsWith(idStart, StringComparison.Ordinal))
                 {
                     ids.Add(id);
                 }
-                else if (id.Length >= idStart.Length && string.Compare(idStart, id.Substring(0, idStart.Length), StringComparison.Ordinal) < 0)
+                else if (id.Length >= idStart.Length && idStartSpan.CompareTo(id.AsSpan(0, idStart.Length), StringComparison.Ordinal) < 0)
                 {
                     break;
                 }

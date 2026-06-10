@@ -19,11 +19,11 @@ namespace TeconMoon_s_WiiVC_Injector
         public static bool passthrough = false;
         public static bool instantcc = false;
         public static bool nocc = false;
-        public static string keyFile = "..\\code\\htk.bin";
+        public static string keyFile = Path.Combine("..", "code", "htk.bin");
         public static string isoFile = "game.iso";
         public static string wiiKeyFile = "wii_common_key.bin";
         public static string nfsDir = "";
-        public static string fw_file = "..\\code\\fw.img";
+        public static string fw_file = Path.Combine("..", "code", "fw.img");
 
         private static void ResetDefaults()
         {
@@ -427,7 +427,7 @@ namespace TeconMoon_s_WiiVC_Injector
 
         public static void combineNFSFiles(string outFile)
         {
-            using (var nfs = new BinaryWriter(File.Create(outFile)))
+            using (var nfs = File.Create(outFile))
             {
                 Console.WriteLine("Looking for .nfs files...");
                 int nfsNo = -1;
@@ -440,17 +440,13 @@ namespace TeconMoon_s_WiiVC_Injector
                 {
                     string sourcePath = Path.Combine(nfsDir, $"hif_{i:D6}.nfs");
                     Console.WriteLine("Processing hif_" + i.ToString("D6") + ".nfs...");
-                    using (var nfsTemp = new BinaryReader(File.OpenRead(sourcePath)))
+                    using (var nfsTemp = File.OpenRead(sourcePath))
                     {
                         if (i == 0)
                         {
-                            nfsTemp.ReadBytes(HEADER_SIZE);
-                            nfs.Write(nfsTemp.ReadBytes((int)nfsTemp.BaseStream.Length - HEADER_SIZE));
+                            nfsTemp.Seek(HEADER_SIZE, SeekOrigin.Begin);
                         }
-                        else
-                        {
-                            nfs.Write(nfsTemp.ReadBytes((int)nfsTemp.BaseStream.Length));
-                        }
+                        nfsTemp.CopyTo(nfs);
                     }
                 }
             }
@@ -458,22 +454,32 @@ namespace TeconMoon_s_WiiVC_Injector
 
         public static void splitNFSFile(string inFile)
         {
-            using (var nfs = new BinaryReader(File.OpenRead(inFile)))
+            using (var nfs = File.OpenRead(inFile))
             {
                 Console.WriteLine();
-                long size = nfs.BaseStream.Length;
+                long size = nfs.Length;
                 int i = 0;
-                do
+                byte[] buffer = new byte[81920]; // 80KB buffer
+                while (size > 0)
                 {
                     string outputPath = Path.Combine(Directory.GetCurrentDirectory(), $"hif_{i:D6}.nfs");
                     Console.WriteLine("Building hif_" + i.ToString("D6") + ".nfs...");
-                    using (var nfsTemp = new BinaryWriter(File.Create(outputPath)))
+                    using (var nfsTemp = File.Create(outputPath))
                     {
-                        nfsTemp.Write(nfs.ReadBytes(size > NFS_SIZE ? NFS_SIZE : (int)size));
+                        long bytesToCopy = Math.Min(NFS_SIZE, size);
+                        long copied = 0;
+                        while (copied < bytesToCopy)
+                        {
+                            int toRead = (int)Math.Min(buffer.Length, bytesToCopy - copied);
+                            int read = nfs.Read(buffer, 0, toRead);
+                            if (read <= 0) break;
+                            nfsTemp.Write(buffer, 0, read);
+                            copied += read;
+                        }
                     }
                     size -= NFS_SIZE;
                     i++;
-                } while (size > 0);
+                }
             }
         }
 
@@ -538,8 +544,6 @@ namespace TeconMoon_s_WiiVC_Injector
                 partitionOffsets = sort(partitionOffsets, partitionOffsets.Length);
                 sizeInfo[0] = partitionOffsets[0];
                 byte[] IV = new byte[0x10];
-                byte[] decHashTable = new byte[0x400];
-                byte[] encHashTable = new byte[0x400];
                 int timer = 0;
                 int l = 0;
                 for (int i = 0; i < partitionOffsets.Length; i++)
@@ -563,61 +567,75 @@ namespace TeconMoon_s_WiiVC_Injector
                     ew.Write(partitionHeader);                                  //Write bytes till start of partition data
                     curPos += 0x20000;
                     curPos += partitionSize;
-                    byte[] titlekey = aes_128_cbc(WII_COMMON_KEY, IV, enc_titlekey, false);
-                    Console.WriteLine("Write game partition " + i + "...");
-                    byte[] Sector = new byte[SECTOR_SIZE];
-                    while (partitionSize >= SECTOR_SIZE)
+
+                    byte[] titlekey = new byte[16];
+                    using (var aesCommon = Aes.Create())
                     {
-                        if (timer == 8000)
-                        {
-                            timer = 0;
-                            l++;
-                            Console.WriteLine((l * 256) + " MB processed...");
-                        }
-                        timer++;
-
-
-                        // NFS to ISO
-                        if (enc)
-                        {
-                            Array.Clear(IV, 0, 0x10);                                                // clear IV for encrypting hash table
-                            decHashTable = er.ReadBytes(0x400);                                      // read raw hash table from nfs
-                            encHashTable = aes_128_cbc(titlekey, IV, decHashTable, true);            // encrypt table
-                            ew.Write(encHashTable);                                                  // write encrypted hash table to iso
-
-                            //quit the loop if already at the end of input file or beyond (avoid the crash)
-                            if (er.BaseStream.Position >= er.BaseStream.Length)
-                            {
-                                break;
-                            }
-                            Array.Copy(encHashTable, 0x3D0, IV, 0, 0x10);                            // get IV for encrypting the rest
-                            Sector = er.ReadBytes(SECTOR_SIZE - 0x400);
-                            Sector = aes_128_cbc(titlekey, IV, Sector, enc);                         // encrypt the remaining bytes
-                        }
-
-                        // ISO to NFS
-                        else
-                        {
-                            Array.Clear(IV, 0, 0x10);                                                // clear IV for decrypting hash table
-                            encHashTable = er.ReadBytes(0x400);                                      // read encrypted hash table from iso
-                            decHashTable = aes_128_cbc(titlekey, IV, encHashTable, false);           // decrypt table
-                            ew.Write(decHashTable);                                                  // write decrypted hash table to nfs
-
-
-                            //quit the loop if already at the end of input file or beyond (avoid the crash)
-                            if (er.BaseStream.Position >= er.BaseStream.Length)
-                            {
-                                break;
-                            }
-                            Array.Copy(encHashTable, 0x3D0, IV, 0, 0x10);                           // IV for decrypting the remaining data
-                            Sector = er.ReadBytes(SECTOR_SIZE - 0x400);
-                            Sector = aes_128_cbc(titlekey, IV, Sector, false);                      // decrypt the remaining bytes
-                        }
-
-
-                        ew.Write(Sector);
-                        partitionSize -= SECTOR_SIZE;
+                        aesCommon.Key = WII_COMMON_KEY;
+                        aesCommon.DecryptCbc(enc_titlekey, IV, titlekey, PaddingMode.None);
                     }
+                    Console.WriteLine("Write game partition " + i + "...");
+                    
+                    byte[] Sector = new byte[SECTOR_SIZE];
+                    byte[] IV_temp = new byte[16];
+                    using (var aesTitle = Aes.Create())
+                    {
+                        aesTitle.Key = titlekey;
+                        while (partitionSize >= SECTOR_SIZE)
+                        {
+                            if (timer == 8000)
+                            {
+                                timer = 0;
+                                l++;
+                                Console.WriteLine((l * 256) + " MB processed...");
+                            }
+                            timer++;
+
+                            if (enc)
+                            {
+                                int read1 = er.BaseStream.Read(Sector, 0, 0x400);
+                                if (read1 < 0x400) break;
+
+                                Array.Clear(IV, 0, 0x10);
+                                aesTitle.EncryptCbc(Sector.AsSpan(0, 0x400), IV, Sector.AsSpan(0, 0x400), PaddingMode.None);
+                                ew.Write(Sector, 0, 0x400);
+
+                                if (er.BaseStream.Position >= er.BaseStream.Length)
+                                {
+                                    break;
+                                }
+                                Array.Copy(Sector, 0x3D0, IV, 0, 0x10);
+                                int read2 = er.BaseStream.Read(Sector, 0x400, SECTOR_SIZE - 0x400);
+                                if (read2 <= 0) break;
+
+                                aesTitle.EncryptCbc(Sector.AsSpan(0x400, read2), IV, Sector.AsSpan(0x400, read2), PaddingMode.None);
+                                ew.Write(Sector, 0x400, read2);
+                            }
+                            else
+                            {
+                                int read1 = er.BaseStream.Read(Sector, 0, 0x400);
+                                if (read1 < 0x400) break;
+
+                                Array.Copy(Sector, 0x3D0, IV, 0, 0x10);
+                                Array.Clear(IV_temp, 0, 0x10);
+                                aesTitle.DecryptCbc(Sector.AsSpan(0, 0x400), IV_temp, Sector.AsSpan(0, 0x400), PaddingMode.None);
+                                ew.Write(Sector, 0, 0x400);
+
+                                if (er.BaseStream.Position >= er.BaseStream.Length)
+                                {
+                                    break;
+                                }
+                                int read2 = er.BaseStream.Read(Sector, 0x400, SECTOR_SIZE - 0x400);
+                                if (read2 <= 0) break;
+
+                                aesTitle.DecryptCbc(Sector.AsSpan(0x400, read2), IV, Sector.AsSpan(0x400, read2), PaddingMode.None);
+                                ew.Write(Sector, 0x400, read2);
+                            }
+
+                            partitionSize -= SECTOR_SIZE;
+                        }
+                    }
+
                     sizeInfo[1] = curPos - sizeInfo[0];
                     if (partitionSize != 0)
                         Console.WriteLine("WARNING: Last cluster was not complete. This may be a problem.");
@@ -632,6 +650,7 @@ namespace TeconMoon_s_WiiVC_Injector
                     else rest = 0x118240000 - curPos;
                     l = 0;
                     timer = 0;
+                    byte[] zeroBuffer = new byte[SECTOR_SIZE];
                     while (rest > 0)
                     {
                         if (timer == 8000)
@@ -641,7 +660,8 @@ namespace TeconMoon_s_WiiVC_Injector
                             Console.WriteLine((l * 256) + " MB processed...");
                         }
                         timer++;
-                        ew.Write(buildZero(rest > SECTOR_SIZE ? SECTOR_SIZE : (int)rest));
+                        int toWrite = rest > SECTOR_SIZE ? SECTOR_SIZE : (int)rest;
+                        ew.Write(zeroBuffer, 0, toWrite);
                         rest -= SECTOR_SIZE;
                     }
                     return null;
@@ -728,14 +748,14 @@ namespace TeconMoon_s_WiiVC_Injector
 
         public static void EnDecryptNFS(string InFile, string OutFile, byte[] key, byte[] iv, bool enc, byte[] header)
         {
-            using (var er = new BinaryReader(File.OpenRead(InFile)))
-            using (var ew = new BinaryWriter(File.Create(OutFile)))
+            using (var er = File.OpenRead(InFile))
+            using (var ew = File.Create(OutFile))
             {
                 Console.WriteLine();
                 if (enc)
                 {
                     Console.WriteLine("Writing EGGS header...");
-                    ew.Write(header);
+                    ew.Write(header, 0, header.Length);
                     Console.WriteLine("Encrypting hif.nfs...");
                 }
                 else
@@ -745,58 +765,55 @@ namespace TeconMoon_s_WiiVC_Injector
                 byte[] Sector = new byte[SECTOR_SIZE];
                 int timer = 0;
                 int i = 0;
-                //init size
-                long leftSize = er.BaseStream.Length;
-                do
+                long leftSize = er.Length;
+                using (var aes = Aes.Create())
                 {
-                    if (timer == 8000)
+                    aes.Key = key;
+                    do
                     {
-                        timer = 0;
-                        i++;
-                        Console.WriteLine((i * 256) + " MB processed...");
-                    }
-                    timer++;
-                    Sector = er.ReadBytes(leftSize > SECTOR_SIZE ? SECTOR_SIZE : (int)leftSize);
+                        if (timer == 8000)
+                        {
+                            timer = 0;
+                            i++;
+                            Console.WriteLine((i * 256) + " MB processed...");
+                        }
+                        timer++;
+                        
+                        int toRead = leftSize > SECTOR_SIZE ? SECTOR_SIZE : (int)leftSize;
+                        int read = er.Read(Sector, 0, toRead);
+                        if (read <= 0) break;
 
+                        if (ew.Position >= 0x18000)
+                        {
+                            iv = block_iv;
+                        }
 
-                    if (ew.BaseStream.Position >= 0x18000)                               //use the different IVs if writing game partition data
-                    {
-                        iv = block_iv;
-                    }
+                        // ENCRYPTION
+                        if (enc && ew.Position < 0x18000)
+                        {
+                            aes.EncryptCbc(Sector.AsSpan(0, read), iv, Sector.AsSpan(0, read), PaddingMode.None);
+                        }
+                        else if (enc && ew.Position >= 0x18000)
+                        {
+                            aes.EncryptCbc(Sector.AsSpan(0, read), block_iv, Sector.AsSpan(0, read), PaddingMode.None);
+                            IncrementIv(block_iv);
+                        }
 
-                    // ENCRYPTION
-                    if (enc && ew.BaseStream.Position < 0x18000)                        // if encrypting and not game partition
-                    {
-                        Sector = aes_128_cbc(key, iv, Sector, true);                    // use zero IV
-                    }
+                        // DECRYPTION
+                        else if (!enc && ew.Position < 0x18000)
+                        {
+                            aes.DecryptCbc(Sector.AsSpan(0, read), iv, Sector.AsSpan(0, read), PaddingMode.None);
+                        }
+                        else if (!enc && ew.Position >= 0x18000)
+                        {
+                            aes.DecryptCbc(Sector.AsSpan(0, read), iv, Sector.AsSpan(0, read), PaddingMode.None);
+                            IncrementIv(block_iv);
+                        }
 
-                    if (enc && ew.BaseStream.Position >= 0x18000)                       // if encrypting game partition
-                    {
-                        Sector = aes_128_cbc(key, block_iv, Sector, true);              // use different IV for each block
-                        IncrementIv(block_iv);
-                    }
-
-                    // DECRYPTION
-                    if (!enc && ew.BaseStream.Position < 0x18000)                       // if decrypting and not game partition
-                    {
-                        Sector = aes_128_cbc(key, iv, Sector, false);
-                    }
-
-                    if (!enc && ew.BaseStream.Position >= 0x18000)                      // if decrypting game partition
-                    {
-                        Sector = aes_128_cbc(key, iv, Sector, false);                   // use different IV for each block
-                        IncrementIv(block_iv);
-
-                    }
-
-                    //write it to outfile
-                    ew.Write(Sector);
-
-                    //decrease remaining size
-                    leftSize -= SECTOR_SIZE;
-
-                    //loop till end of file
-                } while (leftSize > 0);
+                        ew.Write(Sector, 0, read);
+                        leftSize -= SECTOR_SIZE;
+                    } while (leftSize > 0);
+                }
             }
         }
 
@@ -806,28 +823,16 @@ namespace TeconMoon_s_WiiVC_Injector
             if (iv == null) throw new ArgumentNullException(nameof(iv));
             if (data == null) throw new ArgumentNullException(nameof(data));
 
-            try
+            byte[] result = new byte[data.Length];
+            using (var aes = Aes.Create())
             {
-                using (var aes = Aes.Create())
-                {
-                    aes.Mode = CipherMode.CBC;
-                    aes.Padding = PaddingMode.None;
-                    aes.KeySize = 128;
-                    aes.BlockSize = 128;
-                    aes.Key = key;
-                    aes.IV = iv;
-
-                    using (var transform = enc ? aes.CreateEncryptor() : aes.CreateDecryptor())
-                    {
-                        return transform.TransformFinalBlock(data, 0, data.Length);
-                    }
-                }
+                aes.Key = key;
+                if (enc)
+                    aes.EncryptCbc(data, iv, result, PaddingMode.None);
+                else
+                    aes.DecryptCbc(data, iv, result, PaddingMode.None);
             }
-            catch (CryptographicException e)
-            {
-                Console.WriteLine("A cryptographic error occurred: {0}", e.Message);
-                throw;
-            }
+            return result;
         }
 
         public static int[,] sort(int[,] list, int size)
@@ -866,32 +871,67 @@ namespace TeconMoon_s_WiiVC_Injector
             return list;
         }
 
-        static bool ByteArrayCompare(byte[] b1, byte[] b2)
+        static bool ByteArrayCompare(ReadOnlySpan<byte> b1, ReadOnlySpan<byte> b2)
         {
-            return b1 != null && b2 != null && b1.Length == b2.Length && b1.SequenceEqual(b2);
+            return b1.SequenceEqual(b2);
+        }
+
+        private static int PatchBuffer(Span<byte> buffer, ReadOnlySpan<byte> pattern, int writeOffset, ReadOnlySpan<byte> replacement)
+        {
+            int patchCount = 0;
+            int index = 0;
+            while (index <= buffer.Length - pattern.Length)
+            {
+                var slice = buffer.Slice(index, pattern.Length);
+                if (slice.SequenceEqual(pattern))
+                {
+                    replacement.CopyTo(buffer.Slice(index + writeOffset, replacement.Length));
+                    patchCount++;
+                    index += pattern.Length;
+                }
+                else
+                {
+                    index++;
+                }
+            }
+            return patchCount;
+        }
+
+        private static int PatchBufferCustom(Span<byte> buffer, ReadOnlySpan<byte> pattern, Action<Span<byte>, int> patchAction)
+        {
+            int patchCount = 0;
+            int index = 0;
+            while (index <= buffer.Length - pattern.Length)
+            {
+                var slice = buffer.Slice(index, pattern.Length);
+                if (slice.SequenceEqual(pattern))
+                {
+                    patchAction(buffer, index);
+                    patchCount++;
+                    index += pattern.Length;
+                }
+                else
+                {
+                    index++;
+                }
+            }
+            return patchCount;
         }
 
         public static void DoThePatching(string fw_file)
         {
-            var input_ios = new MemoryStream(File.ReadAllBytes(fw_file));                     //copy fw.img into a memory stream
+            byte[] fileBytes = File.ReadAllBytes(fw_file);
+            Span<byte> fileSpan = fileBytes.AsSpan();
 
             Console.WriteLine("Checking fw.img's revision number...");
 
-            byte[] buffer_rev = new byte[4];
             byte[] rev_pattern = { 0x73, 0x76, 0x6E, 0x2D };                                  // search for "svn-"
             string revision = "";
 
-            for (int offset = 0; offset < input_ios.Length - 4; offset++)
+            int revOffset = fileSpan.IndexOf(rev_pattern);
+            if (revOffset >= 0 && revOffset + 8 <= fileSpan.Length)
             {
-                input_ios.Position = offset;                                                  // set position to advance byte by byte
-                input_ios.Read(buffer_rev, 0, 4);                                             // because we read 4 bytes at once
-
-                if (ByteArrayCompare(buffer_rev, rev_pattern))                                // see if it matches
-                {
-                    input_ios.Read(buffer_rev, 0, 4);
-                    revision = System.Text.Encoding.UTF8.GetString(buffer_rev, 0, buffer_rev.Length);
-                    break;
-                }
+                revision = System.Text.Encoding.UTF8.GetString(fileSpan.Slice(revOffset + 4, 4));
             }
 
             if (revision == "r590")
@@ -904,27 +944,19 @@ namespace TeconMoon_s_WiiVC_Injector
             }
             Console.WriteLine();
 
-            byte[] buffer_4 = new byte[4];                                                    // buffer for 4-byte arrays
-            byte[] buffer_8 = new byte[8];                                                    // buffer for 8-byte arrays
-
             Console.WriteLine("Patching fw.img.");
             if (!keepLegit)
             {
-                Array.Clear(buffer_4, 0, 4);
                 int patchCount = 0;
                 byte[] oldHashCheck = { 0x20, 0x07, 0x23, 0xA2 };
                 byte[] newHashCheck = { 0x20, 0x07, 0x4B, 0x0B };
 
-                for (int offset = 0; offset < input_ios.Length - 4; offset++)
+                for (int offset = 0; offset <= fileSpan.Length - 4; offset++)
                 {
-                    input_ios.Position = offset;                                                               // set position to advance byte by byte
-                    input_ios.Read(buffer_4, 0, 4);                                                            // because we read 4 bytes at once
-
-                    if (ByteArrayCompare(buffer_4, oldHashCheck) || ByteArrayCompare(buffer_4, newHashCheck))  // see if it matches one of the patterns
+                    var slice = fileSpan.Slice(offset, 4);
+                    if (slice.SequenceEqual(oldHashCheck) || slice.SequenceEqual(newHashCheck))
                     {
-                        input_ios.Seek(offset + 1, SeekOrigin.Begin);                                          // if it does, advance on byte further in
-                        input_ios.WriteByte(0x00);                                                             // the output and write a zero
-
+                        fileSpan[offset + 1] = 0x00;
                         patchCount++;
                     }
                 }
@@ -957,11 +989,11 @@ namespace TeconMoon_s_WiiVC_Injector
                 byte[] pattern5 = { 0x1C, 0x05, 0x80, 0x22 };
                 byte[] patch5 = { 0x25, 0x40, 0x80, 0x22, 0x40, 0x05 };
 
-                patchCount += PatchStreamWithPattern(input_ios, pattern1, 0, patch1);
-                patchCount += PatchStreamWithPattern(input_ios, pattern2, 0, patch2);
-                patchCount += PatchStreamWithPattern(input_ios, pattern3, 0, patch3);
-                patchCount += PatchStreamWithPattern(input_ios, pattern4, 0, patch4);
-                patchCount += PatchStreamWithPattern(input_ios, pattern5, 0, patch5);
+                patchCount += PatchBuffer(fileSpan, pattern1, 0, patch1);
+                patchCount += PatchBuffer(fileSpan, pattern2, 0, patch2);
+                patchCount += PatchBuffer(fileSpan, pattern3, 0, patch3);
+                patchCount += PatchBuffer(fileSpan, pattern4, 0, patch4);
+                patchCount += PatchBuffer(fileSpan, pattern5, 0, patch5);
 
                 if (patchCount == 0)
                     Console.WriteLine("LR to ZLZR patching: Nothing to patch.");
@@ -978,7 +1010,7 @@ namespace TeconMoon_s_WiiVC_Injector
                 byte[] pattern = { 0x16, 0x13, 0x1C, 0x02, 0x40, 0x9A, 0x1C, 0x13 };
                 byte[] patch = { 0x23, 0x00 };
 
-                patchCount += PatchStreamWithPattern(input_ios, pattern, 0, patch);
+                patchCount += PatchBuffer(fileSpan, pattern, 0, patch);
 
                 if (patchCount == 0)
                     Console.WriteLine("Wii Remote emulation patching: Nothing to patch.");
@@ -994,31 +1026,16 @@ namespace TeconMoon_s_WiiVC_Injector
                 int patchCount = 0;
                 byte[] pattern = { 0x4A, 0x71, 0x42, 0x13, 0xD0, 0xD2, 0x9B, 0x00 };
 
-                patchCount += PatchStream(input_ios, pattern, (stream, offset) =>
+                patchCount += PatchBufferCustom(fileSpan, pattern, (buf, offset) =>
                 {
-                    stream.Seek(offset + 0x07, SeekOrigin.Begin);
-                    stream.WriteByte(0x02);                                            // dpad left -> down
-
-                    stream.Seek(offset + 0x0F, SeekOrigin.Begin);
-                    stream.WriteByte(0x03);                                            // dpad right -> up
-
-                    stream.Seek(offset + 0x1D, SeekOrigin.Begin);
-                    stream.WriteByte(0x01);                                            // dpad down -> right
-
-                    stream.Seek(offset + 0x2B, SeekOrigin.Begin);
-                    stream.WriteByte(0x00);                                            // dpad up -> left
-
-                    stream.Seek(offset + 0x65, SeekOrigin.Begin);
-                    stream.WriteByte(0x07);                                            // B -> 2
-
-                    stream.Seek(offset + 0x75, SeekOrigin.Begin);
-                    stream.WriteByte(0x06);                                            // A -> 1
-
-                    stream.Seek(offset + 0x85, SeekOrigin.Begin);
-                    stream.WriteByte(0x04);                                            // 1 -> B
-
-                    stream.Seek(offset + 0x95, SeekOrigin.Begin);
-                    stream.WriteByte(0x05);                                            // 2 -> A
+                    buf[offset + 0x07] = 0x02;                                            // dpad left -> down
+                    buf[offset + 0x0F] = 0x03;                                            // dpad right -> up
+                    buf[offset + 0x1D] = 0x01;                                            // dpad down -> right
+                    buf[offset + 0x2B] = 0x00;                                            // dpad up -> left
+                    buf[offset + 0x65] = 0x07;                                            // B -> 2
+                    buf[offset + 0x75] = 0x06;                                            // A -> 1
+                    buf[offset + 0x85] = 0x04;                                            // 1 -> B
+                    buf[offset + 0x95] = 0x05;                                            // 2 -> A
                 });
 
                 if (patchCount == 0)
@@ -1033,70 +1050,61 @@ namespace TeconMoon_s_WiiVC_Injector
             if (homebrew)
             {
                 Console.WriteLine("Homebrew-related patches:");
-                Array.Clear(buffer_4, 0, 4);
-                Array.Clear(buffer_8, 0, 8);
                 int patchCount = 0;
 
                 // disable AHBPROT
                 byte[] pattern_ahbprot = { 0xD0, 0x0B, 0x23, 0x08, 0x43, 0x13, 0x60, 0x0B };
                 byte[] patch_ahbprot = { 0x46, 0xC0 };
-                patchCount += PatchStream(input_ios, pattern_ahbprot, (stream, offset) =>
+                patchCount += PatchBufferCustom(fileSpan, pattern_ahbprot, (buf, offset) =>
                 {
                     Console.WriteLine("* Disabling AHBPROT...");
-                    stream.Seek(offset, SeekOrigin.Begin);
-                    stream.Write(patch_ahbprot, 0, 2);
+                    patch_ahbprot.CopyTo(buf.Slice(offset, 2));
                 });
 
                 //disable MEMPROT
                 byte[] pattern_memprot = { 0x01, 0x94, 0xB5, 0x00, 0x4B, 0x08, 0x22, 0x01 };
                 byte[] patch_memprot = { 0x22, 0x00 };
-                patchCount += PatchStream(input_ios, pattern_memprot, (stream, offset) =>
+                patchCount += PatchBufferCustom(fileSpan, pattern_memprot, (buf, offset) =>
                 {
                     Console.WriteLine("* Disabling MEMPROT...");
-                    stream.Seek(offset + 6, SeekOrigin.Begin);
-                    stream.Write(patch_memprot, 0, 2);
+                    patch_memprot.CopyTo(buf.Slice(offset + 6, 2));
                 });
 
                 // nintendont 1
                 byte[] pattern_nintendont_1 = { 0xB0, 0xBA, 0x1C, 0x0F };
                 byte[] patch_nintendont_1 = { 0xE5, 0x9F, 0x10, 0x04, 0xE5, 0x91, 0x00, 0x00, 0xE1, 0x2F, 0xFF, 0x10, 0x12, 0xFF, 0xFF, 0xE0 };
-                patchCount += PatchStream(input_ios, pattern_nintendont_1, (stream, offset) =>
+                patchCount += PatchBufferCustom(fileSpan, pattern_nintendont_1, (buf, offset) =>
                 {
                     Console.WriteLine("* Nintendont patch 1...");
-                    stream.Seek(offset - 12, SeekOrigin.Begin);
-                    stream.Write(patch_nintendont_1, 0, 16);
+                    patch_nintendont_1.CopyTo(buf.Slice(offset - 12, 16));
                 });
 
                 //nintendont 2
                 byte[] pattern_nintendont_2 = { 0x68, 0x4B, 0x2B, 0x06 };
                 byte[] patch_nintendont_2 = { 0x49, 0x01, 0x47, 0x88, 0x46, 0xC0, 0xE0, 0x01, 0x12, 0xFF, 0xFE, 0x00, 0x22, 0x00, 0x23, 0x01, 0x46, 0xC0, 0x46, 0xC0 };
-                patchCount += PatchStream(input_ios, pattern_nintendont_2, (stream, offset) =>
+                patchCount += PatchBufferCustom(fileSpan, pattern_nintendont_2, (buf, offset) =>
                 {
                     Console.WriteLine("* Nintendont patch 2...");
-                    stream.Seek(offset, SeekOrigin.Begin);
-                    stream.Write(patch_nintendont_2, 0, 20);
+                    patch_nintendont_2.CopyTo(buf.Slice(offset, 20));
                 });
 
                 //nintendont 3
                 byte[] pattern1_nintendont_3 = { 0x0D, 0x80, 0x00, 0x00, 0x0D, 0x80, 0x00, 0x00 };
                 byte[] pattern2_nintendont_3 = { 0x00, 0x00, 0x00, 0x02 };
                 byte[] patch_nintendont_3 = { 0x00, 0x00, 0x00, 0x03 };
-                for (int offset = 0; offset < input_ios.Length - 8; offset++)
+                for (int offset = 0; offset <= fileSpan.Length - 8; offset++)
                 {
-                    input_ios.Position = offset;                                              // set position to advance byte by byte
-                    input_ios.Read(buffer_8, 0, 8);                                           // because we read 8 bytes at once
-
-                    if (ByteArrayCompare(buffer_8, pattern1_nintendont_3))                    // if it matches
+                    if (fileSpan.Slice(offset, 8).SequenceEqual(pattern1_nintendont_3))
                     {
-                        input_ios.Seek(offset + 0x10, SeekOrigin.Begin);
-                        input_ios.Read(buffer_4, 0, 4);
-                        if (ByteArrayCompare(buffer_4, pattern2_nintendont_3))                // if it matches
+                        if (offset + 0x10 + 4 <= fileSpan.Length)
                         {
-                            Console.WriteLine("* Nintendont patch 3...");
-                            input_ios.Seek(offset + 0x10, SeekOrigin.Begin);                    // seek to offset
-                            input_ios.Write(patch_nintendont_3, 0, 4);                        // and then patch
-
-                            patchCount++;
+                            var target = fileSpan.Slice(offset + 0x10, 4);
+                            if (target.SequenceEqual(pattern2_nintendont_3))
+                            {
+                                Console.WriteLine("* Nintendont patch 3...");
+                                patch_nintendont_3.CopyTo(fileSpan.Slice(offset + 0x10, 4));
+                                patchCount++;
+                            }
                         }
                     }
                 }
@@ -1118,17 +1126,17 @@ namespace TeconMoon_s_WiiVC_Injector
                 //wiimote passthrough
                 byte[] pattern_passthrough = { 0x20, 0x4B, 0x01, 0x68, 0x18, 0x47, 0x70, 0x00 };
                 byte[] patch_passthrough = { 0x20, 0x00 };
-                patchCount += PatchStreamWithPattern(input_ios, pattern_passthrough, 3, patch_passthrough);
+                patchCount += PatchBuffer(fileSpan, pattern_passthrough, 3, patch_passthrough);
 
                 // the custom function
                 byte[] pattern_custom_func = { 0x28, 0x00, 0xD0, 0x03, 0x49, 0x02, 0x22, 0x09 };
                 byte[] patch_custom_func = { 0xF0, 0x04, 0xFF, 0x21, 0x48, 0x02, 0x21, 0x09, 0xF0, 0x04, 0xFE, 0xF9 };
-                patchCount += PatchStreamWithPattern(input_ios, pattern_custom_func, 0, patch_custom_func);
+                patchCount += PatchBuffer(fileSpan, pattern_custom_func, 0, patch_custom_func);
 
                 // call custom function
                 byte[] pattern_custom_call = { 0xF0, 0x01, 0xFA, 0xB9 };
                 byte[] patch_custom_call = { 0xF7, 0xFC, 0xFB, 0x95 };
-                patchCount += PatchStreamWithPattern(input_ios, pattern_custom_call, 0, patch_custom_call);
+                patchCount += PatchBuffer(fileSpan, pattern_custom_call, 0, patch_custom_call);
 
                 if (patchCount == 0)
                     Console.WriteLine("Wiimote Passthrough patching: Nothing to patch.");
@@ -1145,7 +1153,7 @@ namespace TeconMoon_s_WiiVC_Injector
                 byte[] pattern = { 0x78, 0x93, 0x21, 0x10, 0x2B, 0x02, 0xD1, 0xB7 };
                 byte[] patch = { 0x78, 0x93, 0x21, 0x10, 0x2B, 0x02, 0x46, 0xC0 };
 
-                patchCount += PatchStreamWithPattern(input_ios, pattern, 0, patch);
+                patchCount += PatchBuffer(fileSpan, pattern, 0, patch);
 
                 if (patchCount == 0)
                     Console.WriteLine("Instant Classic Controller report patching: Nothing to patch.");
@@ -1162,7 +1170,7 @@ namespace TeconMoon_s_WiiVC_Injector
                 byte[] pattern = { 0x78, 0x93, 0x21, 0x10, 0x2B, 0x02, 0xD1, 0xB7 };
                 byte[] patch = { 0x78, 0x93, 0x21, 0x10, 0x2B, 0x02, 0xE0, 0xB7 };
 
-                patchCount += PatchStreamWithPattern(input_ios, pattern, 0, patch);
+                patchCount += PatchBuffer(fileSpan, pattern, 0, patch);
 
                 if (patchCount == 0)
                     Console.WriteLine("No Classic Controller report patching: Nothing to patch.");
@@ -1172,14 +1180,7 @@ namespace TeconMoon_s_WiiVC_Injector
                 Console.WriteLine();
             }
 
-            // write to disk
-            //FileStream patched_file = File.OpenWrite("newfw.img");                     // for testing
-            using (var patched_file = File.Create(fw_file))
-            {
-                input_ios.WriteTo(patched_file);                                         // write
-            }
-            input_ios.Close();
-
+            File.WriteAllBytes(fw_file, fileBytes);
         }
     }
 }

@@ -22,8 +22,11 @@ namespace TeconMoon_s_WiiVC_Injector
         {
             try
             {
-                var response = Client.GetAsync("http://clients3.google.com/generate_204").Result;
-                return response.IsSuccessStatusCode;
+                using (var request = new HttpRequestMessage(HttpMethod.Get, "http://clients3.google.com/generate_204"))
+                using (var response = Client.Send(request))
+                {
+                    return response.IsSuccessStatusCode;
+                }
             }
             catch
             {
