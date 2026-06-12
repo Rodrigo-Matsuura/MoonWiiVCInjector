@@ -4,9 +4,9 @@ using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
 using Avalonia.Platform.Storage;
-using TeconMoon_s_WiiVC_Injector.Properties;
+using Moon_WiiVC_Injector.Properties;
 
-namespace TeconMoon_s_WiiVC_Injector
+namespace Moon_WiiVC_Injector
 {
     public partial class SettingsWindow : Window
     {

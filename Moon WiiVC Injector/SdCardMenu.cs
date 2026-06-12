@@ -9,10 +9,10 @@ using System.IO.Compression;
 using System.Net;
 using System.Net.Http;
 using System.Diagnostics;
-using TeconMoon_s_WiiVC_Injector.Properties;
+using Moon_WiiVC_Injector.Properties;
 
 
-namespace TeconMoon_s_WiiVC_Injector
+namespace Moon_WiiVC_Injector
 {
     public partial class SdCardMenu : Form
     {
@@ -142,7 +142,7 @@ namespace TeconMoon_s_WiiVC_Injector
         //Buttons that make changes to SD Card
         private void NintendontUpdate_Click(object sender, EventArgs e)
         {
-            string downloadPath = Path.Combine(Path.GetTempPath(), "WiiVCInjector", "SOURCETEMP", "Download");
+            string downloadPath = Path.Combine(Path.GetTempPath(), "Moon WiiVC Injector", "SOURCETEMP", "Download");
             string tempPath = Path.Combine(downloadPath, "apps", "nintendont");
             string sdPath = Path.Combine(SelectedDriveLetter, "apps", "nintendont");
 

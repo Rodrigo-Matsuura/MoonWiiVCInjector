@@ -1,7 +1,7 @@
-# 🚀 TeconMoon's WiiVC Injector - Modernized Edition (v4.0.0.0)
+# 🚀 Moon WiiVC Injector - Modernized Edition (v4.0.0.0)
 
 [![Build Status](https://img.shields.io/badge/Build-Succeeded-success?style=for-the-badge&logo=.net&color=31c754)](https://github.com/Rodrigo-Matsuura/TeconmoonWiiVCInjector)
-[![Version](https://img.shields.io/badge/Version-4.0.0.0-blue?style=for-the-badge&color=007acc)](TeconMoon's%20WiiVC%20Injector/Properties/AssemblyInfo.cs)
+[![Version](https://img.shields.io/badge/Version-4.0.0.0-blue?style=for-the-badge&color=007acc)](Moon%20WiiVC%20Injector/Properties/AssemblyInfo.cs)
 [![Vibe Coding](https://img.shields.io/badge/Developed%20with-Vibe%20Coding-pink?style=for-the-badge&logo=ai)](https://github.com/Rodrigo-Matsuura/TeconmoonWiiVCInjector)
 
 This is a modernized, optimized, and polished fork of the classic **[piratesephiroth/TeconmoonWiiVCInjector](https://github.com/piratesephiroth/TeconmoonWiiVCInjector)**, maintained under **[Rodrigo-Matsuura/TeconmoonWiiVCInjector](https://github.com/Rodrigo-Matsuura/TeconmoonWiiVCInjector)**.
@@ -47,7 +47,7 @@ Here is the detailed changelog and architectural refactoring breakdown of all ch
 ## 🚀 How to Build
 
 ### On Windows (Visual Studio)
-1. Open the solution file `TeconMoon's WiiVC Injector.sln`.
+1. Open the solution file `Moon WiiVC Injector.sln`.
 2. Restore the NuGet packages.
 3. Select the `Release` configuration and click **Build Solution**.
 
@@ -55,10 +55,10 @@ Here is the detailed changelog and architectural refactoring breakdown of all ch
 Ensure you have the Mono development toolkit installed, then run the following in the repository root:
 ```bash
 # To generate a Debug build
-msbuild "TeconMoon's WiiVC Injector.sln" /t:Build /p:Configuration=Debug
+msbuild "Moon WiiVC Injector.sln" /t:Build /p:Configuration=Debug
 
 # To generate the highly optimized Release build
-msbuild "TeconMoon's WiiVC Injector.sln" /t:Build /p:Configuration=Release
+msbuild "Moon WiiVC Injector.sln" /t:Build /p:Configuration=Release
 ```
 
 ---
@@ -68,6 +68,3 @@ msbuild "TeconMoon's WiiVC Injector.sln" /t:Build /p:Configuration=Release
 This project is actively maintained under the **Vibe Coding** philosophy! 🎸  
 If you spot any unexpected behavior, want to suggest additional optimizations, or port more parts of the legacy codebase to modern C# standards, feel free to submit a **Pull Request (PR)**! All contributions are highly appreciated.
 
----
-
-*“This is not a complete rewrite. The source code is still SUPER CRAPPY™ as defined by the original author, but now it is significantly faster, cleaner, and strictly warned-free!”*

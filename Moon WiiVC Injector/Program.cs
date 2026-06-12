@@ -1,7 +1,7 @@
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 
-namespace TeconMoon_s_WiiVC_Injector
+namespace Moon_WiiVC_Injector
 {
     static class Program
     {

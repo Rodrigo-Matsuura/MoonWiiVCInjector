@@ -1,7 +1,7 @@
 using System.Threading.Tasks;
 using Avalonia.Controls;
 
-namespace TeconMoon_s_WiiVC_Injector
+namespace Moon_WiiVC_Injector
 {
     public static class GuiUtil
     {

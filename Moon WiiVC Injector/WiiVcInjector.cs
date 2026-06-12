@@ -16,7 +16,7 @@ using System.Reflection;
 using System.Buffers.Binary;
 using System.Threading.Tasks;
 
-namespace TeconMoon_s_WiiVC_Injector
+namespace Moon_WiiVC_Injector
 {
     public partial class WiiVcInjector : Form
     {
@@ -93,7 +93,7 @@ namespace TeconMoon_s_WiiVC_Injector
         private string _wiimmfiOption = " --wiimmfi";
 
         static readonly string JNUSToolDownloads = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "JNUSToolDownloads") + Path.DirectorySeparatorChar;
-        static readonly string TempRootPath = Path.Combine(Path.GetTempPath(), "WiiVCInjector") + Path.DirectorySeparatorChar;
+        static readonly string TempRootPath = Path.Combine(Path.GetTempPath(), "Moon WiiVC Injector") + Path.DirectorySeparatorChar;
         static readonly string TempSourcePath = Path.Combine(TempRootPath, "SOURCETEMP") + Path.DirectorySeparatorChar;
         static readonly string TempBuildPath = Path.Combine(TempRootPath, "BUILDDIR") + Path.DirectorySeparatorChar;
         static readonly string TempToolsPath = Path.Combine(TempRootPath, "TOOLDIR") + Path.DirectorySeparatorChar;

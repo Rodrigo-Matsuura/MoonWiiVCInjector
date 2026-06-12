@@ -1,10 +1,10 @@
 using System.Reflection;
 
-namespace TeconMoon_s_WiiVC_Injector
+namespace Moon_WiiVC_Injector
 {
     public class GameTdb
     {
-        private const string ResourcePath = "TeconMoon_s_WiiVC_Injector.Resources.wiitdb.txt";
+        private const string ResourcePath = "Moon_WiiVC_Injector.Resources.wiitdb.txt";
         private static readonly Assembly CurrentAssembly = Assembly.GetExecutingAssembly();
 
         // Caches estáticos em memória

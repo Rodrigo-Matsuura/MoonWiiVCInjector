@@ -1,6 +1,6 @@
 using SkiaSharp;
 
-namespace TeconMoon_s_WiiVC_Injector
+namespace Moon_WiiVC_Injector
 {
     public static class TgaReader
     {

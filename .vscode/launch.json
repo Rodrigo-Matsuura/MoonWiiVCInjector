@@ -2,13 +2,13 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Debug WiiVC Injector",
+            "name": "Debug Moon WiiVC Injector",
             "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "build",
-            "program": "${workspaceFolder}/TeconMoon's WiiVC Injector/bin/Debug/net9.0/TeconMoon's WiiVC Injector.dll",
+            "program": "${workspaceFolder}/Moon WiiVC Injector/bin/Debug/net9.0/Moon WiiVC Injector.dll",
             "args": [],
-            "cwd": "${workspaceFolder}/TeconMoon's WiiVC Injector",
+            "cwd": "${workspaceFolder}/Moon WiiVC Injector",
             "console": "internalConsole",
             "stopAtEntry": false,
             "env": {

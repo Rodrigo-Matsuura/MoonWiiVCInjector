@@ -4,8 +4,8 @@
     <TargetFramework>net9.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <RootNamespace>TeconMoon_s_WiiVC_Injector</RootNamespace>
-    <AssemblyName>TeconMoon's WiiVC Injector</AssemblyName>
+    <RootNamespace>Moon_WiiVC_Injector</RootNamespace>
+    <AssemblyName>Moon WiiVC Injector</AssemblyName>
     <ApplicationIcon>WiiU.ico</ApplicationIcon>
     <NoWin32Manifest>true</NoWin32Manifest>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>

@@ -1,7 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        x:Class="TeconMoon_s_WiiVC_Injector.MainWindow"
-        Title="WiiVC Injector"
+        x:Class="Moon_WiiVC_Injector.MainWindow"
+        Title="Moon WiiVC Injector"
         Width="900"
         Height="680">
   <Grid RowDefinitions="Auto,Auto,*" Margin="12">

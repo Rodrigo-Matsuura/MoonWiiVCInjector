@@ -19,7 +19,7 @@ jobs:
         dotnet-version: '9.0.x'
 
     - name: Restore dependencies
-      run: dotnet restore "TeconMoon's WiiVC Injector.sln"
+      run: dotnet restore "Moon WiiVC Injector.sln"
 
     - name: Build
-      run: dotnet build "TeconMoon's WiiVC Injector.sln" --no-restore --configuration Release
+      run: dotnet build "Moon WiiVC Injector.sln" --no-restore --configuration Release

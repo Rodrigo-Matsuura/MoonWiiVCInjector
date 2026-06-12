@@ -7,7 +7,7 @@
             "type": "process",
             "args": [
                 "build",
-                "${workspaceFolder}/TeconMoon's WiiVC Injector/TeconMoon's WiiVC Injector.csproj",
+                "${workspaceFolder}/Moon WiiVC Injector/Moon WiiVC Injector.csproj",
                 "/property:GenerateFullPaths=true",
                 "/consoleloggerparameters:NoSummary;ForceNoAlign"
             ],
@@ -23,7 +23,7 @@
             "type": "process",
             "args": [
                 "publish",
-                "${workspaceFolder}/TeconMoon's WiiVC Injector/TeconMoon's WiiVC Injector.csproj",
+                "${workspaceFolder}/Moon WiiVC Injector/Moon WiiVC Injector.csproj",
                 "--configuration",
                 "Release",
                 "/property:GenerateFullPaths=true",
@@ -40,7 +40,7 @@
                 "watch",
                 "run",
                 "--project",
-                "${workspaceFolder}/TeconMoon's WiiVC Injector/TeconMoon's WiiVC Injector.csproj"
+                "${workspaceFolder}/Moon WiiVC Injector/Moon WiiVC Injector.csproj"
             ],
             "group": "build",
             "problemMatcher": "$msCompile",

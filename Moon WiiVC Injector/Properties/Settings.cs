@@ -2,13 +2,13 @@ using System;
 using System.IO;
 using System.Text.Json;
 
-namespace TeconMoon_s_WiiVC_Injector.Properties
+namespace Moon_WiiVC_Injector.Properties
 {
     internal sealed class Settings
     {
         private static readonly string SettingsFolder = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            "TeconMoonWiiVCInjector"
+            "Moon WiiVC Injector"
         );
         private static readonly string SettingsPath = Path.Combine(SettingsFolder, "settings.json");
 
