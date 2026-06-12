@@ -61,7 +61,7 @@
     </Grid>
 
     <!-- Tab Control -->
-    <TabControl Grid.Row="1" BorderBrush="#adadad" BorderThickness="1" Padding="0">
+    <TabControl Grid.Row="1" Name="MainTabs" SelectionChanged="OnMainTabsSelectionChanged" BorderBrush="#adadad" BorderThickness="1" Padding="0">
       
       <!-- Tab 1: Required Source Files -->
       <TabItem Header="Required Source Files">

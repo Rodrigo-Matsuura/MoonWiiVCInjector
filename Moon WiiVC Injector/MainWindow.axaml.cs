@@ -10,7 +10,6 @@ using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
 using Avalonia.Platform.Storage;
 using Avalonia.Media.Imaging;
-using Microsoft.Win32;
 
 namespace Moon_WiiVC_Injector
 {
@@ -24,29 +23,23 @@ namespace Moon_WiiVC_Injector
         static readonly string TempRootPath = Path.Combine(Path.GetTempPath(), "Moon WiiVC Injector") + Path.DirectorySeparatorChar;
         static readonly string TempSourcePath = Path.Combine(TempRootPath, "SOURCETEMP") + Path.DirectorySeparatorChar;
         static readonly string TempBuildPath = Path.Combine(TempRootPath, "BUILDDIR") + Path.DirectorySeparatorChar;
-        static readonly string TempToolsPath = Path.Combine(TempRootPath, "TOOLDIR") + Path.DirectorySeparatorChar;
 
         static readonly string TempIconPath = Path.Combine(TempSourcePath, "iconTex.png");
         static readonly string TempBannerPath = Path.Combine(TempSourcePath, "bootTvTex.png");
         static readonly string TempDrcPath = Path.Combine(TempSourcePath, "bootDrcTex.png");
         static readonly string TempLogoPath = Path.Combine(TempSourcePath, "bootLogoTex.png");
-        static readonly string TempSoundPath = Path.Combine(TempSourcePath, "bootSound.wav");
 
         // State fields
         private string _systemType = "wii";
         private string _titleIdHex = string.Empty;
         private string _titleIdText = string.Empty;
         private string _internalGameName = string.Empty;
-        private bool _flagWbfs;
-        private bool _flagNkit;
-        private bool _flagNasos;
+        
+        // Checklist flags
         private bool _flagGameSpecified;
-        private bool _flagGc2Specified;
         private bool _flagIconSpecified;
         private bool _flagBannerSpecified;
-        private bool _flagDrcSpecified;
-        private bool _flagLogoSpecified;
-        private bool _flagBootSoundSpecified;
+
         private bool _buildFlagSource;
         private bool _buildFlagMeta;
         private bool _buildFlagAdvance = true;
@@ -57,12 +50,6 @@ namespace Moon_WiiVC_Injector
         private int _titleIdInt;
         private long _gameType;
         private string _cucholixRepoId = "";
-        private string _drcuse = "1";
-        private string _pngTempPath = string.Empty;
-        private string _loopString = " -noLoop";
-        private string _nfsPatchFlag = "";
-        private string _passPatch = " -passthrough";
-        private string _wiimmfiOption = " --wiimmfi";
         private string _selectedGamePath = string.Empty;
 
         public MainWindow()
@@ -298,7 +285,6 @@ namespace Moon_WiiVC_Injector
 
                         if (idString == "WBFS")
                         {
-                            _flagWbfs = true;
                             fs.Position = 0x200;
                             fs.ReadExactly(idBytes);
                             _titleIdInt = BitConverter.ToInt32(idBytes);
@@ -325,7 +311,6 @@ namespace Moon_WiiVC_Injector
                             }
                             else
                             {
-                                _flagWbfs = false;
                                 uint startOffset = 0;
 
                                 if (idString == "WII5") startOffset = 0x1182800;
@@ -361,7 +346,7 @@ namespace Moon_WiiVC_Injector
                     var gameNameTxt = this.FindControl<TextBox>("InternalGameName");
                     if (gameNameTxt != null) gameNameTxt.Text = _internalGameName;
 
-                    var dbName = StringUtil.RemoveSpecialChars(GameTdb.GetName(_cucholixRepoId));
+                    var dbName = StringUtil.RemoveSpecialChars(GameTdb.GetName(_cucholixRepoId) ?? string.Empty);
                     var packedTitle1 = this.FindControl<TextBox>("PackedTitleLine1");
                     if (packedTitle1 != null) packedTitle1.Text = !string.IsNullOrEmpty(dbName) ? dbName : _internalGameName;
 
@@ -590,12 +575,12 @@ namespace Moon_WiiVC_Injector
                         {
                             await MessageBoxWindow.Show(this, "This is not a GameCube image. It will not be loaded.", "Error", MessageBoxButtons.Ok);
                             if (gc2Dir != null) gc2Dir.Text = "2nd GameCube Disc Image has not been specified";
-                            _flagGc2Specified = false;
+                            // _flagGc2Specified = false;
                         }
                         else
                         {
                             if (gc2Dir != null) gc2Dir.Text = path;
-                            _flagGc2Specified = true;
+                            // _flagGc2Specified = true;
                         }
                     }
                 }
@@ -641,13 +626,11 @@ namespace Moon_WiiVC_Injector
                         if (wavHeader1 == 1179011410 && wavHeader2 == 1163280727)
                         {
                             if (soundDir != null) soundDir.Text = path;
-                            _flagBootSoundSpecified = true;
                         }
                         else
                         {
                             await MessageBoxWindow.Show(this, "This is not a valid WAV file. It will not be loaded.", "Not a WAV File", MessageBoxButtons.Ok);
                             if (soundDir != null) soundDir.Text = "Boot Sound has not been specified";
-                            _flagBootSoundSpecified = false;
                         }
                     }
                 }
@@ -707,7 +690,7 @@ namespace Moon_WiiVC_Injector
 
                     var logoDir = this.FindControl<TextBox>("LogoSourceDirectory");
                     if (logoDir != null) logoDir.Text = path;
-                    _flagLogoSpecified = true;
+                    // _flagLogoSpecified = true;
                 }
                 catch (Exception ex)
                 {
@@ -760,7 +743,7 @@ namespace Moon_WiiVC_Injector
 
                     var drcDir = this.FindControl<TextBox>("DrcSourceDirectory");
                     if (drcDir != null) drcDir.Text = path;
-                    _flagDrcSpecified = true;
+                    // _flagDrcSpecified = true;
                 }
                 catch (Exception ex)
                 {
@@ -769,19 +752,125 @@ namespace Moon_WiiVC_Injector
             }
         }
 
-        private void OnSaveAncastKeyClick(object sender, RoutedEventArgs e)
+        private void OnMainTabsSelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            // Placeholder for saving ancast key
+            if (e.Source is TabControl)
+            {
+                var tabControl = sender as TabControl;
+                var selectedTab = tabControl?.SelectedItem as TabItem;
+                if (selectedTab != null && selectedTab.Header?.ToString() == "Build Title")
+                {
+                    // Update key text boxes from settings
+                    var wiiUCommonKey = this.FindControl<TextBox>("WiiUCommonKey");
+                    var titleKey = this.FindControl<TextBox>("TitleKey");
+                    var ancastKey = this.FindControl<TextBox>("AncastKey");
+
+                    if (wiiUCommonKey != null)
+                        wiiUCommonKey.Text = string.IsNullOrEmpty(Properties.Settings.Default.WiiUCommonKey)
+                            ? "00000000000000000000000000000000"
+                            : Properties.Settings.Default.WiiUCommonKey.ToUpper();
+
+                    if (titleKey != null)
+                        titleKey.Text = string.IsNullOrEmpty(Properties.Settings.Default.TitleKey)
+                            ? "00000000000000000000000000000000"
+                            : Properties.Settings.Default.TitleKey.ToUpper();
+
+                    if (ancastKey != null)
+                        ancastKey.Text = string.IsNullOrEmpty(Properties.Settings.Default.AncastKey)
+                            ? "00000000000000000000000000000000"
+                            : Properties.Settings.Default.AncastKey.ToUpper();
+
+                    _commonKeyGood = SetKeyStatus(wiiUCommonKey, "35-AC-59-94-97-22-79-33-1D-97-09-4F-A2-FB-97-FC");
+                    _titleKeyGood = SetKeyStatus(titleKey, "F9-4B-D8-8E-BB-7A-A9-38-67-E6-30-61-5F-27-1C-9F");
+                    _ancastKeyGood = SetKeyStatus(ancastKey, "31-8D-1F-9D-98-FB-08-E7-7C-7F-E1-77-AA-49-05-43");
+
+                    // Check checklist
+                    _buildFlagSource = _flagGameSpecified && _flagIconSpecified && _flagBannerSpecified;
+                    var sourceCheck = this.FindControl<CheckBox>("SourceCheck");
+                    if (sourceCheck != null) sourceCheck.IsChecked = _buildFlagSource;
+
+                    var packedTitle1 = this.FindControl<TextBox>("PackedTitleLine1");
+                    var packedTitleIDLine = this.FindControl<TextBox>("PackedTitleIDLine");
+                    _buildFlagMeta = packedTitle1 != null && !string.IsNullOrEmpty(packedTitle1.Text) && 
+                                     packedTitleIDLine != null && packedTitleIDLine.Text?.Length == 16;
+                    var metaCheck = this.FindControl<CheckBox>("MetaCheck");
+                    if (metaCheck != null) metaCheck.IsChecked = _buildFlagMeta;
+
+                    _buildFlagAdvance = true; // Simpler default
+                    var advanceCheck = this.FindControl<CheckBox>("AdvanceCheck");
+                    if (advanceCheck != null) advanceCheck.IsChecked = _buildFlagAdvance;
+
+                    var lrPatch = this.FindControl<CheckBox>("LRPatch");
+                    bool skipAncast = lrPatch == null || lrPatch.IsChecked != true;
+                    _buildFlagKeys = skipAncast ? (_commonKeyGood && _titleKeyGood) : (_commonKeyGood && _titleKeyGood && _ancastKeyGood);
+                    
+                    var keysCheck = this.FindControl<CheckBox>("KeysCheck");
+                    if (keysCheck != null) keysCheck.IsChecked = _buildFlagKeys;
+
+                    UpdateBuildButtonState();
+                }
+            }
+        }
+
+        private bool SetKeyStatus(TextBox? keyTextBox, string expectedHash)
+        {
+            if (keyTextBox == null || string.IsNullOrEmpty(keyTextBox.Text)) return false;
+            keyTextBox.Text = keyTextBox.Text.ToUpper();
+            using (var md5 = MD5.Create())
+            {
+                byte[] data = md5.ComputeHash(Encoding.ASCII.GetBytes(keyTextBox.Text));
+                string hash = BitConverter.ToString(data).Replace("-", "");
+                bool isValid = string.Equals(hash, expectedHash, StringComparison.OrdinalIgnoreCase);
+                keyTextBox.IsReadOnly = isValid;
+                
+                // Color formatting can be implemented or handled through standard Avalonia properties
+                return isValid;
+            }
         }
 
         private void OnSaveCommonKeyClick(object sender, RoutedEventArgs e)
         {
-            // Placeholder for saving common key
+            var wiiUCommonKey = this.FindControl<TextBox>("WiiUCommonKey");
+            if (wiiUCommonKey != null && !string.IsNullOrEmpty(wiiUCommonKey.Text))
+            {
+                Properties.Settings.Default.WiiUCommonKey = wiiUCommonKey.Text;
+                Properties.Settings.Default.Save();
+                _commonKeyGood = SetKeyStatus(wiiUCommonKey, "35-AC-59-94-97-22-79-33-1D-97-09-4F-A2-FB-97-FC");
+                UpdateBuildButtonState();
+            }
         }
 
         private void OnSaveTitleKeyClick(object sender, RoutedEventArgs e)
         {
-            // Placeholder for saving title key
+            var titleKey = this.FindControl<TextBox>("TitleKey");
+            if (titleKey != null && !string.IsNullOrEmpty(titleKey.Text))
+            {
+                Properties.Settings.Default.TitleKey = titleKey.Text;
+                Properties.Settings.Default.Save();
+                _titleKeyGood = SetKeyStatus(titleKey, "F9-4B-D8-8E-BB-7A-A9-38-67-E6-30-61-5F-27-1C-9F");
+                UpdateBuildButtonState();
+            }
+        }
+
+        private void OnSaveAncastKeyClick(object sender, RoutedEventArgs e)
+        {
+            var ancastKey = this.FindControl<TextBox>("AncastKey");
+            if (ancastKey != null && !string.IsNullOrEmpty(ancastKey.Text))
+            {
+                Properties.Settings.Default.AncastKey = ancastKey.Text;
+                Properties.Settings.Default.Save();
+                _ancastKeyGood = SetKeyStatus(ancastKey, "31-8D-1F-9D-98-FB-08-E7-7C-7F-E1-77-AA-49-05-43");
+                UpdateBuildButtonState();
+            }
+        }
+
+        private void UpdateBuildButtonState()
+        {
+            var theBigOneTM = this.FindControl<Button>("TheBigOneTM");
+            if (theBigOneTM != null)
+            {
+                theBigOneTM.IsEnabled = _buildFlagSource && _buildFlagMeta && _buildFlagAdvance && _buildFlagKeys;
+            }
         }
 
         private void OnBuildClick(object sender, RoutedEventArgs e)
