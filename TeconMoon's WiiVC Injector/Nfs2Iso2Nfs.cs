@@ -431,7 +431,7 @@ namespace TeconMoon_s_WiiVC_Injector
                     nfsTemp.Write(buffer, 0, read);
                     copied += read;
                 }
-                size -= NFS_SIZE;
+                size -= bytesToCopy;
                 i++;
             }
         }
@@ -516,6 +516,11 @@ namespace TeconMoon_s_WiiVC_Injector
 
             Console.WriteLine();
             int[] partitionOffsets = partitionOffsetList.ToArray();
+            if (partitionOffsets.Length == 0)
+            {
+                Console.WriteLine("ERROR: No data partitions found!");
+                return null;
+            }
             partitionOffsets = sort(partitionOffsets, partitionOffsets.Length);
             sizeInfo[0] = partitionOffsets[0];
 
@@ -759,6 +764,7 @@ namespace TeconMoon_s_WiiVC_Injector
             int timer = 0;
             int mbCounter = 0;
             long leftSize = reader.Length;
+            long processedBytes = 0;
 
             using var aes = Aes.Create();
             aes.Key = key;
@@ -777,8 +783,8 @@ namespace TeconMoon_s_WiiVC_Injector
                 int read = reader.Read(sector, 0, toRead);
                 if (read <= 0) break;
 
-                // Use blockIv (incrementing) once position exceeds the initial header region
-                bool useBlockIv = writer.Position >= 0x18000;
+                // Use blockIv (incrementing) once position exceeds the initial header region (0x18000 bytes)
+                bool useBlockIv = processedBytes >= 0x18000;
                 byte[] currentIv = useBlockIv ? blockIv : iv;
 
                 if (encrypt)
@@ -790,6 +796,7 @@ namespace TeconMoon_s_WiiVC_Injector
                     IncrementIv(blockIv);
 
                 writer.Write(sector, 0, read);
+                processedBytes += read;
                 leftSize -= SECTOR_SIZE;
             } while (leftSize > 0);
         }

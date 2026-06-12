@@ -1,0 +1,25 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="TeconMoon_s_WiiVC_Injector.SettingsWindow"
+        Title="Application Settings"
+        Width="400"
+        Height="250"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False"
+        Background="#1e1e1e">
+  <Grid RowDefinitions="Auto,Auto,Auto,Auto,*,Auto" Margin="16">
+    <TextBlock Text="Banners Repository" Foreground="White" Margin="0,0,0,4"/>
+    <TextBox Name="BannersRepository" Grid.Row="1" Width="368" HorizontalAlignment="Left" Background="#2d2d2d" Foreground="White" BorderBrush="#3f3f3f" Margin="0,0,0,16"/>
+    
+    <TextBlock Grid.Row="2" Text="Output Directory (leave empty to always ask)" Foreground="White" Margin="0,0,0,4"/>
+    <Grid Grid.Row="3" ColumnDefinitions="*,Auto">
+      <TextBox Name="OutputDir" Width="280" HorizontalAlignment="Left" Background="#2d2d2d" Foreground="White" BorderBrush="#3f3f3f"/>
+      <Button Grid.Column="1" Content="Browse..." Width="80" Click="OnBrowseClick" HorizontalContentAlignment="Center" Background="#3a3a3a" Foreground="White" Margin="8,0,0,0"/>
+    </Grid>
+
+    <StackPanel Grid.Row="5" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+      <Button Content="OK" Width="80" Click="OnOkClick" HorizontalContentAlignment="Center" Background="#007acc" Foreground="White"/>
+      <Button Content="Cancel" Width="80" Click="OnCancelClick" HorizontalContentAlignment="Center" Background="#3a3a3a" Foreground="White"/>
+    </StackPanel>
+  </Grid>
+</Window>

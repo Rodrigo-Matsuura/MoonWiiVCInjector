@@ -1,0 +1,18 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="TeconMoon_s_WiiVC_Injector.PromptWindow"
+        Title="Input Required"
+        Width="350"
+        Height="150"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False"
+        Background="#1e1e1e">
+  <Grid RowDefinitions="*,Auto,Auto" Margin="16" KeyboardNavigation.TabNavigation="Cycle">
+    <TextBlock Name="PromptText" Text="Enter value:" Foreground="White" TextWrapping="Wrap" VerticalAlignment="Center" Margin="0,0,0,8"/>
+    <TextBox Name="InputTextBox" Grid.Row="1" Width="300" HorizontalAlignment="Left" Background="#2d2d2d" Foreground="White" BorderBrush="#3f3f3f"/>
+    <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0" Spacing="8">
+      <Button Name="OkButton" Content="OK" Width="80" HorizontalContentAlignment="Center" Click="OnOkClick" Background="#007acc" Foreground="White"/>
+      <Button Name="CancelButton" Content="Cancel" Width="80" HorizontalContentAlignment="Center" Click="OnCancelClick" Background="#3a3a3a" Foreground="White"/>
+    </StackPanel>
+  </Grid>
+</Window>

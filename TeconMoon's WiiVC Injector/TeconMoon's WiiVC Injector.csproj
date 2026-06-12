@@ -20,13 +20,10 @@
     <PackageReference Include="SkiaSharp" Version="2.88.8" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Remove="WiiVC_Injector.cs" />
-    <Compile Remove="WiiVC_Injector.Designer.cs" />
-    <Compile Remove="SettingsForm.cs" />
-    <Compile Remove="SettingsForm.Designer.cs" />
-    <Compile Remove="SDCardMenu.cs" />
-    <Compile Remove="SDCardMenu.Designer.cs" />
-    <Compile Remove="GuiUtil.cs" />
+    <Compile Remove="WiiVcInjector.cs" />
+    <Compile Remove="WiiVcInjector.Designer.cs" />
+    <Compile Remove="SdCardMenu.cs" />
+    <Compile Remove="SdCardMenu.Designer.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Update="Resources\TOOLDIR.zip">

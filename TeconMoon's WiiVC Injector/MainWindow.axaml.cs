@@ -14,5 +14,11 @@ namespace TeconMoon_s_WiiVC_Injector
         {
             AvaloniaXamlLoader.Load(this);
         }
+
+        private void OnSettingsClick(object sender, Avalonia.Interactivity.RoutedEventArgs e)
+        {
+            var settingsWin = new SettingsWindow();
+            settingsWin.ShowDialog(this);
+        }
     }
 }

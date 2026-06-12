@@ -18,9 +18,9 @@ using System.Threading.Tasks;
 
 namespace TeconMoon_s_WiiVC_Injector
 {
-    public partial class WiiVC_Injector : Form
+    public partial class WiiVcInjector : Form
     {
-        public WiiVC_Injector()
+        public WiiVcInjector()
         {
             InitializeComponent();
             this.Text = string.Format(this.Text, Assembly.GetExecutingAssembly().GetName().Version.ToString());
@@ -526,7 +526,7 @@ namespace TeconMoon_s_WiiVC_Injector
         }
         private void SDCardStuff_Click(object sender, EventArgs e)
         {
-            new SDCardMenu().Show();
+            new SdCardMenu().Show();
         }
 
         //Performs actions when switching tabs

@@ -1,6 +1,6 @@
-﻿namespace TeconMoon_s_WiiVC_Injector
+namespace TeconMoon_s_WiiVC_Injector
 {
-    partial class WiiVC_Injector
+    partial class WiiVcInjector
     {
         /// <summary>
         /// Required designer variable.
@@ -29,7 +29,7 @@
         private void InitializeComponent()
         {
             this.components = new System.ComponentModel.Container();
-            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(WiiVC_Injector));
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(WiiVcInjector));
             this.MainTableLayout = new System.Windows.Forms.TableLayoutPanel();
             this.WiiRetail = new System.Windows.Forms.RadioButton();
             this.MainTabs = new System.Windows.Forms.TabControl();
@@ -1316,7 +1316,7 @@
             this.OpenGC2.Filter = "GameCube Disk 2 (*.gcm,*.iso)|*.gcm;*.iso";
             this.OpenGC2.Title = "Specify your GameCube game\'s 2nd disc";
             // 
-            // WiiVC_Injector
+            // WiiVcInjector
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
@@ -1326,7 +1326,7 @@
             this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
             this.Margin = new System.Windows.Forms.Padding(4);
             this.MaximizeBox = false;
-            this.Name = "WiiVC_Injector";
+            this.Name = "WiiVcInjector";
             this.Text = "TeconMoon\'s WiiVC Injector - [{0}]";
             this.MainTableLayout.ResumeLayout(false);
             this.MainTableLayout.PerformLayout();

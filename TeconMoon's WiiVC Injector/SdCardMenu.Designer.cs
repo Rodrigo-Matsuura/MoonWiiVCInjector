@@ -1,6 +1,6 @@
-﻿namespace TeconMoon_s_WiiVC_Injector
+namespace TeconMoon_s_WiiVC_Injector
 {
-    partial class SDCardMenu
+    partial class SdCardMenu
     {
         /// <summary>
         /// Required designer variable.
@@ -28,7 +28,7 @@
         /// </summary>
         private void InitializeComponent()
         {
-            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(SDCardMenu));
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(SdCardMenu));
             this.DriveBox = new System.Windows.Forms.ComboBox();
             this.SDCardText = new System.Windows.Forms.Label();
             this.ReloadDrives = new System.Windows.Forms.Button();
@@ -342,7 +342,7 @@
             this.nintendontConfigGroupBox.TabStop = false;
             this.nintendontConfigGroupBox.Text = "Nintendont Configuration";
             // 
-            // SDCardMenu
+            // SdCardMenu
             // 
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Inherit;
             this.ClientSize = new System.Drawing.Size(280, 512);
@@ -358,10 +358,10 @@
             this.Margin = new System.Windows.Forms.Padding(4);
             this.MaximizeBox = false;
             this.MinimizeBox = false;
-            this.Name = "SDCardMenu";
+            this.Name = "SdCardMenu";
             this.ShowInTaskbar = false;
             this.Text = "Nintendont SD Card Menu...";
-            this.Load += new System.EventHandler(this.SDCardMenu_Load);
+            this.Load += new System.EventHandler(this.SdCardMenu_Load);
             ((System.ComponentModel.ISupportInitialize)(this.VideoWidth)).EndInit();
             this.nintendontConfigGroupBox.ResumeLayout(false);
             this.nintendontConfigGroupBox.PerformLayout();

@@ -14,9 +14,9 @@ using TeconMoon_s_WiiVC_Injector.Properties;
 
 namespace TeconMoon_s_WiiVC_Injector
 {
-    public partial class SDCardMenu : Form
+    public partial class SdCardMenu : Form
     {
-        public SDCardMenu()
+        public SdCardMenu()
         {
             InitializeComponent();
         }
@@ -24,7 +24,7 @@ namespace TeconMoon_s_WiiVC_Injector
         bool DriveSpecified;
 
         //Load Drives and set drive variable on load
-        private void SDCardMenu_Load(object sender, EventArgs e)
+        private void SdCardMenu_Load(object sender, EventArgs e)
         {
             ReloadDriveList();
             SpecifyDrive();
