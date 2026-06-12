@@ -22,8 +22,6 @@
   <ItemGroup>
     <Compile Remove="WiiVcInjector.cs" />
     <Compile Remove="WiiVcInjector.Designer.cs" />
-    <Compile Remove="SdCardMenu.cs" />
-    <Compile Remove="SdCardMenu.Designer.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Update="Resources\TOOLDIR.zip">
