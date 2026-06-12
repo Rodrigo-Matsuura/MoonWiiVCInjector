@@ -1,0 +1,81 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="Moon_WiiVC_Injector.SdCardMenuAvalonia"
+        Title="Nintendont SD Card Menu..."
+        Width="320" Height="560">
+  <ScrollViewer>
+    <StackPanel Margin="8" Spacing="8">
+      <ComboBox x:Name="DriveBox" />
+      <TextBlock Text="Choose your SD Card" />
+      <StackPanel Orientation="Horizontal" Spacing="8">
+        <Button x:Name="ReloadDrives" Content="Reload Drive List" />
+        <TextBlock x:Name="Format" Text="Use this to format your SD Card" VerticalAlignment="Center" />
+      </StackPanel>
+      <TextBlock x:Name="ActionStatus" Text="" TextAlignment="Center" />
+      <Button x:Name="NintendontUpdate" Content="Download Latest Nintendont from GitHub" />
+
+      <GroupBox Header="Nintendont Configuration">
+        <StackPanel Margin="6" Spacing="6">
+          <WrapPanel>
+            <StackPanel>
+              <TextBlock Text="Memcard Blocks" HorizontalAlignment="Center" />
+              <ComboBox x:Name="MemcardBlocks">
+                <ComboBoxItem Content="59" />
+                <ComboBoxItem Content="123" />
+                <ComboBoxItem Content="251" />
+                <ComboBoxItem Content="507 (Unstable)" />
+                <ComboBoxItem Content="1019 (Unstable)" />
+                <ComboBoxItem Content="2043 (Unstable)" />
+              </ComboBox>
+              <CheckBox x:Name="MemcardMulti" Content="Memcard Multi" />
+            </StackPanel>
+
+            <StackPanel Margin="12,0,0,0">
+              <TextBlock Text="Video Mode" HorizontalAlignment="Center" />
+              <ComboBox x:Name="VideoForceMode">
+                <ComboBoxItem Content="Auto" />
+                <ComboBoxItem Content="Force" />
+                <ComboBoxItem Content="Force (Deflicker)" />
+                <ComboBoxItem Content="None" />
+              </ComboBox>
+              <ComboBox x:Name="VideoTypeMode">
+                <ComboBoxItem Content="Auto" />
+                <ComboBoxItem Content="NTSC" />
+                <ComboBoxItem Content="MPAL" />
+                <ComboBoxItem Content="PAL50" />
+                <ComboBoxItem Content="PAL60" />
+              </ComboBox>
+              <TextBlock Text="Video Width" />
+              <Slider x:Name="VideoWidth" Minimum="640" Maximum="720" SmallChange="2" />
+              <TextBlock x:Name="WidthNumber" Text="Auto" HorizontalAlignment="Center" />
+            </StackPanel>
+          </WrapPanel>
+
+          <TextBlock Text="Language" HorizontalAlignment="Center" />
+          <ComboBox x:Name="LanguageBox">
+            <ComboBoxItem Content="Automatic" />
+            <ComboBoxItem Content="English" />
+            <ComboBoxItem Content="German" />
+            <ComboBoxItem Content="French" />
+            <ComboBoxItem Content="Spanish" />
+            <ComboBoxItem Content="Italian" />
+            <ComboBoxItem Content="Dutch" />
+          </ComboBox>
+
+          <TextBlock Text="Options" />
+          <StackPanel x:Name="OptionsPanel" />
+
+          <TextBlock Text="Wii U Gamepad Slot" />
+          <ComboBox x:Name="wiiUGamepadSlotBox">
+            <ComboBoxItem Content="1" />
+            <ComboBoxItem Content="2" />
+            <ComboBoxItem Content="3" />
+            <ComboBoxItem Content="4" />
+          </ComboBox>
+
+          <Button x:Name="GenerateConfig" Content="Generate Nintendont Config File (nincfg.bin)" />
+        </StackPanel>
+      </GroupBox>
+    </StackPanel>
+  </ScrollViewer>
+</Window>

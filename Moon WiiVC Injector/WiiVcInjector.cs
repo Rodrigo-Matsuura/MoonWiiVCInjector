@@ -526,7 +526,7 @@ namespace Moon_WiiVC_Injector
         }
         private void SDCardStuff_Click(object sender, EventArgs e)
         {
-            new SdCardMenu().Show();
+            new SdCardMenuAvalonia().Show();
         }
 
         //Performs actions when switching tabs
