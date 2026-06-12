@@ -10,7 +10,7 @@ using Avalonia.Interactivity;
 using Avalonia.Threading;
 using System.Collections.Generic;
 using System.Net;
-using System.Windows.Forms;
+using Avalonia.Platform.Storage;
 
 namespace Moon_WiiVC_Injector
 {
@@ -69,11 +69,29 @@ namespace Moon_WiiVC_Injector
             }
         }
 
+        private class NintendontConfig
+        {
+            public uint magicBytes { get; set; } = 0x01070CF6u;
+            public uint version { get; set; } = 10u;
+            public uint config { get; set; } = 0u;
+            public uint videoMode { get; set; } = 0u;
+            public uint language { get; set; } = 0u;
+            public byte[] gamePath { get; set; } = new byte[256];
+            public byte[] cheatPath { get; set; } = new byte[256];
+            public uint maxPads { get; set; } = 4u;
+            public uint gameID { get; set; } = 0u;
+            public byte memCardBlocks { get; set; }
+            public sbyte videoScale { get; set; }
+            public sbyte videoOffset { get; set; }
+            public byte networkProfile { get; set; }
+            public uint wiiuGamepadSlot { get; set; }
+        }
+
         private void ReloadDriveList()
         {
             var drives = DriveInfo.GetDrives().Where(d => d.IsReady && d.DriveType == DriveType.Removable)
                 .Select(d => d.Name + " (" + d.VolumeLabel + ")").ToList();
-            DriveBox.Items = drives;
+            DriveBox.ItemsSource = drives;
             if (drives.Count > 0) DriveBox.SelectedIndex = 0;
         }
 
@@ -91,11 +109,10 @@ namespace Moon_WiiVC_Injector
 
             if (!Program.CheckForInternetConnection())
             {
-                var res = System.Windows.Forms.MessageBox.Show("Your internet connection could not be verified, do you wish to try and download Nintendont anyway?",
+                var res = await MessageBoxWindow.Show(this, "Your internet connection could not be verified, do you wish to try and download Nintendont anyway?",
                     "Internet Connection Verification Failed",
-                    MessageBoxButtons.YesNo,
-                    MessageBoxIcon.Question);
-                if (res == DialogResult.No) return;
+                    MessageBoxButtons.YesNo);
+                if (res == MessageBoxResult.No) return;
             }
 
             ActionStatus.Text = "Downloading...";
@@ -120,34 +137,35 @@ namespace Moon_WiiVC_Injector
                     file.CopyTo(outPath, true);
                 }
 
-                System.Windows.Forms.MessageBox.Show("Download complete.", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                await MessageBoxWindow.Show(this, "Download complete.", "Success", MessageBoxButtons.Ok);
             }
             else
             {
-                var dialogResult = System.Windows.Forms.MessageBox.Show("SD Card not specified.\nDo you wish to save Nintendont somewhere else?",
+                var dialogResult = await MessageBoxWindow.Show(this, "SD Card not specified.\nDo you wish to save Nintendont somewhere else?",
                     "Drive not specified",
-                    MessageBoxButtons.YesNo,
-                    MessageBoxIcon.Question);
-                if (dialogResult == DialogResult.Yes)
+                    MessageBoxButtons.YesNo);
+                if (dialogResult == MessageBoxResult.Yes)
                 {
                     DateTime dateTime = DateTime.UtcNow.Date;
-                    using (var saveFileDialog = new SaveFileDialog
+                    var topLevel = TopLevel.GetTopLevel(this);
+                    if (topLevel != null)
                     {
-                        Title = "Save Nintendont zip file",
-                        CheckPathExists = true,
-                        DefaultExt = "zip",
-                        Filter = "Zip Files (*.zip)|*.zip",
-                        FilterIndex = 2,
-                        RestoreDirectory = true,
-                        FileName = $"Nintendont-{dateTime:dd.MMM.yyyy}.zip"
-                    })
-                    {
-                        if (saveFileDialog.ShowDialog() == DialogResult.OK)
+                        var file = await topLevel.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
                         {
-                            var zipPath = saveFileDialog.FileName;
+                            Title = "Save Nintendont zip file",
+                            DefaultExtension = "zip",
+                            SuggestedFileName = $"Nintendont-{dateTime:dd.MMM.yyyy}.zip",
+                            FileTypeChoices = new[]
+                            {
+                                new FilePickerFileType("Zip Files") { Patterns = new[] { "*.zip" } }
+                            }
+                        });
+                        if (file != null)
+                        {
+                            var zipPath = file.Path.LocalPath;
                             if (File.Exists(zipPath)) File.Delete(zipPath);
                             ZipFile.CreateFromDirectory(downloadPath, zipPath);
-                            System.Windows.Forms.MessageBox.Show("Download complete.", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                            await MessageBoxWindow.Show(this, "Download complete.", "Success", MessageBoxButtons.Ok);
                         }
                     }
                 }
@@ -157,7 +175,7 @@ namespace Moon_WiiVC_Injector
         private async Task GenerateConfig_Click()
         {
             // Build config similar to original; only core fields implemented
-            var nintendontCfg = new
+            var nintendontCfg = new NintendontConfig
             {
                 magicBytes = 0x01070CF6u,
                 version = 10u,
@@ -192,16 +210,36 @@ namespace Moon_WiiVC_Injector
             string savePath = Path.Combine(SelectedDriveLetter, "nincfg.bin");
             if (!DriveSpecified)
             {
-                var dialogResult = System.Windows.Forms.MessageBox.Show("SD card not specified.\nDo you wish to save the file somewhere else?",
+                var dialogResult = await MessageBoxWindow.Show(this, "SD card not specified.\nDo you wish to save the file somewhere else?",
                     "Drive not specified",
-                    MessageBoxButtons.YesNo,
-                    MessageBoxIcon.Question);
-                if (dialogResult == DialogResult.Yes)
+                    MessageBoxButtons.YesNo);
+                if (dialogResult == MessageBoxResult.Yes)
                 {
-                    using (var sfd = new SaveFileDialog { Title = "Save nincfg.bin", CheckPathExists = true, DefaultExt = "bin", Filter = "nintendont config files (*.bin)|*.bin", FilterIndex = 2, RestoreDirectory = true, FileName = "nincfg.bin" })
+                    var topLevel = TopLevel.GetTopLevel(this);
+                    if (topLevel != null)
                     {
-                        if (sfd.ShowDialog() == DialogResult.OK) savePath = sfd.FileName;
-                        else return;
+                        var file = await topLevel.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+                        {
+                            Title = "Save nincfg.bin",
+                            DefaultExtension = "bin",
+                            SuggestedFileName = "nincfg.bin",
+                            FileTypeChoices = new[]
+                            {
+                                new FilePickerFileType("nintendont config files") { Patterns = new[] { "*.bin" } }
+                            }
+                        });
+                        if (file != null)
+                        {
+                            savePath = file.Path.LocalPath;
+                        }
+                        else
+                        {
+                            return;
+                        }
+                    }
+                    else
+                    {
+                        return;
                     }
                 }
                 else return;
@@ -246,7 +284,7 @@ namespace Moon_WiiVC_Injector
                 cfgFile.Write(wiiuGamepadSlot);
             }
 
-            System.Windows.Forms.MessageBox.Show("Config generation complete.", "Information", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            await MessageBoxWindow.Show(this, "Config generation complete.", "Information", MessageBoxButtons.Ok);
         }
     }
 }
