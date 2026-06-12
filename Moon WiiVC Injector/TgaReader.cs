@@ -190,7 +190,7 @@ namespace Moon_WiiVC_Injector
             // Resize image to width and height
             using (SKBitmap resized = new SKBitmap(width, height))
             {
-                if (image.ScalePixels(resized, SKFilterQuality.High))
+                if (image.ScalePixels(resized, new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.None)))
                 {
                     SaveAsTga(resized, filePath, bpp);
                 }
@@ -200,7 +200,10 @@ namespace Moon_WiiVC_Injector
                     using (SKCanvas canvas = new SKCanvas(resized))
                     {
                         canvas.Clear(SKColors.Transparent);
-                        canvas.DrawBitmap(image, new SKRect(0, 0, width, height), new SKPaint { FilterQuality = SKFilterQuality.High });
+                        using (var skImage = SKImage.FromBitmap(image))
+                        {
+                            canvas.DrawImage(skImage, new SKRect(0, 0, width, height), new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.None));
+                        }
                     }
                     SaveAsTga(resized, filePath, bpp);
                 }

@@ -95,7 +95,7 @@ namespace Moon_WiiVC_Injector
             if (drives.Count > 0) DriveBox.SelectedIndex = 0;
         }
 
-        private void ReloadDrives_Click(object sender, RoutedEventArgs e)
+        private void ReloadDrives_Click(object? sender, RoutedEventArgs e)
         {
             ReloadDriveList();
             SpecifyDrive();
