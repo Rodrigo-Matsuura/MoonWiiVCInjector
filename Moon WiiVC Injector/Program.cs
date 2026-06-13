@@ -1,5 +1,4 @@
 using Avalonia;
-using Avalonia.Controls.ApplicationLifetimes;
 
 namespace Moon_WiiVC_Injector
 {

@@ -1,5 +1,3 @@
-using System;
-using System.IO;
 using System.Text.Json;
 
 namespace Moon_WiiVC_Injector.Properties

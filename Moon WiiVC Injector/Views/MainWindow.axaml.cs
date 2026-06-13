@@ -1,12 +1,7 @@
-using System;
-using System.IO;
 using System.IO.Compression;
 using System.Diagnostics;
-using System.Linq;
 using System.Text;
 using System.Security.Cryptography;
-using System.Net.Http;
-using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
@@ -392,13 +387,13 @@ namespace Moon_WiiVC_Injector
 
         private string ReadNullTerminatedString(Stream stream)
         {
-            StringBuilder sb = new StringBuilder();
+            List<byte> bytes = new List<byte>();
             int b;
             while (stream.Position < stream.Length && (b = stream.ReadByte()) > 0)
             {
-                sb.Append((char)b);
+                bytes.Add((byte)b);
             }
-            return sb.ToString();
+            return Encoding.UTF8.GetString(bytes.ToArray());
         }
 
         private void CleanUp()
@@ -920,33 +915,31 @@ namespace Moon_WiiVC_Injector
         {
             if (keyTextBox == null || string.IsNullOrEmpty(keyTextBox.Text)) return false;
             keyTextBox.Text = keyTextBox.Text.ToUpper();
-            using (var md5 = MD5.Create())
+            byte[] data = MD5.HashData(Encoding.ASCII.GetBytes(keyTextBox.Text));
+            string hash = BitConverter.ToString(data);
+            bool isValid = string.Equals(hash, expectedHash, StringComparison.OrdinalIgnoreCase);
+            keyTextBox.IsReadOnly = isValid;
+            keyTextBox.Background = isValid ? Avalonia.Media.Brush.Parse("#c8e6c9") : Avalonia.Media.Brush.Parse("White");
+            keyTextBox.Foreground = isValid ? Avalonia.Media.Brush.Parse("#1b4332") : Avalonia.Media.Brush.Parse("Black");
+
+            // Disable button if key is valid
+            string buttonName = keyTextBox.Name switch
             {
-                byte[] data = md5.ComputeHash(Encoding.ASCII.GetBytes(keyTextBox.Text));
-                string hash = BitConverter.ToString(data);
-                bool isValid = string.Equals(hash, expectedHash, StringComparison.OrdinalIgnoreCase);
-                keyTextBox.IsReadOnly = isValid;
-                keyTextBox.Background = isValid ? Avalonia.Media.Brush.Parse("Lime") : Avalonia.Media.Brush.Parse("White");
-
-                // Disable button if key is valid
-                string buttonName = keyTextBox.Name switch
+                "WiiUCommonKey" => "SaveCommonKeyButton",
+                "TitleKey" => "SaveTitleKeyButton",
+                "AncastKey" => "SaveAncastKeyButton",
+                _ => ""
+            };
+            if (!string.IsNullOrEmpty(buttonName))
+            {
+                var button = this.FindControl<Button>(buttonName);
+                if (button != null)
                 {
-                    "WiiUCommonKey" => "SaveCommonKeyButton",
-                    "TitleKey" => "SaveTitleKeyButton",
-                    "AncastKey" => "SaveAncastKeyButton",
-                    _ => ""
-                };
-                if (!string.IsNullOrEmpty(buttonName))
-                {
-                    var button = this.FindControl<Button>(buttonName);
-                    if (button != null)
-                    {
-                        button.IsEnabled = !isValid;
-                    }
+                    button.IsEnabled = !isValid;
                 }
-
-                return isValid;
             }
+
+            return isValid;
         }
 
         private void OnKeyTextBoxDoubleTapped(object sender, Avalonia.Interactivity.RoutedEventArgs e)
@@ -955,6 +948,7 @@ namespace Moon_WiiVC_Injector
             {
                 textBox.IsReadOnly = false;
                 textBox.Background = Avalonia.Media.Brush.Parse("White");
+                textBox.Foreground = Avalonia.Media.Brush.Parse("Black");
 
                 // Enable corresponding save button
                 string buttonName = textBox.Name switch
@@ -1601,6 +1595,7 @@ namespace Moon_WiiVC_Injector
                         string currentWiiGame = ogFilePath;
                         if (_flagWbfs)
                         {
+                            UpdateStatus("Converting WBFS file to ISO format...", 66);
                             string convertedIso = Path.Combine(TempSourcePath, "wbfsconvert.iso");
                             LaunchProgram(Path.Combine(TempToolsPath, "EXE", "wbfs_file.exe"), $"\"{ogFilePath}\" convert \"{convertedIso}\"", true);
                             currentWiiGame = convertedIso;
@@ -1612,25 +1607,30 @@ namespace Moon_WiiVC_Injector
                             string isoExtractDir = Path.Combine(TempSourcePath, "ISOEXTRACT");
                             if (Directory.Exists(isoExtractDir)) Directory.Delete(isoExtractDir, true);
 
+                            UpdateStatus("Extracting game ISO partitions (this may take a minute)...", 68);
                             LaunchProgram(Path.Combine(TempToolsPath, "WIT", "wit.exe"), $"extract \"{currentWiiGame}\" --DEST \"{isoExtractDir}\" --psel data,-update -ovv", true);
                             
                             if (forceCC)
                             {
+                                UpdateStatus("Patching game main.dol for Classic Controller...", 70);
                                 LaunchProgram(Path.Combine(TempToolsPath, "EXE", "GetExtTypePatcher.exe"), $"\"{Path.Combine(isoExtractDir, "sys", "main.dol")}\" -nc", true);
                             }
 
                             // Wii VMC / Video mode changer (Not handled interactively on Linux, skipped/run natively if required)
                             if (wiiVMC)
                             {
+                                UpdateStatus("Applying Video Mode patch...", 71);
                                 LaunchProgram(Path.Combine(TempToolsPath, "EXE", "wii-vmc.exe"), $"\"{Path.Combine(isoExtractDir, "sys", "main.dol")}\"", true);
                             }
 
                             string wiimmfiOption = wiimmfi ? " --wiimmfi" : "";
+                            UpdateStatus("Rebuilding patched game ISO (this may take a minute)...", 72);
                             LaunchProgram(Path.Combine(TempToolsPath, "WIT", "wit.exe"), $"copy \"{isoExtractDir}\" --DEST \"{gameIsoPath}\" -ovv --links --iso{wiimmfiOption}", true);
                             if (Directory.Exists(isoExtractDir)) Directory.Delete(isoExtractDir, true);
                         }
                         else
                         {
+                            UpdateStatus("Copying untrimmed game ISO...", 73);
                             File.Copy(currentWiiGame, gameIsoPath, true);
                         }
 
@@ -1643,6 +1643,8 @@ namespace Moon_WiiVC_Injector
                         if (Directory.Exists(tempIsoBase)) Directory.Delete(tempIsoBase, true);
                         FileUtil.CopyDirectory(Path.Combine(TempToolsPath, "BASE"), tempIsoBase);
                         File.Copy(ogFilePath, Path.Combine(tempIsoBase, "sys", "main.dol"), true);
+                        
+                        UpdateStatus("Rebuilding Homebrew game ISO...", 70);
                         LaunchProgram(Path.Combine(TempToolsPath, "WIT", "wit.exe"), $"copy \"{tempIsoBase}\" --DEST \"{gameIsoPath}\" -ovv --links --iso", true);
                         Directory.Delete(tempIsoBase, true);
                     }
@@ -1658,13 +1660,17 @@ namespace Moon_WiiVC_Injector
                             mainDolSrc = Path.Combine(TempToolsPath, "DOL", "nintendont_forwarder.dol");
 
                         File.Copy(mainDolSrc, Path.Combine(tempIsoBase, "sys", "main.dol"), true);
+                        
+                        UpdateStatus("Copying GameCube disc image...", 68);
                         File.Copy(ogFilePath, Path.Combine(tempIsoBase, "files", "game.iso"), true);
 
                         if (!string.IsNullOrEmpty(gc2Path) && File.Exists(gc2Path))
                         {
+                            UpdateStatus("Copying GameCube Disc 2...", 69);
                             File.Copy(gc2Path, Path.Combine(tempIsoBase, "files", "disc2.iso"), true);
                         }
 
+                        UpdateStatus("Rebuilding GameCube game ISO...", 70);
                         LaunchProgram(Path.Combine(TempToolsPath, "WIT", "wit.exe"), $"copy \"{tempIsoBase}\" --DEST \"{gameIsoPath}\" -ovv --links --iso", true);
                         Directory.Delete(tempIsoBase, true);
                     }
@@ -1810,10 +1816,9 @@ namespace Moon_WiiVC_Injector
         private static string GetMD5Checksum(string file)
         {
             using (var stream = File.OpenRead(file))
-            using (var md5 = MD5.Create())
             {
-                byte[] checksum = md5.ComputeHash(stream);
-                return BitConverter.ToString(checksum).Replace("-", string.Empty);
+                byte[] checksum = MD5.HashData(stream);
+                return Convert.ToHexString(checksum);
             }
         }
     }

@@ -56,6 +56,12 @@
       <Setter Property="FontSize" Value="12"/>
       <Setter Property="Padding" Value="8,4"/>
     </Style>
+    <Style Selector="TextBox:read-only">
+      <Setter Property="Foreground" Value="{Binding $parent[TextBox].Foreground}"/>
+    </Style>
+    <Style Selector="ProgressBar /template/ TextBlock">
+      <Setter Property="Foreground" Value="Black"/>
+    </Style>
   </Window.Styles>
 
   <Grid RowDefinitions="Auto,*,Auto" Margin="10">
@@ -221,10 +227,10 @@
         <Grid ColumnDefinitions="*,*" Margin="10">
           <StackPanel Grid.Column="0" Spacing="8">
             <TextBlock Text="Requirements Checklist" FontWeight="SemiBold"/>
-            <CheckBox Name="SourceCheck" Content="Source files specified" IsEnabled="False"/>
-            <CheckBox Name="MetaCheck" Content="Metadata specified" IsEnabled="False"/>
-            <CheckBox Name="KeysCheck" Content="Common &amp; Title keys specified" IsEnabled="False"/>
-            <CheckBox Name="AdvanceCheck" Content="Advanced configuration done" IsEnabled="False"/>
+            <CheckBox Name="SourceCheck" Content="Source files specified" IsHitTestVisible="False" Focusable="False"/>
+            <CheckBox Name="MetaCheck" Content="Metadata specified" IsHitTestVisible="False" Focusable="False"/>
+            <CheckBox Name="KeysCheck" Content="Common &amp; Title keys specified" IsHitTestVisible="False" Focusable="False"/>
+            <CheckBox Name="AdvanceCheck" Content="Advanced configuration done" IsHitTestVisible="False" Focusable="False"/>
 
             <Border BorderBrush="#adadad" BorderThickness="1" Padding="10" Margin="0,10,0,0">
               <StackPanel Spacing="6">

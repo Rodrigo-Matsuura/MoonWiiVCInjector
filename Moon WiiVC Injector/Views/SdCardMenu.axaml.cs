@@ -1,15 +1,6 @@
-using System;
-using System.IO;
 using System.IO.Compression;
-using System.Linq;
-using System.Net.Http;
-using System.Diagnostics;
-using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
-using Avalonia.Threading;
-using System.Collections.Generic;
-using System.Net;
 using Avalonia.Platform.Storage;
 
 namespace Moon_WiiVC_Injector
