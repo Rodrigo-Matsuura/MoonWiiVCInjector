@@ -14,174 +14,183 @@ namespace Moon_WiiVC_Injector
 
         public static SKBitmap LoadTga(Stream stream)
         {
-            using (var reader = new BinaryReader(stream))
+            SKBitmap? bitmap = null;
+            try
             {
-                byte idLength = reader.ReadByte();
-                byte colorMapType = reader.ReadByte();
-                byte imageType = reader.ReadByte();
-                
-                // Skip color map specification
-                reader.ReadBytes(5);
-                
-                short xOrigin = reader.ReadInt16();
-                short yOrigin = reader.ReadInt16();
-                short width = reader.ReadInt16();
-                short height = reader.ReadInt16();
-                byte bpp = reader.ReadByte();
-                byte descriptor = reader.ReadByte();
-
-                if (idLength > 0)
+                using (var reader = new BinaryReader(stream, System.Text.Encoding.UTF8, leaveOpen: true))
                 {
-                    reader.ReadBytes(idLength);
-                }
+                    byte idLength = reader.ReadByte();
+                    byte colorMapType = reader.ReadByte();
+                    byte imageType = reader.ReadByte();
+                    
+                    // Skip color map specification
+                    reader.ReadBytes(5);
+                    
+                    short xOrigin = reader.ReadInt16();
+                    short yOrigin = reader.ReadInt16();
+                    short width = reader.ReadInt16();
+                    short height = reader.ReadInt16();
+                    byte bpp = reader.ReadByte();
+                    byte descriptor = reader.ReadByte();
 
-                // Image type 2 is uncompressed true-color, image type 10 is RLE compressed true-color
-                if (imageType != 2 && imageType != 10)
-                {
-                    throw new NotSupportedException($"Only uncompressed (type 2) or RLE compressed (type 10) true-color TGA images are supported. Found type {imageType}.");
-                }
-
-                if (bpp != 24 && bpp != 32)
-                {
-                    throw new NotSupportedException($"Only 24-bit or 32-bit TGA images are supported. Found {bpp}-bit.");
-                }
-
-                SKImageInfo info = new SKImageInfo(width, height, SKColorType.Bgra8888, SKAlphaType.Premul);
-                SKBitmap bitmap = new SKBitmap(info);
-
-                int bytesPerPixel = bpp / 8;
-                bool topToBottom = (descriptor & 0x20) != 0;
-                int dstStride = bitmap.RowBytes;
-
-                if (imageType == 2)
-                {
-                    // Uncompressed
-                    if (bytesPerPixel == 4)
+                    if (idLength > 0)
                     {
-                        unsafe
-                        {
-                            byte* destPtr = (byte*)bitmap.GetPixels().ToPointer();
-                            for (int y = 0; y < height; y++)
-                            {
-                                int targetY = topToBottom ? y : (height - 1 - y);
-                                byte* destRow = destPtr + (targetY * dstStride);
-                                Span<byte> rowSpan = new Span<byte>(destRow, width * 4);
-                                stream.ReadExactly(rowSpan);
-                            }
-                        }
-                        return bitmap;
+                        reader.ReadBytes(idLength);
                     }
-                    else if (bytesPerPixel == 3)
+
+                    // Image type 2 is uncompressed true-color, image type 10 is RLE compressed true-color
+                    if (imageType != 2 && imageType != 10)
                     {
-                        byte[] rowBuffer = new byte[width * 3];
-                        unsafe
+                        throw new NotSupportedException($"Only uncompressed (type 2) or RLE compressed (type 10) true-color TGA images are supported. Found type {imageType}.");
+                    }
+
+                    if (bpp != 24 && bpp != 32)
+                    {
+                        throw new NotSupportedException($"Only 24-bit or 32-bit TGA images are supported. Found {bpp}-bit.");
+                    }
+
+                    SKImageInfo info = new SKImageInfo(width, height, SKColorType.Bgra8888, SKAlphaType.Premul);
+                    bitmap = new SKBitmap(info);
+
+                    int bytesPerPixel = bpp / 8;
+                    bool topToBottom = (descriptor & 0x20) != 0;
+                    int dstStride = bitmap.RowBytes;
+
+                    if (imageType == 2)
+                    {
+                        // Uncompressed
+                        if (bytesPerPixel == 4)
                         {
-                            byte* destPtr = (byte*)bitmap.GetPixels().ToPointer();
-                            for (int y = 0; y < height; y++)
+                            unsafe
                             {
-                                stream.ReadExactly(rowBuffer);
-                                int targetY = topToBottom ? y : (height - 1 - y);
-                                byte* destRow = destPtr + (targetY * dstStride);
-                                for (int x = 0; x < width; x++)
+                                byte* destPtr = (byte*)bitmap.GetPixels().ToPointer();
+                                for (int y = 0; y < height; y++)
                                 {
-                                    destRow[x * 4] = rowBuffer[x * 3];       // B
-                                    destRow[x * 4 + 1] = rowBuffer[x * 3 + 1];   // G
-                                    destRow[x * 4 + 2] = rowBuffer[x * 3 + 2];   // R
-                                    destRow[x * 4 + 3] = 255;                 // A
+                                    int targetY = topToBottom ? y : (height - 1 - y);
+                                    byte* destRow = destPtr + (targetY * dstStride);
+                                    Span<byte> rowSpan = new Span<byte>(destRow, width * 4);
+                                    stream.ReadExactly(rowSpan);
                                 }
                             }
+                            return bitmap;
                         }
-                        return bitmap;
-                    }
-                }
-
-                // Fallback for RLE compressed TGA (ImageType == 10)
-                byte[] pixelData = new byte[width * height * bytesPerPixel];
-                if (imageType == 10)
-                {
-                    int totalPixels = width * height;
-                    int pixelCount = 0;
-                    int offset = 0;
-
-                    while (pixelCount < totalPixels)
-                    {
-                        byte rleHeader = reader.ReadByte();
-                        int count = (rleHeader & 0x7F) + 1;
-
-                        if ((rleHeader & 0x80) != 0)
+                        else if (bytesPerPixel == 3)
                         {
-                            // RLE packet - repeat next pixel 'count' times
-                            byte b = reader.ReadByte();
-                            byte g = reader.ReadByte();
-                            byte r = reader.ReadByte();
-                            byte a = (bpp == 32) ? reader.ReadByte() : (byte)255;
-
-                            for (int i = 0; i < count && pixelCount < totalPixels; i++)
+                            byte[] rowBuffer = new byte[width * 3];
+                            unsafe
                             {
-                                pixelData[offset] = b;
-                                pixelData[offset + 1] = g;
-                                pixelData[offset + 2] = r;
-                                if (bpp == 32)
+                                byte* destPtr = (byte*)bitmap.GetPixels().ToPointer();
+                                for (int y = 0; y < height; y++)
                                 {
-                                    pixelData[offset + 3] = a;
+                                    stream.ReadExactly(rowBuffer);
+                                    int targetY = topToBottom ? y : (height - 1 - y);
+                                    byte* destRow = destPtr + (targetY * dstStride);
+                                    for (int x = 0; x < width; x++)
+                                    {
+                                        destRow[x * 4] = rowBuffer[x * 3];       // B
+                                        destRow[x * 4 + 1] = rowBuffer[x * 3 + 1];   // G
+                                        destRow[x * 4 + 2] = rowBuffer[x * 3 + 2];   // R
+                                        destRow[x * 4 + 3] = 255;                 // A
+                                    }
                                 }
-                                offset += bytesPerPixel;
-                                pixelCount++;
                             }
-                        }
-                        else
-                        {
-                            // Raw packet - read next 'count' pixels raw
-                            for (int i = 0; i < count && pixelCount < totalPixels; i++)
-                            {
-                                pixelData[offset] = reader.ReadByte();
-                                pixelData[offset + 1] = reader.ReadByte();
-                                pixelData[offset + 2] = reader.ReadByte();
-                                if (bpp == 32)
-                                {
-                                    pixelData[offset + 3] = reader.ReadByte();
-                                }
-                                offset += bytesPerPixel;
-                                pixelCount++;
-                            }
+                            return bitmap;
                         }
                     }
-                }
 
-                // Copy RLE pixelData to SKBitmap destination memory
-                IntPtr dstPtr = bitmap.GetPixels();
-                unsafe
-                {
-                    byte* destPtr = (byte*)dstPtr.ToPointer();
-                    fixed (byte* srcPtr = pixelData)
+                    // Fallback for RLE compressed TGA (ImageType == 10)
+                    byte[] pixelData = new byte[width * height * bytesPerPixel];
+                    if (imageType == 10)
                     {
-                        for (int y = 0; y < height; y++)
-                        {
-                            int srcY = topToBottom ? y : (height - 1 - y);
-                            byte* srcRow = srcPtr + (srcY * width * bytesPerPixel);
-                            byte* destRow = destPtr + (y * dstStride);
+                        int totalPixels = width * height;
+                        int pixelCount = 0;
+                        int offset = 0;
 
-                            if (bytesPerPixel == 4)
+                        while (pixelCount < totalPixels)
+                        {
+                            byte rleHeader = reader.ReadByte();
+                            int count = (rleHeader & 0x7F) + 1;
+
+                            if ((rleHeader & 0x80) != 0)
                             {
-                                // Direct copy for 32-bit TGA (BGRA to BGRA)
-                                System.Buffer.MemoryCopy(srcRow, destRow, (ulong)dstStride, (ulong)(width * 4));
+                                // RLE packet - repeat next pixel 'count' times
+                                byte b = reader.ReadByte();
+                                byte g = reader.ReadByte();
+                                byte r = reader.ReadByte();
+                                byte a = (bpp == 32) ? reader.ReadByte() : (byte)255;
+
+                                for (int i = 0; i < count && pixelCount < totalPixels; i++)
+                                {
+                                    pixelData[offset] = b;
+                                    pixelData[offset + 1] = g;
+                                    pixelData[offset + 2] = r;
+                                    if (bpp == 32)
+                                    {
+                                        pixelData[offset + 3] = a;
+                                    }
+                                    offset += bytesPerPixel;
+                                    pixelCount++;
+                                }
                             }
                             else
                             {
-                                // Convert 24-bit BGR to 32-bit BGRA
-                                for (int x = 0; x < width; x++)
+                                // Raw packet - read next 'count' pixels raw
+                                for (int i = 0; i < count && pixelCount < totalPixels; i++)
                                 {
-                                    destRow[x * 4] = srcRow[x * 3];       // B
-                                    destRow[x * 4 + 1] = srcRow[x * 3 + 1];   // G
-                                    destRow[x * 4 + 2] = srcRow[x * 3 + 2];   // R
-                                    destRow[x * 4 + 3] = 255;                 // A
+                                    pixelData[offset] = reader.ReadByte();
+                                    pixelData[offset + 1] = reader.ReadByte();
+                                    pixelData[offset + 2] = reader.ReadByte();
+                                    if (bpp == 32)
+                                    {
+                                        pixelData[offset + 3] = reader.ReadByte();
+                                    }
+                                    offset += bytesPerPixel;
+                                    pixelCount++;
                                 }
                             }
                         }
                     }
-                }
 
-                return bitmap;
+                    // Copy RLE pixelData to SKBitmap destination memory
+                    IntPtr dstPtr = bitmap.GetPixels();
+                    unsafe
+                    {
+                        byte* destPtr = (byte*)dstPtr.ToPointer();
+                        fixed (byte* srcPtr = pixelData)
+                        {
+                            for (int y = 0; y < height; y++)
+                            {
+                                int srcY = topToBottom ? y : (height - 1 - y);
+                                byte* srcRow = srcPtr + (srcY * width * bytesPerPixel);
+                                byte* destRow = destPtr + (y * dstStride);
+
+                                if (bytesPerPixel == 4)
+                                {
+                                    // Direct copy for 32-bit TGA (BGRA to BGRA)
+                                    System.Buffer.MemoryCopy(srcRow, destRow, (ulong)dstStride, (ulong)(width * 4));
+                                }
+                                else
+                                {
+                                    // Convert 24-bit BGR to 32-bit BGRA
+                                    for (int x = 0; x < width; x++)
+                                    {
+                                        destRow[x * 4] = srcRow[x * 3];       // B
+                                        destRow[x * 4 + 1] = srcRow[x * 3 + 1];   // G
+                                        destRow[x * 4 + 2] = srcRow[x * 3 + 2];   // R
+                                        destRow[x * 4 + 3] = 255;                 // A
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    return bitmap;
+                }
+            }
+            catch
+            {
+                bitmap?.Dispose();
+                throw;
             }
         }
 

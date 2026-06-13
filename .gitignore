@@ -2,3 +2,5 @@ Moon WiiVC Injector/bin/*
 Moon WiiVC Injector/obj/*
 .vs/*
 /packages
+build/
+Moon WiiVC Injector/build/

@@ -115,7 +115,8 @@ namespace Moon_WiiVC_Injector
                 if (res == MessageBoxResult.No) return;
             }
 
-            ActionStatus.Text = "Downloading...";
+            var actionStatus = this.FindControl<TextBlock>("ActionStatus");
+            if (actionStatus != null) actionStatus.Text = "Downloading...";
             await Task.Run(async () =>
             {
                 Directory.CreateDirectory(tempPath);
@@ -124,7 +125,7 @@ namespace Moon_WiiVC_Injector
                 File.WriteAllBytes(Path.Combine(tempPath, "meta.xml"), await client.GetByteArrayAsync("https://raw.githubusercontent.com/FIX94/Nintendont/master/nintendont/meta.xml"));
                 File.WriteAllBytes(Path.Combine(tempPath, "icon.png"), await client.GetByteArrayAsync("https://raw.githubusercontent.com/FIX94/Nintendont/master/nintendont/icon.png"));
             });
-            ActionStatus.Text = string.Empty;
+            if (actionStatus != null) actionStatus.Text = string.Empty;
 
             if (DriveSpecified)
             {

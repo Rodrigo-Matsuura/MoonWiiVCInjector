@@ -20,6 +20,18 @@
       <Setter Property="BorderThickness" Value="1"/>
       <Setter Property="CornerRadius" Value="0"/>
     </Style>
+    <Style Selector="TextBox:read-only /template/ Border#PART_BorderElement">
+      <Setter Property="Background" Value="{Binding $parent[TextBox].Background}"/>
+      <Setter Property="BorderBrush" Value="#a0a0a0"/>
+    </Style>
+    <Style Selector="TextBox:read-only:pointerover /template/ Border#PART_BorderElement">
+      <Setter Property="Background" Value="{Binding $parent[TextBox].Background}"/>
+      <Setter Property="BorderBrush" Value="#a0a0a0"/>
+    </Style>
+    <Style Selector="TextBox:read-only:focus /template/ Border#PART_BorderElement">
+      <Setter Property="Background" Value="{Binding $parent[TextBox].Background}"/>
+      <Setter Property="BorderBrush" Value="#a0a0a0"/>
+    </Style>
     <Style Selector="Button">
       <Setter Property="Background" Value="#e1e1e1"/>
       <Setter Property="Foreground" Value="Black"/>
@@ -190,12 +202,13 @@
           <CheckBox Name="DisableGamePad" Content="Don't use GamePad as controller (Won't prompt for usage)"/>
           <CheckBox Name="DisableTrimming" Content="Don't trim game output (Wii Retail only)"/>
           <CheckBox Name="DisableNintendontAutoboot" Content="Disable Autoboot"/>
+          <CheckBox Name="C2WPatchFlag" Content="Enable cafe2wii patching (NOT RECOMMENDED)" Click="OnC2WPatchFlagClick"/>
 
-          <Border BorderBrush="#adadad" BorderThickness="1" Padding="10" Margin="0,10,0,0">
+          <Border Name="AncastKeyBorder" BorderBrush="#adadad" BorderThickness="1" Padding="10" Margin="0,10,0,0">
             <StackPanel Spacing="6">
               <TextBlock Text="Wii U Ancast Key" FontWeight="SemiBold"/>
               <Grid ColumnDefinitions="*,Auto">
-                <TextBox Grid.Column="0" Name="AncastKey" PasswordChar="*"/>
+                <TextBox Grid.Column="0" Name="AncastKey" DoubleTapped="OnKeyTextBoxDoubleTapped"/>
                 <Button Grid.Column="1" Name="SaveAncastKeyButton" Content="Save Key" Click="OnSaveAncastKeyClick" Margin="4,0,0,0"/>
               </Grid>
             </StackPanel>
@@ -218,12 +231,12 @@
                 <TextBlock Text="Keys Configuration" FontWeight="SemiBold"/>
                 <TextBlock Text="Wii U Common Key:"/>
                 <Grid ColumnDefinitions="*,Auto">
-                  <TextBox Grid.Column="0" Name="WiiUCommonKey" PasswordChar="*"/>
+                  <TextBox Grid.Column="0" Name="WiiUCommonKey" DoubleTapped="OnKeyTextBoxDoubleTapped"/>
                   <Button Grid.Column="1" Name="SaveCommonKeyButton" Content="Save" Click="OnSaveCommonKeyClick" Margin="4,0,0,0"/>
                 </Grid>
                 <TextBlock Text="Rhythm Heaven Fever Title Key:"/>
                 <Grid ColumnDefinitions="*,Auto">
-                  <TextBox Grid.Column="0" Name="TitleKey" PasswordChar="*"/>
+                  <TextBox Grid.Column="0" Name="TitleKey" DoubleTapped="OnKeyTextBoxDoubleTapped"/>
                   <Button Grid.Column="1" Name="SaveTitleKeyButton" Content="Save" Click="OnSaveTitleKeyClick" Margin="4,0,0,0"/>
                 </Grid>
               </StackPanel>

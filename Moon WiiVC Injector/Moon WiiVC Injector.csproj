@@ -20,10 +20,6 @@
     <PackageReference Include="SkiaSharp" Version="3.119.4" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Remove="WiiVcInjector.cs" />
-    <Compile Remove="WiiVcInjector.Designer.cs" />
-  </ItemGroup>
-  <ItemGroup>
     <None Update="Resources\TOOLDIR.zip">
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
     </None>
