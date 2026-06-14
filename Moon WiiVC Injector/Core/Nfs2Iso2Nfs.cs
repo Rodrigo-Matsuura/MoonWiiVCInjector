@@ -5,28 +5,34 @@ namespace Moon_WiiVC_Injector
 {
     public class Nfs2Iso2Nfs
     {
+        public static int ConvertNfs(string[] args)
+        {
+            var instance = new Nfs2Iso2Nfs();
+            return instance.ConvertNfsInstance(args);
+        }
+
         public const int SECTOR_SIZE = 0x8000;
         public const int HEADER_SIZE = 0x200;
-        public static byte[] WII_COMMON_KEY = { 0xeb, 0xe4, 0x2a, 0x22, 0x5e, 0x85, 0x93, 0xe4, 0x48, 0xd9, 0xc5, 0x45, 0x73, 0x81, 0xaa, 0xf7 };
+        public byte[] WII_COMMON_KEY = { 0xeb, 0xe4, 0x2a, 0x22, 0x5e, 0x85, 0x93, 0xe4, 0x48, 0xd9, 0xc5, 0x45, 0x73, 0x81, 0xaa, 0xf7 };
         public const int NFS_SIZE = 0xFA00000;
-        public static bool dec = false;
-        public static bool enc = false;
-        public static bool keepFiles = false;
-        public static bool keepLegit = false;
-        public static bool horiz_wiimote = false;
-        public static bool vert_wiimote = false;
-        public static bool map_shoulder_to_trigger = false;
-        public static bool homebrew = false;
-        public static bool passthrough = false;
-        public static bool instantcc = false;
-        public static bool nocc = false;
-        public static string keyFile = Path.Combine("..", "code", "htk.bin");
-        public static string isoFile = "game.iso";
-        public static string wiiKeyFile = "wii_common_key.bin";
-        public static string nfsDir = "";
-        public static string fw_file = Path.Combine("..", "code", "fw.img");
+        public bool dec = false;
+        public bool enc = false;
+        public bool keepFiles = false;
+        public bool keepLegit = false;
+        public bool horiz_wiimote = false;
+        public bool vert_wiimote = false;
+        public bool map_shoulder_to_trigger = false;
+        public bool homebrew = false;
+        public bool passthrough = false;
+        public bool instantcc = false;
+        public bool nocc = false;
+        public string keyFile = Path.Combine("..", "code", "htk.bin");
+        public string isoFile = "game.iso";
+        public string wiiKeyFile = "wii_common_key.bin";
+        public string nfsDir = "";
+        public string fw_file = Path.Combine("..", "code", "fw.img");
 
-        private static void ResetDefaults()
+        private void ResetDefaults()
         {
             dec = false;
             enc = false;
@@ -47,7 +53,7 @@ namespace Moon_WiiVC_Injector
             WII_COMMON_KEY = new byte[] { 0xeb, 0xe4, 0x2a, 0x22, 0x5e, 0x85, 0x93, 0xe4, 0x48, 0xd9, 0xc5, 0x45, 0x73, 0x81, 0xaa, 0xf7 };
         }
 
-        private static string ResolvePath(string path)
+        private string ResolvePath(string path)
         {
             if (string.IsNullOrWhiteSpace(path))
                 return Directory.GetCurrentDirectory();
@@ -57,7 +63,7 @@ namespace Moon_WiiVC_Injector
                 : Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), path));
         }
 
-        private static bool TryReadOptionValue(string[] args, int index, out string value)
+        private bool TryReadOptionValue(string[] args, int index, out string value)
         {
             if (index + 1 >= args.Length)
             {
@@ -69,7 +75,7 @@ namespace Moon_WiiVC_Injector
             return true;
         }
 
-        private static void PrintHelp()
+        private void PrintHelp()
         {
             Console.WriteLine("+++++ NFS2ISO2NFS vINTERNAL +++++");
             Console.WriteLine();
@@ -93,11 +99,11 @@ namespace Moon_WiiVC_Injector
         }
 
         /// <summary>Reads a signed 32-bit big-endian integer from <paramref name="span"/> at <paramref name="offset"/>.</summary>
-        private static int ReadBigEndianInt32(ReadOnlySpan<byte> span, int offset)
+        private int ReadBigEndianInt32(ReadOnlySpan<byte> span, int offset)
             => BinaryPrimitives.ReadInt32BigEndian(span.Slice(offset, 4));
 
         /// <summary>Copies exactly <paramref name="count"/> bytes from <paramref name="source"/> to <paramref name="destination"/> using an 80 KB heap buffer.</summary>
-        private static void CopyStream(Stream source, Stream destination, long count)
+        private void CopyStream(Stream source, Stream destination, long count)
         {
             if (count <= 0) return;
             byte[] buffer = new byte[81920]; // 80 KB
@@ -111,7 +117,7 @@ namespace Moon_WiiVC_Injector
             }
         }
 
-        private static void IncrementIv(byte[] iv, int startIndex = 12)
+        private void IncrementIv(byte[] iv, int startIndex = 12)
         {
             for (int i = iv.Length - 1; i >= startIndex; i--)
             {
@@ -121,7 +127,7 @@ namespace Moon_WiiVC_Injector
             }
         }
 
-        private static byte[] CreateEggsHeader(long[] sizeInfo)
+        private byte[] CreateEggsHeader(long[] sizeInfo)
         {
             // Fixed prefix: EGGS magic + version + flags
             ReadOnlySpan<byte> prefix =
@@ -163,7 +169,7 @@ namespace Moon_WiiVC_Injector
             return header;
         }
 
-        public static int ConvertNfs(string[] args)
+        public int ConvertNfsInstance(string[] args)
         {
             ResetDefaults();
             Console.WriteLine();
@@ -208,7 +214,7 @@ namespace Moon_WiiVC_Injector
             return 0;
         }
 
-        public static int checkArgs(string[] args)
+        public int checkArgs(string[] args)
         {
             for (int i = 0; i < args.Length; i++)
             {
@@ -343,7 +349,7 @@ namespace Moon_WiiVC_Injector
             return 0;
         }
 
-        public static byte[]? checkKeyFiles()
+        public byte[]? checkKeyFiles()
         {
             Console.WriteLine("Searching for AES key file...");
             if (!File.Exists(keyFile))
@@ -382,13 +388,13 @@ namespace Moon_WiiVC_Injector
             return key;
         }
 
-        public static byte[]? getKey(string keyPath)
+        public byte[]? getKey(string keyPath)
         {
             byte[] data = File.ReadAllBytes(keyPath);
             return data.Length == 16 ? data : null;
         }
 
-        public static void combineNFSFiles(string outFile)
+        public void combineNFSFiles(string outFile)
         {
             using var nfs = File.Create(outFile);
             Console.WriteLine("Looking for .nfs files...");
@@ -409,7 +415,7 @@ namespace Moon_WiiVC_Injector
             }
         }
 
-        public static void splitNFSFile(string inFile)
+        public void splitNFSFile(string inFile)
         {
             using var nfs = File.OpenRead(inFile);
             Console.WriteLine();
@@ -436,7 +442,7 @@ namespace Moon_WiiVC_Injector
             }
         }
 
-        public static byte[] getHeader(string inFile)
+        public byte[] getHeader(string inFile)
         {
             using var file = File.OpenRead(inFile);
             byte[] header = new byte[HEADER_SIZE];
@@ -448,7 +454,7 @@ namespace Moon_WiiVC_Injector
         /// When <c>true</c>: encrypt the Wii partition sector data (used when building an ISO from NFS).
         /// When <c>false</c>: decrypt the Wii partition sector data (used when building NFS from an ISO).
         /// </param>
-        public static long[]? manipulateISO(string inFile, string outFile, bool enc)
+        public long[]? manipulateISO(string inFile, string outFile, bool enc)
         {
             using var reader = File.OpenRead(inFile);
             using var writer = File.Create(outFile);
@@ -663,7 +669,7 @@ namespace Moon_WiiVC_Injector
             }
         }
 
-        public static void unpackNFS(string inFile, string outFile, byte[] header)
+        public void unpackNFS(string inFile, string outFile, byte[] header)
         {
             using var reader = File.OpenRead(inFile);
             using var writer = File.Create(outFile);
@@ -701,7 +707,7 @@ namespace Moon_WiiVC_Injector
             }
         }
 
-        public static byte[] packNFS(string inFile, string outFile, long[] sizeInfo)
+        public byte[] packNFS(string inFile, string outFile, long[] sizeInfo)
         {
             using var reader = File.OpenRead(inFile);
             using var writer = File.Create(outFile);
@@ -741,7 +747,7 @@ namespace Moon_WiiVC_Injector
             return header;
         }
 
-        public static void EnDecryptNFS(string inFile, string outFile, byte[] key, byte[] iv, bool encrypt, byte[] header)
+        public void EnDecryptNFS(string inFile, string outFile, byte[] key, byte[] iv, bool encrypt, byte[] header)
         {
             using var reader = File.OpenRead(inFile);
             using var writer = File.Create(outFile);
@@ -760,61 +766,52 @@ namespace Moon_WiiVC_Injector
             // blockIv is used for sectors at position >= 0x18000 and incremented per sector.
             // The first ~3 sectors use the caller-provided iv.
             byte[] blockIv = [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x1F, 0x00];
-            byte[] sector  = new byte[SECTOR_SIZE];
-            int timer = 0;
-            int mbCounter = 0;
-            long leftSize = reader.Length;
-            long processedBytes = 0;
-
-            using var aes = Aes.Create();
-            aes.Key = key;
-
-            do
+            byte[] sector = System.Buffers.ArrayPool<byte>.Shared.Rent(SECTOR_SIZE);
+            try
             {
-                if (timer == 8000)
+                int timer = 0;
+                int mbCounter = 0;
+                long leftSize = reader.Length;
+                long processedBytes = 0;
+
+                using var aes = Aes.Create();
+                aes.Key = key;
+
+                do
                 {
-                    timer = 0;
-                    mbCounter++;
-                    Console.WriteLine((mbCounter * 256) + " MB processed...");
-                }
-                timer++;
+                    if (timer == 8000)
+                    {
+                        timer = 0;
+                        mbCounter++;
+                        Console.WriteLine((mbCounter * 256) + " MB processed...");
+                    }
+                    timer++;
 
-                int toRead = leftSize > SECTOR_SIZE ? SECTOR_SIZE : (int)leftSize;
-                int read = reader.Read(sector, 0, toRead);
-                if (read <= 0) break;
+                    int toRead = leftSize > SECTOR_SIZE ? SECTOR_SIZE : (int)leftSize;
+                    int read = reader.Read(sector, 0, toRead);
+                    if (read <= 0) break;
 
-                // Use blockIv (incrementing) once position exceeds the initial header region (0x18000 bytes)
-                bool useBlockIv = processedBytes >= 0x18000;
-                byte[] currentIv = useBlockIv ? blockIv : iv;
+                    // Use blockIv (incrementing) once position exceeds the initial header region (0x18000 bytes)
+                    bool useBlockIv = processedBytes >= 0x18000;
+                    byte[] currentIv = useBlockIv ? blockIv : iv;
 
-                if (encrypt)
-                    aes.EncryptCbc(sector.AsSpan(0, read), currentIv, sector.AsSpan(0, read), PaddingMode.None);
-                else
-                    aes.DecryptCbc(sector.AsSpan(0, read), currentIv, sector.AsSpan(0, read), PaddingMode.None);
+                    if (encrypt)
+                        aes.EncryptCbc(sector.AsSpan(0, read), currentIv, sector.AsSpan(0, read), PaddingMode.None);
+                    else
+                        aes.DecryptCbc(sector.AsSpan(0, read), currentIv, sector.AsSpan(0, read), PaddingMode.None);
 
-                if (useBlockIv)
-                    IncrementIv(blockIv);
+                    if (useBlockIv)
+                        IncrementIv(blockIv);
 
-                writer.Write(sector, 0, read);
-                processedBytes += read;
-                leftSize -= SECTOR_SIZE;
-            } while (leftSize > 0);
-        }
-
-        public static byte[] aes_128_cbc(byte[] key, byte[] iv, byte[] data, bool encrypt)
-        {
-            if (key == null) throw new ArgumentNullException(nameof(key));
-            if (iv == null) throw new ArgumentNullException(nameof(iv));
-            if (data == null) throw new ArgumentNullException(nameof(data));
-
-            byte[] result = new byte[data.Length];
-            using var aes = Aes.Create();
-            aes.Key = key;
-            if (encrypt)
-                aes.EncryptCbc(data, iv, result, PaddingMode.None);
-            else
-                aes.DecryptCbc(data, iv, result, PaddingMode.None);
-            return result;
+                    writer.Write(sector, 0, read);
+                    processedBytes += read;
+                    leftSize -= SECTOR_SIZE;
+                } while (leftSize > 0);
+            }
+            finally
+            {
+                System.Buffers.ArrayPool<byte>.Shared.Return(sector);
+            }
         }
 
         public static int[,] sort(int[,] list, int size)
@@ -851,7 +848,7 @@ namespace Moon_WiiVC_Injector
             return list;
         }
 
-        private static int PatchBuffer(Span<byte> buffer, ReadOnlySpan<byte> pattern, int writeOffset, ReadOnlySpan<byte> replacement)
+        private int PatchBuffer(Span<byte> buffer, ReadOnlySpan<byte> pattern, int writeOffset, ReadOnlySpan<byte> replacement)
         {
             int patchCount = 0;
             int index = 0;
@@ -871,7 +868,7 @@ namespace Moon_WiiVC_Injector
             return patchCount;
         }
 
-        private static int PatchBufferCustom(Span<byte> buffer, ReadOnlySpan<byte> pattern, Action<Span<byte>, int> patchAction)
+        private int PatchBufferCustom(Span<byte> buffer, ReadOnlySpan<byte> pattern, Action<Span<byte>, int> patchAction)
         {
             int patchCount = 0;
             int index = 0;
@@ -891,7 +888,7 @@ namespace Moon_WiiVC_Injector
             return patchCount;
         }
 
-        public static void DoThePatching(string fw_file)
+        public void DoThePatching(string fw_file)
         {
             byte[] fileBytes = File.ReadAllBytes(fw_file);
             Span<byte> fileSpan = fileBytes.AsSpan();
