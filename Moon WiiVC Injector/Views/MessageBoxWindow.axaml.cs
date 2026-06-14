@@ -15,7 +15,7 @@ namespace Moon_WiiVC_Injector
         {
             InitializeComponent();
             Title = title;
-            var messageText = this.FindControl<TextBlock>("MessageText");
+            var messageText = this.FindControl<SelectableTextBlock>("MessageText");
             if (messageText != null)
                 messageText.Text = text;
 

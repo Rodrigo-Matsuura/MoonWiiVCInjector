@@ -104,6 +104,26 @@ namespace Moon_WiiVC_Injector
         {
             string finalOutputPath = "";
             string ogFilePath = _options.SelectedGamePath;
+            string gc2Path = _options.Gc2Path;
+            string? recoveredMainIso = null;
+            string? recoveredGc2Iso = null;
+
+            try
+            {
+                if (IsNkitFile(ogFilePath))
+                {
+                    recoveredMainIso = await ConvertNkitToIsoAsync(ogFilePath, cancellationToken);
+                    ogFilePath = recoveredMainIso;
+                }
+
+                if (_options.SystemType == "gcn" && _options.FlagGc2Specified && !string.IsNullOrEmpty(gc2Path))
+                {
+                    if (IsNkitFile(gc2Path))
+                    {
+                        recoveredGc2Iso = await ConvertNkitToIsoAsync(gc2Path, cancellationToken);
+                        gc2Path = recoveredGc2Iso;
+                    }
+                }
 
             // 1. Download base files with JNUSTool if not present
             string[] downloadedFiles = new[]
@@ -498,10 +518,10 @@ namespace Moon_WiiVC_Injector
                 UpdateStatus("Copying GameCube disc image...", 68);
                 File.Copy(ogFilePath, Path.Combine(tempIsoBase, "files", "game.iso"), true);
 
-                if (_options.FlagGc2Specified && !string.IsNullOrEmpty(_options.Gc2Path) && File.Exists(_options.Gc2Path))
+                if (_options.FlagGc2Specified && !string.IsNullOrEmpty(gc2Path) && File.Exists(gc2Path))
                 {
                     UpdateStatus("Copying GameCube Disc 2...", 69);
-                    File.Copy(_options.Gc2Path, Path.Combine(tempIsoBase, "files", "disc2.iso"), true);
+                    File.Copy(gc2Path, Path.Combine(tempIsoBase, "files", "disc2.iso"), true);
                 }
 
                 UpdateStatus("Rebuilding GameCube game ISO...", 70);
@@ -568,18 +588,30 @@ namespace Moon_WiiVC_Injector
             if (Directory.Exists(Path.Combine(_options.TempRootPath, "tmp"))) Directory.Delete(Path.Combine(_options.TempRootPath, "tmp"), true);
             Directory.CreateDirectory(_options.TempBuildPath);
 
-            if (Directory.Exists(finalOutputPath))
-            {
-                Log("Build completed successfully!");
-                return finalOutputPath;
+                if (Directory.Exists(finalOutputPath))
+                {
+                    Log("Build completed successfully!");
+                    return finalOutputPath;
+                }
+                else
+                {
+                    throw new Exception("WUP package directory was not created. Verify Java installation.");
+                }
             }
-            else
+            finally
             {
-                throw new Exception("WUP package directory was not created. Verify Java installation.");
+                if (!string.IsNullOrEmpty(recoveredMainIso) && File.Exists(recoveredMainIso))
+                {
+                    try { File.Delete(recoveredMainIso); } catch { }
+                }
+                if (!string.IsNullOrEmpty(recoveredGc2Iso) && File.Exists(recoveredGc2Iso))
+                {
+                    try { File.Delete(recoveredGc2Iso); } catch { }
+                }
             }
         }
 
-        private async Task LaunchProgramAsync(string exeFile, string arguments = "", bool hideProcess = true, CancellationToken cancellationToken = default)
+        private async Task LaunchProgramAsync(string exeFile, string arguments = "", bool hideProcess = true, CancellationToken cancellationToken = default, int[]? allowedExitCodes = null)
         {
             string targetExe = exeFile;
             string targetArgs = arguments;
@@ -692,9 +724,32 @@ namespace Moon_WiiVC_Injector
                     }
 
                     Log($"Program {exeFile} exited with code {process.ExitCode}");
-                    if (process.ExitCode != 0)
+                    int[] validCodes = allowedExitCodes ?? new[] { 0 };
+                    bool isCodeValid = false;
+                    foreach (int code in validCodes)
                     {
-                        throw new Exception($"Program {Path.GetFileName(exeFile)} exited with non-zero exit code: {process.ExitCode}");
+                        if (process.ExitCode == code)
+                        {
+                            isCodeValid = true;
+                            break;
+                        }
+                    }
+
+                    if (!isCodeValid)
+                    {
+                        var sbErr = new StringBuilder();
+                        sbErr.AppendLine($"Program {Path.GetFileName(exeFile)} exited with non-zero exit code: {process.ExitCode}");
+                        if (!string.IsNullOrWhiteSpace(stdOut))
+                        {
+                            sbErr.AppendLine("\nOutput:");
+                            sbErr.AppendLine(stdOut);
+                        }
+                        if (!string.IsNullOrWhiteSpace(stdErr))
+                        {
+                            sbErr.AppendLine("\nError:");
+                            sbErr.AppendLine(stdErr);
+                        }
+                        throw new Exception(sbErr.ToString());
                     }
                 }
                 else
@@ -757,6 +812,80 @@ namespace Moon_WiiVC_Injector
                 byte[] checksum = MD5.HashData(stream);
                 return Convert.ToHexString(checksum);
             }
+        }
+
+        private static bool IsNkitFile(string filePath)
+        {
+            try
+            {
+                if (!File.Exists(filePath)) return false;
+                using (var fs = File.OpenRead(filePath))
+                {
+                    if (fs.Length < 0x204) return false;
+                    fs.Position = 0x200;
+                    byte[] idBytes = new byte[4];
+                    fs.ReadExactly(idBytes);
+                    return Encoding.ASCII.GetString(idBytes) == "NKIT";
+                }
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private async Task<string> ConvertNkitToIsoAsync(string nkitPath, CancellationToken cancellationToken)
+        {
+            string nkitDir = Path.Combine(_options.TempToolsPath, "NKIT");
+            string processedDir = Path.Combine(nkitDir, "Processed");
+
+            if (Directory.Exists(processedDir))
+            {
+                try { Directory.Delete(processedDir, true); } catch { }
+            }
+
+            UpdateStatus("Unscrubbing NKit game image...", 66);
+            string convertToIsoExe = Path.Combine(nkitDir, "ConvertToISO.exe");
+
+            string currentDir = Directory.GetCurrentDirectory();
+            Directory.SetCurrentDirectory(nkitDir);
+
+            try
+            {
+                await LaunchProgramAsync(convertToIsoExe, $"\"{nkitPath}\"", true, cancellationToken, new[] { 0, 2 });
+            }
+            finally
+            {
+                Directory.SetCurrentDirectory(currentDir);
+            }
+
+            string[] searchDirs = new[]
+            {
+                Path.Combine(processedDir, "Temp"),
+                Path.Combine(processedDir, "Wii_MatchFail"),
+                Path.Combine(processedDir, "GameCube_MatchFail")
+            };
+
+            foreach (var dir in searchDirs)
+            {
+                if (Directory.Exists(dir))
+                {
+                    var files = Directory.GetFiles(dir, "*.*");
+                    if (files.Length > 0)
+                    {
+                        string sourceFile = files[0];
+                        string destFile = Path.Combine(_options.TempSourcePath, "nkit_recovered_" + Guid.NewGuid().ToString("N") + ".iso");
+                        File.Move(sourceFile, destFile);
+                        Log($"Successfully recovered NKit file {nkitPath} to {destFile}");
+
+                        try { Directory.Delete(processedDir, true); } catch { }
+
+                        return destFile;
+                    }
+                }
+            }
+
+            throw new FileNotFoundException("Failed to locate converted ISO/TMP file in NKit processed directories.");
         }
     }
 }

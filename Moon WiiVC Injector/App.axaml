@@ -3,5 +3,114 @@
              x:Class="Moon_WiiVC_Injector.App">
   <Application.Styles>
     <StyleInclude Source="avares://Avalonia.Themes.Fluent/FluentTheme.xaml"/>
+    <!-- Global styling to match the classic WinForms light gray theme and fix white hovers -->
+    <Style Selector="TextBlock">
+      <Setter Property="Foreground" Value="Black"/>
+      <Setter Property="FontSize" Value="12"/>
+    </Style>
+    <Style Selector="TextBox">
+      <Setter Property="Background" Value="White"/>
+      <Setter Property="Foreground" Value="Black"/>
+      <Setter Property="BorderBrush" Value="#a0a0a0"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="CornerRadius" Value="0"/>
+    </Style>
+    <Style Selector="TextBox:read-only /template/ Border#PART_BorderElement">
+      <Setter Property="Background" Value="{Binding $parent[TextBox].Background}"/>
+      <Setter Property="BorderBrush" Value="#a0a0a0"/>
+    </Style>
+    <Style Selector="TextBox:read-only:pointerover /template/ Border#PART_BorderElement">
+      <Setter Property="Background" Value="{Binding $parent[TextBox].Background}"/>
+      <Setter Property="BorderBrush" Value="#a0a0a0"/>
+    </Style>
+    <Style Selector="TextBox:read-only:focus /template/ Border#PART_BorderElement">
+      <Setter Property="Background" Value="{Binding $parent[TextBox].Background}"/>
+      <Setter Property="BorderBrush" Value="#a0a0a0"/>
+    </Style>
+    <Style Selector="Button">
+      <Setter Property="Background" Value="#e1e1e1"/>
+      <Setter Property="Foreground" Value="Black"/>
+      <Setter Property="BorderBrush" Value="#adadad"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="CornerRadius" Value="0"/>
+      <Setter Property="Padding" Value="6,2"/>
+    </Style>
+    <Style Selector="Button:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#d5d5d5"/>
+      <Setter Property="Foreground" Value="Black"/>
+      <Setter Property="BorderBrush" Value="#9c9c9c"/>
+    </Style>
+    <Style Selector="Button:pressed /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#c0c0c0"/>
+      <Setter Property="Foreground" Value="Black"/>
+      <Setter Property="BorderBrush" Value="#808080"/>
+    </Style>
+    <Style Selector="Button:disabled /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#f0f0f0"/>
+      <Setter Property="Foreground" Value="#a0a0a0"/>
+      <Setter Property="BorderBrush" Value="#d0d0d0"/>
+    </Style>
+    <Style Selector="RadioButton">
+      <Setter Property="Foreground" Value="Black"/>
+      <Setter Property="FontSize" Value="12"/>
+    </Style>
+    <Style Selector="RadioButton /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Foreground" Value="Black"/>
+    </Style>
+    <Style Selector="RadioButton:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Foreground" Value="Black"/>
+    </Style>
+    <Style Selector="RadioButton:pressed /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Foreground" Value="Black"/>
+    </Style>
+    <Style Selector="RadioButton:disabled /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Foreground" Value="#a0a0a0"/>
+    </Style>
+
+    <Style Selector="CheckBox">
+      <Setter Property="Foreground" Value="Black"/>
+      <Setter Property="FontSize" Value="12"/>
+    </Style>
+    <Style Selector="CheckBox.checklist">
+      <Setter Property="FontWeight" Value="Bold"/>
+    </Style>
+    <Style Selector="CheckBox /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Foreground" Value="Black"/>
+    </Style>
+    <Style Selector="CheckBox:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Foreground" Value="Black"/>
+    </Style>
+    <Style Selector="CheckBox:pressed /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Foreground" Value="Black"/>
+    </Style>
+    <Style Selector="CheckBox:disabled /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Foreground" Value="#a0a0a0"/>
+    </Style>
+    <Style Selector="TabControl">
+      <Setter Property="Background" Value="#f0f0f0"/>
+    </Style>
+    <Style Selector="TabItem">
+      <Setter Property="Foreground" Value="Black"/>
+      <Setter Property="FontSize" Value="12"/>
+      <Setter Property="Padding" Value="8,4"/>
+    </Style>
+    <Style Selector="TabItem:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#e0e0e0"/>
+      <Setter Property="Foreground" Value="Black"/>
+    </Style>
+    <Style Selector="TabItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="Foreground" Value="#007acc"/>
+    </Style>
+    <Style Selector="TabItem:selected:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="Foreground" Value="#007acc"/>
+    </Style>
+    <Style Selector="TextBox:read-only">
+      <Setter Property="Foreground" Value="{Binding $parent[TextBox].Foreground}"/>
+    </Style>
+    <Style Selector="ProgressBar /template/ TextBlock">
+      <Setter Property="Foreground" Value="Black"/>
+    </Style>
   </Application.Styles>
 </Application>
