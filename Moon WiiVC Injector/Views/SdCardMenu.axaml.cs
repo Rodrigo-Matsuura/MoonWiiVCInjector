@@ -33,7 +33,8 @@ namespace Moon_WiiVC_Injector
                 OptionsPanel.Children.Add(cb);
             }
 
-            this.Opened += (_, __) => {
+            this.Opened += (_, __) =>
+            {
                 ReloadDriveList();
                 SpecifyDrive();
                 MemcardBlocks.SelectedIndex = 0;

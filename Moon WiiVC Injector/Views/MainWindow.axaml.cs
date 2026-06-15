@@ -34,7 +34,7 @@ namespace Moon_WiiVC_Injector
         private string _titleIdHex = string.Empty;
         private string _titleIdText = string.Empty;
         private string _internalGameName = string.Empty;
-        
+
         // Checklist flags
         private bool _flagGameSpecified;
         private bool _flagIconSpecified;
@@ -176,7 +176,7 @@ namespace Moon_WiiVC_Injector
                 {
                     if (gameSourceDir != null) gameSourceDir.Text = "Invalid Title ID";
                     _flagGameSpecified = false;
-                    await MessageBoxWindow.Show(this, 
+                    await MessageBoxWindow.Show(this,
                         "Only 4 characters can be used, try again. Example: The Star Fox 64 (USA) Channel's Title ID is NADE01, so you would specify NADE as the Title ID",
                         "Invalid Title ID", MessageBoxButtons.Ok);
                 }
@@ -555,9 +555,9 @@ namespace Moon_WiiVC_Injector
 
             if (!await TryDownloadImagesAsync(_cucholixRepoId))
             {
-                var dialogResult = await MessageBoxWindow.Show(this, 
+                var dialogResult = await MessageBoxWindow.Show(this,
                     "Cucholix's Repo does not have assets for your game. You will need to provide your own. Would you like to visit the GBAtemp request thread?",
-                    "Game not found on Repo", 
+                    "Game not found on Repo",
                     MessageBoxButtons.YesNo);
                 if (dialogResult == MessageBoxResult.Yes)
                 {
@@ -675,7 +675,7 @@ namespace Moon_WiiVC_Injector
                         byte[] typeBytes = new byte[8];
                         fs.ReadExactly(typeBytes);
                         long gc2GameType = BitConverter.ToInt64(typeBytes);
-                        
+
                         var gc2Dir = this.FindControl<TextBox>("GC2SourceDirectory");
 
                         if (gc2GameType != 4440324665927270400)
@@ -898,7 +898,7 @@ namespace Moon_WiiVC_Injector
 
                     var packedTitle1 = this.FindControl<TextBox>("PackedTitleLine1");
                     var packedTitleIDLine = this.FindControl<TextBox>("PackedTitleIDLine");
-                    _buildFlagMeta = packedTitle1 != null && !string.IsNullOrEmpty(packedTitle1.Text) && 
+                    _buildFlagMeta = packedTitle1 != null && !string.IsNullOrEmpty(packedTitle1.Text) &&
                                      packedTitleIDLine != null && packedTitleIDLine.Text?.Length == 16;
                     var metaCheck = this.FindControl<CheckBox>("MetaCheck");
                     if (metaCheck != null) metaCheck.IsChecked = _buildFlagMeta;
@@ -910,7 +910,7 @@ namespace Moon_WiiVC_Injector
                     var lrPatch = this.FindControl<CheckBox>("LRPatch");
                     bool skipAncast = lrPatch == null || lrPatch.IsChecked != true;
                     _buildFlagKeys = skipAncast ? (_commonKeyGood && _titleKeyGood) : (_commonKeyGood && _titleKeyGood && _ancastKeyGood);
-                    
+
                     var keysCheck = this.FindControl<CheckBox>("KeysCheck");
                     if (keysCheck != null) keysCheck.IsChecked = _buildFlagKeys;
 
@@ -1023,7 +1023,7 @@ namespace Moon_WiiVC_Injector
             // 2. Metadata checklist
             var packedTitle1 = this.FindControl<TextBox>("PackedTitleLine1");
             var packedTitleIDLine = this.FindControl<TextBox>("PackedTitleIDLine");
-            _buildFlagMeta = packedTitle1 != null && !string.IsNullOrEmpty(packedTitle1.Text) && 
+            _buildFlagMeta = packedTitle1 != null && !string.IsNullOrEmpty(packedTitle1.Text) &&
                              packedTitleIDLine != null && packedTitleIDLine.Text?.Length == 16;
             var metaCheck = this.FindControl<CheckBox>("MetaCheck");
             if (metaCheck != null) metaCheck.IsChecked = _buildFlagMeta;
@@ -1178,7 +1178,7 @@ namespace Moon_WiiVC_Injector
                     long limit = _systemType == "wii" ? (gamesize * 2 + 5000000000) : (gamesize * 2 + 6000000000);
                     if (freeSpaceInBytes < limit)
                     {
-                        var res = await MessageBoxWindow.Show(this, 
+                        var res = await MessageBoxWindow.Show(this,
                             "Your hard drive may be low on space. The conversion process involves temporary files that can amount to more than double the size of your game. Do you want to continue anyway?",
                             "Check your hard drive space", MessageBoxButtons.YesNo);
                         if (res == MessageBoxResult.No)
@@ -1236,7 +1236,7 @@ namespace Moon_WiiVC_Injector
             var disableNintendontAutoboot = this.FindControl<CheckBox>("DisableNintendontAutoboot")?.IsChecked == true;
             var c2wPatch = this.FindControl<CheckBox>("C2WPatchFlag")?.IsChecked == true;
             var lrPatch = this.FindControl<CheckBox>("LRPatch")?.IsChecked == true;
-            
+
             // Resolve optional paths
             var soundDir = this.FindControl<TextBox>("BootSoundDirectory")?.Text ?? "";
             var logoDir = this.FindControl<TextBox>("LogoSourceDirectory")?.Text ?? "";
@@ -1344,7 +1344,7 @@ namespace Moon_WiiVC_Injector
 
             if (success)
             {
-                var res = await MessageBoxWindow.Show(this, 
+                var res = await MessageBoxWindow.Show(this,
                     $"Conversion Complete! Your packed game can be found here:\n{finalOutputPath}\n\nInstall your title using WUP Installer GX2 with signature patches enabled.\n\nOpen the output folder now?",
                     "Conversion Complete", MessageBoxButtons.YesNo);
                 if (res == MessageBoxResult.Yes)

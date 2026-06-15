@@ -287,11 +287,11 @@ namespace Moon_WiiVC_Injector
                 }
             }
 
-            keyFile   = ResolvePath(keyFile);
-            isoFile   = ResolvePath(isoFile);
+            keyFile = ResolvePath(keyFile);
+            isoFile = ResolvePath(isoFile);
             wiiKeyFile = ResolvePath(wiiKeyFile);
-            nfsDir    = ResolvePath(nfsDir);
-            fw_file   = ResolvePath(fw_file);
+            nfsDir = ResolvePath(nfsDir);
+            fw_file = ResolvePath(fw_file);
 
             if (map_shoulder_to_trigger && (horiz_wiimote || vert_wiimote))
             {
@@ -530,7 +530,7 @@ namespace Moon_WiiVC_Injector
             partitionOffsets = sort(partitionOffsets, partitionOffsets.Length);
             sizeInfo[0] = partitionOffsets[0];
 
-            byte[] iv     = new byte[0x10];
+            byte[] iv = new byte[0x10];
             byte[] ivTemp = new byte[0x10];
             byte[] sector = new byte[SECTOR_SIZE];
             int timer = 0;
@@ -683,12 +683,12 @@ namespace Moon_WiiVC_Injector
 
             // Pre-allocate reusable buffers — eliminates per-sector heap allocations
             byte[] sectorBuffer = new byte[SECTOR_SIZE];
-            byte[] zeroSector   = new byte[SECTOR_SIZE]; // stays zero for the lifetime of the call
+            byte[] zeroSector = new byte[SECTOR_SIZE]; // stays zero for the lifetime of the call
 
             long pos = 0;
             for (int i = 0; i < numberOfParts; i++)
             {
-                long start  = (long)SECTOR_SIZE * ReadBigEndianInt32(header, 0x14 + i * 8);
+                long start = (long)SECTOR_SIZE * ReadBigEndianInt32(header, 0x14 + i * 8);
                 long length = (long)SECTOR_SIZE * ReadBigEndianInt32(header, 0x18 + i * 8);
 
                 long zeroCount = start - pos;
@@ -727,7 +727,7 @@ namespace Moon_WiiVC_Injector
 
             for (int i = 0; i < numberOfParts; i++)
             {
-                long start  = (long)SECTOR_SIZE * ReadBigEndianInt32(header, 0x14 + i * 8);
+                long start = (long)SECTOR_SIZE * ReadBigEndianInt32(header, 0x14 + i * 8);
                 long length = (long)SECTOR_SIZE * ReadBigEndianInt32(header, 0x18 + i * 8);
 
                 long skipCount = start - pos;
@@ -939,15 +939,15 @@ namespace Moon_WiiVC_Injector
                 int patchCount = 0;
 
                 byte[] pattern1 = { 0x40, 0x05, 0x46, 0xA9 };
-                byte[] patch1   = { 0x26, 0x80, 0x40, 0x06 };
+                byte[] patch1 = { 0x26, 0x80, 0x40, 0x06 };
                 byte[] pattern2 = { 0x1C, 0x05, 0x40, 0x35 };
-                byte[] patch2   = { 0x25, 0x40, 0x40, 0x05 };
+                byte[] patch2 = { 0x25, 0x40, 0x40, 0x05 };
                 byte[] pattern3 = { 0x23, 0x7F, 0x1C, 0x02 };
-                byte[] patch3   = { 0x46, 0xB1, 0x23, 0x20, 0x40, 0x03 };
+                byte[] patch3 = { 0x46, 0xB1, 0x23, 0x20, 0x40, 0x03 };
                 byte[] pattern4 = { 0x46, 0x53, 0x42, 0x18 };
-                byte[] patch4   = { 0x23, 0x10, 0x40, 0x03 };
+                byte[] patch4 = { 0x23, 0x10, 0x40, 0x03 };
                 byte[] pattern5 = { 0x1C, 0x05, 0x80, 0x22 };
-                byte[] patch5   = { 0x25, 0x40, 0x80, 0x22, 0x40, 0x05 };
+                byte[] patch5 = { 0x25, 0x40, 0x80, 0x22, 0x40, 0x05 };
 
                 patchCount += PatchBuffer(fileSpan, pattern1, 0, patch1);
                 patchCount += PatchBuffer(fileSpan, pattern2, 0, patch2);
@@ -968,7 +968,7 @@ namespace Moon_WiiVC_Injector
             {
                 int patchCount = 0;
                 byte[] pattern = { 0x16, 0x13, 0x1C, 0x02, 0x40, 0x9A, 0x1C, 0x13 };
-                byte[] patch   = { 0x23, 0x00 };
+                byte[] patch = { 0x23, 0x00 };
 
                 patchCount += PatchBuffer(fileSpan, pattern, 0, patch);
 
@@ -1014,7 +1014,7 @@ namespace Moon_WiiVC_Injector
 
                 // Disable AHBPROT
                 byte[] patternAhbprot = { 0xD0, 0x0B, 0x23, 0x08, 0x43, 0x13, 0x60, 0x0B };
-                byte[] patchAhbprot   = { 0x46, 0xC0 };
+                byte[] patchAhbprot = { 0x46, 0xC0 };
                 patchCount += PatchBufferCustom(fileSpan, patternAhbprot, (buf, offset) =>
                 {
                     Console.WriteLine("* Disabling AHBPROT...");
@@ -1023,7 +1023,7 @@ namespace Moon_WiiVC_Injector
 
                 // Disable MEMPROT
                 byte[] patternMemprot = { 0x01, 0x94, 0xB5, 0x00, 0x4B, 0x08, 0x22, 0x01 };
-                byte[] patchMemprot   = { 0x22, 0x00 };
+                byte[] patchMemprot = { 0x22, 0x00 };
                 patchCount += PatchBufferCustom(fileSpan, patternMemprot, (buf, offset) =>
                 {
                     Console.WriteLine("* Disabling MEMPROT...");
@@ -1032,7 +1032,7 @@ namespace Moon_WiiVC_Injector
 
                 // Nintendont patch 1
                 byte[] patternNintendont1 = { 0xB0, 0xBA, 0x1C, 0x0F };
-                byte[] patchNintendont1   = { 0xE5, 0x9F, 0x10, 0x04, 0xE5, 0x91, 0x00, 0x00, 0xE1, 0x2F, 0xFF, 0x10, 0x12, 0xFF, 0xFF, 0xE0 };
+                byte[] patchNintendont1 = { 0xE5, 0x9F, 0x10, 0x04, 0xE5, 0x91, 0x00, 0x00, 0xE1, 0x2F, 0xFF, 0x10, 0x12, 0xFF, 0xFF, 0xE0 };
                 patchCount += PatchBufferCustom(fileSpan, patternNintendont1, (buf, offset) =>
                 {
                     Console.WriteLine("* Nintendont patch 1...");
@@ -1041,7 +1041,7 @@ namespace Moon_WiiVC_Injector
 
                 // Nintendont patch 2
                 byte[] patternNintendont2 = { 0x68, 0x4B, 0x2B, 0x06 };
-                byte[] patchNintendont2   = { 0x49, 0x01, 0x47, 0x88, 0x46, 0xC0, 0xE0, 0x01, 0x12, 0xFF, 0xFE, 0x00, 0x22, 0x00, 0x23, 0x01, 0x46, 0xC0, 0x46, 0xC0 };
+                byte[] patchNintendont2 = { 0x49, 0x01, 0x47, 0x88, 0x46, 0xC0, 0xE0, 0x01, 0x12, 0xFF, 0xFE, 0x00, 0x22, 0x00, 0x23, 0x01, 0x46, 0xC0, 0x46, 0xC0 };
                 patchCount += PatchBufferCustom(fileSpan, patternNintendont2, (buf, offset) =>
                 {
                     Console.WriteLine("* Nintendont patch 2...");
@@ -1051,7 +1051,7 @@ namespace Moon_WiiVC_Injector
                 // Nintendont patch 3 (two-stage search)
                 byte[] patternNintendont3a = { 0x0D, 0x80, 0x00, 0x00, 0x0D, 0x80, 0x00, 0x00 };
                 byte[] patternNintendont3b = { 0x00, 0x00, 0x00, 0x02 };
-                byte[] patchNintendont3    = { 0x00, 0x00, 0x00, 0x03 };
+                byte[] patchNintendont3 = { 0x00, 0x00, 0x00, 0x03 };
                 for (int offset = 0; offset <= fileSpan.Length - 8; offset++)
                 {
                     if (fileSpan.Slice(offset, 8).SequenceEqual(patternNintendont3a))
@@ -1084,15 +1084,15 @@ namespace Moon_WiiVC_Injector
                 int patchCount = 0;
 
                 byte[] patternPassthrough = { 0x20, 0x4B, 0x01, 0x68, 0x18, 0x47, 0x70, 0x00 };
-                byte[] patchPassthrough   = { 0x20, 0x00 };
+                byte[] patchPassthrough = { 0x20, 0x00 };
                 patchCount += PatchBuffer(fileSpan, patternPassthrough, 3, patchPassthrough);
 
                 byte[] patternCustomFunc = { 0x28, 0x00, 0xD0, 0x03, 0x49, 0x02, 0x22, 0x09 };
-                byte[] patchCustomFunc   = { 0xF0, 0x04, 0xFF, 0x21, 0x48, 0x02, 0x21, 0x09, 0xF0, 0x04, 0xFE, 0xF9 };
+                byte[] patchCustomFunc = { 0xF0, 0x04, 0xFF, 0x21, 0x48, 0x02, 0x21, 0x09, 0xF0, 0x04, 0xFE, 0xF9 };
                 patchCount += PatchBuffer(fileSpan, patternCustomFunc, 0, patchCustomFunc);
 
                 byte[] patternCustomCall = { 0xF0, 0x01, 0xFA, 0xB9 };
-                byte[] patchCustomCall   = { 0xF7, 0xFC, 0xFB, 0x95 };
+                byte[] patchCustomCall = { 0xF7, 0xFC, 0xFB, 0x95 };
                 patchCount += PatchBuffer(fileSpan, patternCustomCall, 0, patchCustomCall);
 
                 if (patchCount == 0)
@@ -1108,7 +1108,7 @@ namespace Moon_WiiVC_Injector
             {
                 int patchCount = 0;
                 byte[] pattern = { 0x78, 0x93, 0x21, 0x10, 0x2B, 0x02, 0xD1, 0xB7 };
-                byte[] patch   = { 0x78, 0x93, 0x21, 0x10, 0x2B, 0x02, 0x46, 0xC0 };
+                byte[] patch = { 0x78, 0x93, 0x21, 0x10, 0x2B, 0x02, 0x46, 0xC0 };
 
                 patchCount += PatchBuffer(fileSpan, pattern, 0, patch);
 
@@ -1125,7 +1125,7 @@ namespace Moon_WiiVC_Injector
             {
                 int patchCount = 0;
                 byte[] pattern = { 0x78, 0x93, 0x21, 0x10, 0x2B, 0x02, 0xD1, 0xB7 };
-                byte[] patch   = { 0x78, 0x93, 0x21, 0x10, 0x2B, 0x02, 0xE0, 0xB7 };
+                byte[] patch = { 0x78, 0x93, 0x21, 0x10, 0x2B, 0x02, 0xE0, 0xB7 };
 
                 patchCount += PatchBuffer(fileSpan, pattern, 0, patch);
 

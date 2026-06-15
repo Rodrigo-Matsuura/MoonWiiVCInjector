@@ -14,7 +14,7 @@ namespace Moon_WiiVC_Injector
         public string SystemType { get; set; } = "wii";
         public string SelectedGamePath { get; set; } = string.Empty;
         public string SelectedOutputPath { get; set; } = string.Empty;
-        
+
         public string WiiUCommonKey { get; set; } = string.Empty;
         public string TitleKey { get; set; } = string.Empty;
         public string AncastKey { get; set; } = string.Empty;
@@ -22,29 +22,29 @@ namespace Moon_WiiVC_Injector
         public string PackedTitleLine1 { get; set; } = string.Empty;
         public string PackedTitleLine2 { get; set; } = string.Empty;
         public bool EnablePackedLine2 { get; set; }
-        
+
         public bool Wiimmfi { get; set; }
         public bool WiiVMC { get; set; }
         public bool DisableTrimming { get; set; }
         public bool DisableNintendontAutoboot { get; set; }
         public bool C2WPatch { get; set; }
         public bool LRPatch { get; set; }
-        
+
         public string SoundDir { get; set; } = string.Empty;
         public string LogoDir { get; set; } = string.Empty;
         public string DrcDir { get; set; } = string.Empty;
         public string Gc2Path { get; set; } = string.Empty;
-        
+
         public bool ToggleBootSoundLoop { get; set; }
         public string NfsPatchFlag { get; set; } = string.Empty;
         public string DrcUse { get; set; } = "1";
-        
+
         // Metadata resolved from selected game
         public string TitleIdHex { get; set; } = string.Empty;
         public string TitleIdText { get; set; } = string.Empty;
         public bool FlagGc2Specified { get; set; }
         public bool FlagWbfs { get; set; }
-        
+
         // Paths
         public string TempRootPath { get; set; } = string.Empty;
         public string TempSourcePath { get; set; } = string.Empty;
@@ -125,9 +125,9 @@ namespace Moon_WiiVC_Injector
                     }
                 }
 
-            // 1. Download base files with JNUSTool if not present
-            string[] downloadedFiles = new[]
-            {
+                // 1. Download base files with JNUSTool if not present
+                string[] downloadedFiles = new[]
+                {
                 Path.Combine(_options.JNUSToolDownloads, "0005001010004000", "code", "deint.txt"),
                 Path.Combine(_options.JNUSToolDownloads, "0005001010004000", "code", "font.bin"),
                 Path.Combine(_options.JNUSToolDownloads, "0005001010004001", "code", "c2w.img"),
@@ -146,8 +146,8 @@ namespace Moon_WiiVC_Injector
                 Path.Combine(_options.JNUSToolDownloads, "Rhythm Heaven Fever [VAKE01]", "meta", "bootSound.btsnd")
             };
 
-            string[] fileHashes = new string[]
-            {
+                string[] fileHashes = new string[]
+                {
                 "E707A62EE5491DD16E5494631EA9870A",
                 "CDDAC70FDDB9428F220B048102DAAD40",
                 "FC5EE480F58796C3681BEE78BD3E5D1C",
@@ -164,10 +164,10 @@ namespace Moon_WiiVC_Injector
                 "CA0DAC3E3C5654209C754357EF5A2507",
                 "67B312145ECB70514D5BD36FCAAE0193",
                 "43CD445B8569A445F97ECCC098C93B38"
-            };
+                };
 
-            string[] filesToDownload = new string[]
-            {
+                string[] filesToDownload = new string[]
+                {
                 "0005001010004000 -file /code/deint.txt",
                 "0005001010004000 -file /code/font.bin",
                 "0005001010004001 -file /code/c2w.img",
@@ -184,111 +184,111 @@ namespace Moon_WiiVC_Injector
                 "00050000101b0700 " + _options.TitleKey + " -file /meta/bootMovie.h264",
                 "00050000101b0700 " + _options.TitleKey + " -file /meta/bootLogoTex.tga",
                 "00050000101b0700 " + _options.TitleKey + " -file /meta/bootSound.btsnd"
-            };
+                };
 
-            UpdateStatus("Checking if the necessary files are present...", 10);
+                UpdateStatus("Checking if the necessary files are present...", 10);
 
-            // Create config for JNUSTool
-            string jnusConfigPath = Path.Combine(_options.TempToolsPath, "JAR", "config");
-            string[] jnusToolConfig = { "http://ccs.cdn.wup.shop.nintendo.net/ccs/download", _options.WiiUCommonKey };
-            File.WriteAllLines(jnusConfigPath, jnusToolConfig);
+                // Create config for JNUSTool
+                string jnusConfigPath = Path.Combine(_options.TempToolsPath, "JAR", "config");
+                string[] jnusToolConfig = { "http://ccs.cdn.wup.shop.nintendo.net/ccs/download", _options.WiiUCommonKey };
+                File.WriteAllLines(jnusConfigPath, jnusToolConfig);
 
-            // Create downloads directory if not exists
-            Directory.CreateDirectory(_options.JNUSToolDownloads);
+                // Create downloads directory if not exists
+                Directory.CreateDirectory(_options.JNUSToolDownloads);
 
-            string currentDir = Directory.GetCurrentDirectory();
-            Directory.SetCurrentDirectory(Path.Combine(_options.TempToolsPath, "JAR"));
+                string currentDir = Directory.GetCurrentDirectory();
+                Directory.SetCurrentDirectory(Path.Combine(_options.TempToolsPath, "JAR"));
 
-            bool hasDownloadedAnything = false;
-            for (int i = 0; i < downloadedFiles.Length; i++)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-
-                if (File.Exists(downloadedFiles[i]) && GetMD5Checksum(downloadedFiles[i]) == fileHashes[i])
-                {
-                    continue;
-                }
-
-                // Download it
-                UpdateStatus("(One-Time Download) Downloading base files from Nintendo...", 12 + i * 2);
-                await LaunchProgramAsync("JNUSTool.exe", filesToDownload[i], true, cancellationToken);
-                hasDownloadedAnything = true;
-            }
-
-            if (hasDownloadedAnything)
-            {
-                UpdateStatus("Saving files from Nintendo for future use...", 45);
-                if (Directory.Exists("Rhythm Heaven Fever [VAKE01]"))
-                {
-                    FileUtil.CopyDirectory("Rhythm Heaven Fever [VAKE01]", Path.Combine(_options.JNUSToolDownloads, "Rhythm Heaven Fever [VAKE01]"));
-                    Directory.Delete("Rhythm Heaven Fever [VAKE01]", true);
-                }
-                if (Directory.Exists("0005001010004000"))
-                {
-                    FileUtil.CopyDirectory("0005001010004000", Path.Combine(_options.JNUSToolDownloads, "0005001010004000"));
-                    Directory.Delete("0005001010004000", true);
-                }
-                if (Directory.Exists("0005001010004001"))
-                {
-                    FileUtil.CopyDirectory("0005001010004001", Path.Combine(_options.JNUSToolDownloads, "0005001010004001"));
-                    Directory.Delete("0005001010004001", true);
-                }
-
-                // Verify
-                bool jnusFail = false;
+                bool hasDownloadedAnything = false;
                 for (int i = 0; i < downloadedFiles.Length; i++)
                 {
-                    if (!File.Exists(downloadedFiles[i]) || GetMD5Checksum(downloadedFiles[i]) != fileHashes[i])
+                    cancellationToken.ThrowIfCancellationRequested();
+
+                    if (File.Exists(downloadedFiles[i]) && GetMD5Checksum(downloadedFiles[i]) == fileHashes[i])
                     {
-                        jnusFail = true;
-                        break;
+                        continue;
+                    }
+
+                    // Download it
+                    UpdateStatus("(One-Time Download) Downloading base files from Nintendo...", 12 + i * 2);
+                    await LaunchProgramAsync("JNUSTool.exe", filesToDownload[i], true, cancellationToken);
+                    hasDownloadedAnything = true;
+                }
+
+                if (hasDownloadedAnything)
+                {
+                    UpdateStatus("Saving files from Nintendo for future use...", 45);
+                    if (Directory.Exists("Rhythm Heaven Fever [VAKE01]"))
+                    {
+                        FileUtil.CopyDirectory("Rhythm Heaven Fever [VAKE01]", Path.Combine(_options.JNUSToolDownloads, "Rhythm Heaven Fever [VAKE01]"));
+                        Directory.Delete("Rhythm Heaven Fever [VAKE01]", true);
+                    }
+                    if (Directory.Exists("0005001010004000"))
+                    {
+                        FileUtil.CopyDirectory("0005001010004000", Path.Combine(_options.JNUSToolDownloads, "0005001010004000"));
+                        Directory.Delete("0005001010004000", true);
+                    }
+                    if (Directory.Exists("0005001010004001"))
+                    {
+                        FileUtil.CopyDirectory("0005001010004001", Path.Combine(_options.JNUSToolDownloads, "0005001010004001"));
+                        Directory.Delete("0005001010004001", true);
+                    }
+
+                    // Verify
+                    bool jnusFail = false;
+                    for (int i = 0; i < downloadedFiles.Length; i++)
+                    {
+                        if (!File.Exists(downloadedFiles[i]) || GetMD5Checksum(downloadedFiles[i]) != fileHashes[i])
+                        {
+                            jnusFail = true;
+                            break;
+                        }
+                    }
+
+                    if (jnusFail)
+                    {
+                        throw new Exception("Failed to download or verify base files using JNUSTool.");
                     }
                 }
 
-                if (jnusFail)
-                {
-                    throw new Exception("Failed to download or verify base files using JNUSTool.");
-                }
-            }
-
-            if (File.Exists("config")) File.Delete("config");
-            Directory.SetCurrentDirectory(_options.TempRootPath);
-
-            // Copy downloaded files to build directory
-            UpdateStatus("Copying base files to temporary build directory...", 48);
-            
-            if (Directory.Exists(_options.TempBuildPath)) Directory.Delete(_options.TempBuildPath, true);
-            Directory.CreateDirectory(_options.TempBuildPath);
-            Directory.CreateDirectory(Path.Combine(_options.TempBuildPath, "code"));
-            Directory.CreateDirectory(Path.Combine(_options.TempBuildPath, "meta"));
-            Directory.CreateDirectory(Path.Combine(_options.TempBuildPath, "content"));
-
-            FileUtil.CopyDirectory(Path.Combine(_options.JNUSToolDownloads, "Rhythm Heaven Fever [VAKE01]"), _options.TempBuildPath);
-            if (_options.C2WPatch)
-            {
-                FileUtil.CopyDirectory(Path.Combine(_options.JNUSToolDownloads, "0005001010004000"), _options.TempBuildPath);
-                FileUtil.CopyDirectory(Path.Combine(_options.JNUSToolDownloads, "0005001010004001"), _options.TempBuildPath);
-                string[] ancastKeyCopy = { _options.AncastKey };
-                File.WriteAllLines(Path.Combine(_options.TempToolsPath, "C2W", "starbuck_key.txt"), ancastKeyCopy);
-                File.Copy(Path.Combine(_options.TempBuildPath, "code", "c2w.img"), Path.Combine(_options.TempToolsPath, "C2W", "c2w.img"), true);
-                Directory.SetCurrentDirectory(Path.Combine(_options.TempToolsPath, "C2W"));
-                await LaunchProgramAsync("c2w_patcher.exe", "-nc", true, cancellationToken);
-                File.Delete(Path.Combine(_options.TempBuildPath, "code", "c2w.img"));
-                File.Copy(Path.Combine(_options.TempToolsPath, "C2W", "c2p.img"), Path.Combine(_options.TempBuildPath, "code", "c2w.img"), true);
-                File.Delete(Path.Combine(_options.TempToolsPath, "C2W", "c2p.img"));
-                File.Delete(Path.Combine(_options.TempToolsPath, "C2W", "c2w.img"));
-                File.Delete(Path.Combine(_options.TempToolsPath, "C2W", "starbuck_key.txt"));
+                if (File.Exists("config")) File.Delete("config");
                 Directory.SetCurrentDirectory(_options.TempRootPath);
-            }
 
-            UpdateStatus("Generating app.xml and meta.xml...", 50);
+                // Copy downloaded files to build directory
+                UpdateStatus("Copying base files to temporary build directory...", 48);
 
-            // Generate app.xml and meta.xml
-            string[] appXml = { "<?xml version=\"1.0\" encoding=\"utf-8\"?>", "<app type=\"complex\" access=\"777\">", "  <version type=\"unsignedInt\" length=\"4\">16</version>", "  <os_version type=\"hexBinary\" length=\"8\">000500101000400A</os_version>", "  <title_id type=\"hexBinary\" length=\"8\">" + _options.PackedTitleIDLine + "</title_id>", "  <title_version type=\"hexBinary\" length=\"2\">0000</title_version>", "  <sdk_version type=\"unsignedInt\" length=\"4\">21204</sdk_version>", "  <app_type type=\"hexBinary\" length=\"4\">8000002E</app_type>", "  <group_id type=\"hexBinary\" length=\"4\">" + _options.TitleIdHex + "</group_id>", "  <os_mask type=\"hexBinary\" length=\"32\">0000000000000000000000000000000000000000000000000000000000000000</os_mask>", "  <common_id type=\"hexBinary\" length=\"8\">0000000000000000</common_id>", "</app>" };
-            File.WriteAllLines(Path.Combine(_options.TempBuildPath, "code", "app.xml"), appXml);
+                if (Directory.Exists(_options.TempBuildPath)) Directory.Delete(_options.TempBuildPath, true);
+                Directory.CreateDirectory(_options.TempBuildPath);
+                Directory.CreateDirectory(Path.Combine(_options.TempBuildPath, "code"));
+                Directory.CreateDirectory(Path.Combine(_options.TempBuildPath, "meta"));
+                Directory.CreateDirectory(Path.Combine(_options.TempBuildPath, "content"));
 
-            string line2Text = _options.EnablePackedLine2 ? _options.PackedTitleLine2 : "";
-            List<string> metaXml = new List<string>
+                FileUtil.CopyDirectory(Path.Combine(_options.JNUSToolDownloads, "Rhythm Heaven Fever [VAKE01]"), _options.TempBuildPath);
+                if (_options.C2WPatch)
+                {
+                    FileUtil.CopyDirectory(Path.Combine(_options.JNUSToolDownloads, "0005001010004000"), _options.TempBuildPath);
+                    FileUtil.CopyDirectory(Path.Combine(_options.JNUSToolDownloads, "0005001010004001"), _options.TempBuildPath);
+                    string[] ancastKeyCopy = { _options.AncastKey };
+                    File.WriteAllLines(Path.Combine(_options.TempToolsPath, "C2W", "starbuck_key.txt"), ancastKeyCopy);
+                    File.Copy(Path.Combine(_options.TempBuildPath, "code", "c2w.img"), Path.Combine(_options.TempToolsPath, "C2W", "c2w.img"), true);
+                    Directory.SetCurrentDirectory(Path.Combine(_options.TempToolsPath, "C2W"));
+                    await LaunchProgramAsync("c2w_patcher.exe", "-nc", true, cancellationToken);
+                    File.Delete(Path.Combine(_options.TempBuildPath, "code", "c2w.img"));
+                    File.Copy(Path.Combine(_options.TempToolsPath, "C2W", "c2p.img"), Path.Combine(_options.TempBuildPath, "code", "c2w.img"), true);
+                    File.Delete(Path.Combine(_options.TempToolsPath, "C2W", "c2p.img"));
+                    File.Delete(Path.Combine(_options.TempToolsPath, "C2W", "c2w.img"));
+                    File.Delete(Path.Combine(_options.TempToolsPath, "C2W", "starbuck_key.txt"));
+                    Directory.SetCurrentDirectory(_options.TempRootPath);
+                }
+
+                UpdateStatus("Generating app.xml and meta.xml...", 50);
+
+                // Generate app.xml and meta.xml
+                string[] appXml = { "<?xml version=\"1.0\" encoding=\"utf-8\"?>", "<app type=\"complex\" access=\"777\">", "  <version type=\"unsignedInt\" length=\"4\">16</version>", "  <os_version type=\"hexBinary\" length=\"8\">000500101000400A</os_version>", "  <title_id type=\"hexBinary\" length=\"8\">" + _options.PackedTitleIDLine + "</title_id>", "  <title_version type=\"hexBinary\" length=\"2\">0000</title_version>", "  <sdk_version type=\"unsignedInt\" length=\"4\">21204</sdk_version>", "  <app_type type=\"hexBinary\" length=\"4\">8000002E</app_type>", "  <group_id type=\"hexBinary\" length=\"4\">" + _options.TitleIdHex + "</group_id>", "  <os_mask type=\"hexBinary\" length=\"32\">0000000000000000000000000000000000000000000000000000000000000000</os_mask>", "  <common_id type=\"hexBinary\" length=\"8\">0000000000000000</common_id>", "</app>" };
+                File.WriteAllLines(Path.Combine(_options.TempBuildPath, "code", "app.xml"), appXml);
+
+                string line2Text = _options.EnablePackedLine2 ? _options.PackedTitleLine2 : "";
+                List<string> metaXml = new List<string>
             {
                 "<?xml version=\"1.0\" encoding=\"utf-8\"?>",
                 "<menu type=\"complex\" access=\"777\">",
@@ -363,230 +363,230 @@ namespace Moon_WiiVC_Injector
                 "  <reserved_flag7 type=\"hexBinary\" length=\"4\">00000005</reserved_flag7>"
             };
 
-            string longName = string.IsNullOrEmpty(line2Text) ? _options.PackedTitleLine1 : $"{_options.PackedTitleLine1}\n{line2Text}";
-            for (int i = 0; i < 11; i++) // for all languages
-            {
-                metaXml.Add($"  <longname_{GetLanguageSuffix(i)} type=\"string\" length=\"512\">{longName}</longname_{GetLanguageSuffix(i)}>");
-            }
-            for (int i = 0; i < 11; i++)
-            {
-                metaXml.Add($"  <shortname_{GetLanguageSuffix(i)} type=\"string\" length=\"512\">{_options.PackedTitleLine1}</shortname_{GetLanguageSuffix(i)}>");
-            }
-            for (int i = 0; i < 11; i++)
-            {
-                metaXml.Add($"  <publisher_{GetLanguageSuffix(i)} type=\"string\" length=\"256\"></publisher_{GetLanguageSuffix(i)}>");
-            }
-            for (int i = 0; i < 32; i++)
-            {
-                metaXml.Add($"  <add_on_unique_id{i} type=\"hexBinary\" length=\"4\">00000000</add_on_unique_id{i}>");
-            }
-            metaXml.Add("</menu>");
-            File.WriteAllLines(Path.Combine(_options.TempBuildPath, "meta", "meta.xml"), metaXml);
+                string longName = string.IsNullOrEmpty(line2Text) ? _options.PackedTitleLine1 : $"{_options.PackedTitleLine1}\n{line2Text}";
+                for (int i = 0; i < 11; i++) // for all languages
+                {
+                    metaXml.Add($"  <longname_{GetLanguageSuffix(i)} type=\"string\" length=\"512\">{longName}</longname_{GetLanguageSuffix(i)}>");
+                }
+                for (int i = 0; i < 11; i++)
+                {
+                    metaXml.Add($"  <shortname_{GetLanguageSuffix(i)} type=\"string\" length=\"512\">{_options.PackedTitleLine1}</shortname_{GetLanguageSuffix(i)}>");
+                }
+                for (int i = 0; i < 11; i++)
+                {
+                    metaXml.Add($"  <publisher_{GetLanguageSuffix(i)} type=\"string\" length=\"256\"></publisher_{GetLanguageSuffix(i)}>");
+                }
+                for (int i = 0; i < 32; i++)
+                {
+                    metaXml.Add($"  <add_on_unique_id{i} type=\"hexBinary\" length=\"4\">00000000</add_on_unique_id{i}>");
+                }
+                metaXml.Add("</menu>");
+                File.WriteAllLines(Path.Combine(_options.TempBuildPath, "meta", "meta.xml"), metaXml);
 
-            UpdateStatus("Converting all image sources to expected TGA specification...", 52);
+                UpdateStatus("Converting all image sources to expected TGA specification...", 52);
 
-            // Convert images to TGA using our native SkiaSharp reader/converter
-            using (var bmp = SkiaSharp.SKBitmap.Decode(_options.TempIconPath))
-            {
-                TgaReader.SaveAsTga(bmp, Path.Combine(_options.TempBuildPath, "meta", "iconTex.tga"), 128, 128, 32);
-            }
-            using (var bmp = SkiaSharp.SKBitmap.Decode(_options.TempBannerPath))
-            {
-                TgaReader.SaveAsTga(bmp, Path.Combine(_options.TempBuildPath, "meta", "bootTvTex.tga"), 1280, 720, 24);
-            }
-            
-            bool flagDrcSpecified = File.Exists(_options.DrcDir);
-            if (!flagDrcSpecified)
-            {
+                // Convert images to TGA using our native SkiaSharp reader/converter
+                using (var bmp = SkiaSharp.SKBitmap.Decode(_options.TempIconPath))
+                {
+                    TgaReader.SaveAsTga(bmp, Path.Combine(_options.TempBuildPath, "meta", "iconTex.tga"), 128, 128, 32);
+                }
                 using (var bmp = SkiaSharp.SKBitmap.Decode(_options.TempBannerPath))
                 {
-                    TgaReader.SaveAsTga(bmp, Path.Combine(_options.TempBuildPath, "meta", "bootDrcTex.tga"), 854, 480, 24);
-                }
-            }
-            else
-            {
-                using (var bmp = SkiaSharp.SKBitmap.Decode(_options.TempDrcPath))
-                {
-                    TgaReader.SaveAsTga(bmp, Path.Combine(_options.TempBuildPath, "meta", "bootDrcTex.tga"), 854, 480, 24);
-                }
-            }
-
-            bool flagLogoSpecified = File.Exists(_options.LogoDir);
-            if (flagLogoSpecified)
-            {
-                using (var bmp = SkiaSharp.SKBitmap.Decode(_options.TempLogoPath))
-                {
-                    TgaReader.SaveAsTga(bmp, Path.Combine(_options.TempBuildPath, "meta", "bootLogoTex.tga"), 170, 42, 32);
-                }
-            }
-
-            UpdateStatus("Processing game for NFS Conversion...", 55);
-
-            // Convert sound if specified
-            bool flagBootSoundSpecified = File.Exists(_options.SoundDir);
-            if (flagBootSoundSpecified)
-            {
-                UpdateStatus("Converting user-provided sound to btsnd format...", 60);
-                string tempSoundWav = Path.Combine(_options.TempSourcePath, "temp_sound.wav");
-                string finalSoundBtsnd = Path.Combine(_options.TempBuildPath, "meta", "bootSound.btsnd");
-
-                // SOX to normalize/resample audio
-                await LaunchProgramAsync(Path.Combine(_options.TempToolsPath, "SOX", "sox.exe"), $"\"{_options.SoundDir}\" -b 16 \"{tempSoundWav}\" channels 2 rate 48k trim 0 6", true, cancellationToken);
-                if (File.Exists(finalSoundBtsnd)) File.Delete(finalSoundBtsnd);
-
-                // wav2btsnd to convert to btsnd
-                string loopString = _options.ToggleBootSoundLoop ? "" : " -noLoop";
-                await LaunchProgramAsync(Path.Combine(_options.TempToolsPath, "JAR", "wav2btsnd.exe"), $"-in \"{tempSoundWav}\" -out \"{finalSoundBtsnd}\"{loopString}", true, cancellationToken);
-                if (File.Exists(tempSoundWav)) File.Delete(tempSoundWav);
-            }
-
-            UpdateStatus("Building game ISO image...", 65);
-            string gameIsoPath = Path.Combine(_options.TempSourcePath, "game.iso");
-
-            if (_options.SystemType == "wii")
-            {
-                string currentWiiGame = ogFilePath;
-                if (_options.FlagWbfs)
-                {
-                    UpdateStatus("Converting WBFS file to ISO format...", 66);
-                    string convertedIso = Path.Combine(_options.TempSourcePath, "wbfsconvert.iso");
-                    await LaunchProgramAsync(Path.Combine(_options.TempToolsPath, "EXE", "wbfs_file.exe"), $"\"{ogFilePath}\" convert \"{convertedIso}\"", true, cancellationToken);
-                    currentWiiGame = convertedIso;
+                    TgaReader.SaveAsTga(bmp, Path.Combine(_options.TempBuildPath, "meta", "bootTvTex.tga"), 1280, 720, 24);
                 }
 
-                // Wii retail extract & patch
-                if (!_options.DisableTrimming)
+                bool flagDrcSpecified = File.Exists(_options.DrcDir);
+                if (!flagDrcSpecified)
                 {
-                    string isoExtractDir = Path.Combine(_options.TempSourcePath, "ISOEXTRACT");
-                    if (Directory.Exists(isoExtractDir)) Directory.Delete(isoExtractDir, true);
-
-                    UpdateStatus("Extracting game ISO partitions (this may take a minute)...", 68);
-                    await LaunchProgramAsync(Path.Combine(_options.TempToolsPath, "WIT", "wit.exe"), $"extract \"{currentWiiGame}\" --DEST \"{isoExtractDir}\" --psel data,-update -ovv", true, cancellationToken);
-                    
-                    bool forceCC = _options.NfsPatchFlag.Contains("-instantcc");
-                    if (forceCC)
+                    using (var bmp = SkiaSharp.SKBitmap.Decode(_options.TempBannerPath))
                     {
-                        UpdateStatus("Patching game main.dol for Classic Controller...", 70);
-                        await LaunchProgramAsync(Path.Combine(_options.TempToolsPath, "EXE", "GetExtTypePatcher.exe"), $"\"{Path.Combine(isoExtractDir, "sys", "main.dol")}\" -nc", true, cancellationToken);
+                        TgaReader.SaveAsTga(bmp, Path.Combine(_options.TempBuildPath, "meta", "bootDrcTex.tga"), 854, 480, 24);
                     }
-
-                    // Wii VMC / Video mode changer (Not handled interactively on Linux, skipped/run natively if required)
-                    if (_options.WiiVMC)
-                    {
-                        UpdateStatus("Applying Video Mode patch...", 71);
-                        await LaunchProgramAsync(Path.Combine(_options.TempToolsPath, "EXE", "wii-vmc.exe"), $"\"{Path.Combine(isoExtractDir, "sys", "main.dol")}\"", true, cancellationToken);
-                    }
-
-                    string wiimmfiOption = _options.Wiimmfi ? " --wiimmfi" : "";
-                    UpdateStatus("Rebuilding patched game ISO (this may take a minute)...", 72);
-                    await LaunchProgramAsync(Path.Combine(_options.TempToolsPath, "WIT", "wit.exe"), $"copy \"{isoExtractDir}\" --DEST \"{gameIsoPath}\" -ovv --links --iso{wiimmfiOption}", true, cancellationToken);
-                    if (Directory.Exists(isoExtractDir)) Directory.Delete(isoExtractDir, true);
                 }
                 else
                 {
-                    UpdateStatus("Copying untrimmed game ISO...", 73);
-                    File.Copy(currentWiiGame, gameIsoPath, true);
+                    using (var bmp = SkiaSharp.SKBitmap.Decode(_options.TempDrcPath))
+                    {
+                        TgaReader.SaveAsTga(bmp, Path.Combine(_options.TempBuildPath, "meta", "bootDrcTex.tga"), 854, 480, 24);
+                    }
                 }
 
-                if (File.Exists(Path.Combine(_options.TempSourcePath, "wbfsconvert.iso")))
-                    File.Delete(Path.Combine(_options.TempSourcePath, "wbfsconvert.iso"));
-            }
-            else if (_options.SystemType == "dol")
-            {
-                string tempIsoBase = Path.Combine(_options.TempSourcePath, "TEMPISOBASE");
-                if (Directory.Exists(tempIsoBase)) Directory.Delete(tempIsoBase, true);
-                FileUtil.CopyDirectory(Path.Combine(_options.TempToolsPath, "BASE"), tempIsoBase);
-                File.Copy(ogFilePath, Path.Combine(tempIsoBase, "sys", "main.dol"), true);
-                
-                UpdateStatus("Rebuilding Homebrew game ISO...", 70);
-                await LaunchProgramAsync(Path.Combine(_options.TempToolsPath, "WIT", "wit.exe"), $"copy \"{tempIsoBase}\" --DEST \"{gameIsoPath}\" -ovv --links --iso", true, cancellationToken);
-                Directory.Delete(tempIsoBase, true);
-            }
-            else if (_options.SystemType == "gcn")
-            {
-                string tempIsoBase = Path.Combine(_options.TempSourcePath, "TEMPISOBASE");
-                if (Directory.Exists(tempIsoBase)) Directory.Delete(tempIsoBase, true);
-                FileUtil.CopyDirectory(Path.Combine(_options.TempToolsPath, "BASE"), tempIsoBase);
-
-                // Default forwarder or Nintendont boot dol selection
-                string mainDolSrc = Path.Combine(_options.TempToolsPath, "DOL", "nintendont_default_autobooter.dol");
-                if (_options.DisableNintendontAutoboot)
-                    mainDolSrc = Path.Combine(_options.TempToolsPath, "DOL", "nintendont_forwarder.dol");
-
-                File.Copy(mainDolSrc, Path.Combine(tempIsoBase, "sys", "main.dol"), true);
-                
-                UpdateStatus("Copying GameCube disc image...", 68);
-                File.Copy(ogFilePath, Path.Combine(tempIsoBase, "files", "game.iso"), true);
-
-                if (_options.FlagGc2Specified && !string.IsNullOrEmpty(gc2Path) && File.Exists(gc2Path))
+                bool flagLogoSpecified = File.Exists(_options.LogoDir);
+                if (flagLogoSpecified)
                 {
-                    UpdateStatus("Copying GameCube Disc 2...", 69);
-                    File.Copy(gc2Path, Path.Combine(tempIsoBase, "files", "disc2.iso"), true);
+                    using (var bmp = SkiaSharp.SKBitmap.Decode(_options.TempLogoPath))
+                    {
+                        TgaReader.SaveAsTga(bmp, Path.Combine(_options.TempBuildPath, "meta", "bootLogoTex.tga"), 170, 42, 32);
+                    }
                 }
 
-                UpdateStatus("Rebuilding GameCube game ISO...", 70);
-                await LaunchProgramAsync(Path.Combine(_options.TempToolsPath, "WIT", "wit.exe"), $"copy \"{tempIsoBase}\" --DEST \"{gameIsoPath}\" -ovv --links --iso", true, cancellationToken);
-                Directory.Delete(tempIsoBase, true);
-            }
+                UpdateStatus("Processing game for NFS Conversion...", 55);
 
-            // Extract ticket and TMD for encrypting content
-            UpdateStatus("Extracting game tickets and TMD information...", 75);
-            string tikTempDir = Path.Combine(_options.TempSourcePath, "TIKTEMP");
-            if (Directory.Exists(tikTempDir)) Directory.Delete(tikTempDir, true);
-            await LaunchProgramAsync(Path.Combine(_options.TempToolsPath, "WIT", "wit.exe"), $"extract \"{gameIsoPath}\" --psel data --psel -update --files +tmd.bin --files +ticket.bin --dest \"{tikTempDir}\" -vv1", true, cancellationToken);
-            
-            File.Copy(Path.Combine(tikTempDir, "tmd.bin"), Path.Combine(_options.TempBuildPath, "code", "rvlt.tmd"), true);
-            File.Copy(Path.Combine(tikTempDir, "ticket.bin"), Path.Combine(_options.TempBuildPath, "code", "rvlt.tik"), true);
-            Directory.Delete(tikTempDir, true);
+                // Convert sound if specified
+                bool flagBootSoundSpecified = File.Exists(_options.SoundDir);
+                if (flagBootSoundSpecified)
+                {
+                    UpdateStatus("Converting user-provided sound to btsnd format...", 60);
+                    string tempSoundWav = Path.Combine(_options.TempSourcePath, "temp_sound.wav");
+                    string finalSoundBtsnd = Path.Combine(_options.TempBuildPath, "meta", "bootSound.btsnd");
 
-            // Convert ISO to NFS format
-            UpdateStatus("Converting game ISO to NFS content format...", 80);
-            
-            List<string> nfsArgs = new List<string> { "-enc" };
-            if (_options.SystemType == "dol" || _options.SystemType == "wiiware" || _options.SystemType == "gcn")
-            {
-                nfsArgs.Add("-homebrew");
-            }
-            if (_options.SystemType == "gcn")
-            {
-                nfsArgs.Add("-passthrough");
-            }
+                    // SOX to normalize/resample audio
+                    await LaunchProgramAsync(Path.Combine(_options.TempToolsPath, "SOX", "sox.exe"), $"\"{_options.SoundDir}\" -b 16 \"{tempSoundWav}\" channels 2 rate 48k trim 0 6", true, cancellationToken);
+                    if (File.Exists(finalSoundBtsnd)) File.Delete(finalSoundBtsnd);
 
-            if (_options.NfsPatchFlag.Contains("-horizontal")) nfsArgs.Add("-horizontal");
-            else if (_options.NfsPatchFlag.Contains("-wiimote")) nfsArgs.Add("-wiimote");
-            else if (_options.NfsPatchFlag.Contains("-instantcc")) nfsArgs.Add("-instantcc");
-            else if (_options.NfsPatchFlag.Contains("-nocc")) nfsArgs.Add("-nocc");
+                    // wav2btsnd to convert to btsnd
+                    string loopString = _options.ToggleBootSoundLoop ? "" : " -noLoop";
+                    await LaunchProgramAsync(Path.Combine(_options.TempToolsPath, "JAR", "wav2btsnd.exe"), $"-in \"{tempSoundWav}\" -out \"{finalSoundBtsnd}\"{loopString}", true, cancellationToken);
+                    if (File.Exists(tempSoundWav)) File.Delete(tempSoundWav);
+                }
 
-            if (_options.LRPatch) nfsArgs.Add("-lrpatch");
+                UpdateStatus("Building game ISO image...", 65);
+                string gameIsoPath = Path.Combine(_options.TempSourcePath, "game.iso");
 
-            nfsArgs.Add("-iso");
-            nfsArgs.Add(gameIsoPath);
+                if (_options.SystemType == "wii")
+                {
+                    string currentWiiGame = ogFilePath;
+                    if (_options.FlagWbfs)
+                    {
+                        UpdateStatus("Converting WBFS file to ISO format...", 66);
+                        string convertedIso = Path.Combine(_options.TempSourcePath, "wbfsconvert.iso");
+                        await LaunchProgramAsync(Path.Combine(_options.TempToolsPath, "EXE", "wbfs_file.exe"), $"\"{ogFilePath}\" convert \"{convertedIso}\"", true, cancellationToken);
+                        currentWiiGame = convertedIso;
+                    }
 
-            Directory.SetCurrentDirectory(Path.Combine(_options.TempBuildPath, "content"));
-            
-            // Convert in-process (runs on current thread)
-            int nfsResult = Nfs2Iso2Nfs.ConvertNfs(nfsArgs.ToArray());
-            if (nfsResult != 0)
-            {
-                throw new Exception("Nfs2Iso2Nfs conversion failed. Please verify that the Wii Common Key is correct and the source game ISO is not corrupted.");
-            }
-            
-            Directory.SetCurrentDirectory(_options.TempRootPath);
-            if (File.Exists(gameIsoPath)) File.Delete(gameIsoPath);
+                    // Wii retail extract & patch
+                    if (!_options.DisableTrimming)
+                    {
+                        string isoExtractDir = Path.Combine(_options.TempSourcePath, "ISOEXTRACT");
+                        if (Directory.Exists(isoExtractDir)) Directory.Delete(isoExtractDir, true);
 
-            // Encrypt package with NUSPacker
-            UpdateStatus("Encrypting contents into installable WUP package...", 90);
-            string sanitizedGameName = SanitizeFilename(_options.PackedTitleLine1);
-            finalOutputPath = Path.Combine(_options.SelectedOutputPath, sanitizedGameName + " WUP-N-" + _options.TitleIdText + "_" + _options.PackedTitleIDLine);
-            
-            await LaunchProgramAsync(Path.Combine(_options.TempToolsPath, "JAR", "NUSPacker.exe"), $"-in BUILDDIR -out \"{finalOutputPath}\" -encryptKeyWith {_options.WiiUCommonKey}", true, cancellationToken);
-            
-            // Cleanup
-            UpdateStatus("Cleaning up temporary directories...", 98);
-            if (Directory.Exists(_options.TempBuildPath)) Directory.Delete(_options.TempBuildPath, true);
-            if (Directory.Exists(Path.Combine(_options.TempRootPath, "output"))) Directory.Delete(Path.Combine(_options.TempRootPath, "output"), true);
-            if (Directory.Exists(Path.Combine(_options.TempRootPath, "tmp"))) Directory.Delete(Path.Combine(_options.TempRootPath, "tmp"), true);
-            Directory.CreateDirectory(_options.TempBuildPath);
+                        UpdateStatus("Extracting game ISO partitions (this may take a minute)...", 68);
+                        await LaunchProgramAsync(Path.Combine(_options.TempToolsPath, "WIT", "wit.exe"), $"extract \"{currentWiiGame}\" --DEST \"{isoExtractDir}\" --psel data,-update -ovv", true, cancellationToken);
+
+                        bool forceCC = _options.NfsPatchFlag.Contains("-instantcc");
+                        if (forceCC)
+                        {
+                            UpdateStatus("Patching game main.dol for Classic Controller...", 70);
+                            await LaunchProgramAsync(Path.Combine(_options.TempToolsPath, "EXE", "GetExtTypePatcher.exe"), $"\"{Path.Combine(isoExtractDir, "sys", "main.dol")}\" -nc", true, cancellationToken);
+                        }
+
+                        // Wii VMC / Video mode changer (Not handled interactively on Linux, skipped/run natively if required)
+                        if (_options.WiiVMC)
+                        {
+                            UpdateStatus("Applying Video Mode patch...", 71);
+                            await LaunchProgramAsync(Path.Combine(_options.TempToolsPath, "EXE", "wii-vmc.exe"), $"\"{Path.Combine(isoExtractDir, "sys", "main.dol")}\"", true, cancellationToken);
+                        }
+
+                        string wiimmfiOption = _options.Wiimmfi ? " --wiimmfi" : "";
+                        UpdateStatus("Rebuilding patched game ISO (this may take a minute)...", 72);
+                        await LaunchProgramAsync(Path.Combine(_options.TempToolsPath, "WIT", "wit.exe"), $"copy \"{isoExtractDir}\" --DEST \"{gameIsoPath}\" -ovv --links --iso{wiimmfiOption}", true, cancellationToken);
+                        if (Directory.Exists(isoExtractDir)) Directory.Delete(isoExtractDir, true);
+                    }
+                    else
+                    {
+                        UpdateStatus("Copying untrimmed game ISO...", 73);
+                        File.Copy(currentWiiGame, gameIsoPath, true);
+                    }
+
+                    if (File.Exists(Path.Combine(_options.TempSourcePath, "wbfsconvert.iso")))
+                        File.Delete(Path.Combine(_options.TempSourcePath, "wbfsconvert.iso"));
+                }
+                else if (_options.SystemType == "dol")
+                {
+                    string tempIsoBase = Path.Combine(_options.TempSourcePath, "TEMPISOBASE");
+                    if (Directory.Exists(tempIsoBase)) Directory.Delete(tempIsoBase, true);
+                    FileUtil.CopyDirectory(Path.Combine(_options.TempToolsPath, "BASE"), tempIsoBase);
+                    File.Copy(ogFilePath, Path.Combine(tempIsoBase, "sys", "main.dol"), true);
+
+                    UpdateStatus("Rebuilding Homebrew game ISO...", 70);
+                    await LaunchProgramAsync(Path.Combine(_options.TempToolsPath, "WIT", "wit.exe"), $"copy \"{tempIsoBase}\" --DEST \"{gameIsoPath}\" -ovv --links --iso", true, cancellationToken);
+                    Directory.Delete(tempIsoBase, true);
+                }
+                else if (_options.SystemType == "gcn")
+                {
+                    string tempIsoBase = Path.Combine(_options.TempSourcePath, "TEMPISOBASE");
+                    if (Directory.Exists(tempIsoBase)) Directory.Delete(tempIsoBase, true);
+                    FileUtil.CopyDirectory(Path.Combine(_options.TempToolsPath, "BASE"), tempIsoBase);
+
+                    // Default forwarder or Nintendont boot dol selection
+                    string mainDolSrc = Path.Combine(_options.TempToolsPath, "DOL", "nintendont_default_autobooter.dol");
+                    if (_options.DisableNintendontAutoboot)
+                        mainDolSrc = Path.Combine(_options.TempToolsPath, "DOL", "nintendont_forwarder.dol");
+
+                    File.Copy(mainDolSrc, Path.Combine(tempIsoBase, "sys", "main.dol"), true);
+
+                    UpdateStatus("Copying GameCube disc image...", 68);
+                    File.Copy(ogFilePath, Path.Combine(tempIsoBase, "files", "game.iso"), true);
+
+                    if (_options.FlagGc2Specified && !string.IsNullOrEmpty(gc2Path) && File.Exists(gc2Path))
+                    {
+                        UpdateStatus("Copying GameCube Disc 2...", 69);
+                        File.Copy(gc2Path, Path.Combine(tempIsoBase, "files", "disc2.iso"), true);
+                    }
+
+                    UpdateStatus("Rebuilding GameCube game ISO...", 70);
+                    await LaunchProgramAsync(Path.Combine(_options.TempToolsPath, "WIT", "wit.exe"), $"copy \"{tempIsoBase}\" --DEST \"{gameIsoPath}\" -ovv --links --iso", true, cancellationToken);
+                    Directory.Delete(tempIsoBase, true);
+                }
+
+                // Extract ticket and TMD for encrypting content
+                UpdateStatus("Extracting game tickets and TMD information...", 75);
+                string tikTempDir = Path.Combine(_options.TempSourcePath, "TIKTEMP");
+                if (Directory.Exists(tikTempDir)) Directory.Delete(tikTempDir, true);
+                await LaunchProgramAsync(Path.Combine(_options.TempToolsPath, "WIT", "wit.exe"), $"extract \"{gameIsoPath}\" --psel data --psel -update --files +tmd.bin --files +ticket.bin --dest \"{tikTempDir}\" -vv1", true, cancellationToken);
+
+                File.Copy(Path.Combine(tikTempDir, "tmd.bin"), Path.Combine(_options.TempBuildPath, "code", "rvlt.tmd"), true);
+                File.Copy(Path.Combine(tikTempDir, "ticket.bin"), Path.Combine(_options.TempBuildPath, "code", "rvlt.tik"), true);
+                Directory.Delete(tikTempDir, true);
+
+                // Convert ISO to NFS format
+                UpdateStatus("Converting game ISO to NFS content format...", 80);
+
+                List<string> nfsArgs = new List<string> { "-enc" };
+                if (_options.SystemType == "dol" || _options.SystemType == "wiiware" || _options.SystemType == "gcn")
+                {
+                    nfsArgs.Add("-homebrew");
+                }
+                if (_options.SystemType == "gcn")
+                {
+                    nfsArgs.Add("-passthrough");
+                }
+
+                if (_options.NfsPatchFlag.Contains("-horizontal")) nfsArgs.Add("-horizontal");
+                else if (_options.NfsPatchFlag.Contains("-wiimote")) nfsArgs.Add("-wiimote");
+                else if (_options.NfsPatchFlag.Contains("-instantcc")) nfsArgs.Add("-instantcc");
+                else if (_options.NfsPatchFlag.Contains("-nocc")) nfsArgs.Add("-nocc");
+
+                if (_options.LRPatch) nfsArgs.Add("-lrpatch");
+
+                nfsArgs.Add("-iso");
+                nfsArgs.Add(gameIsoPath);
+
+                Directory.SetCurrentDirectory(Path.Combine(_options.TempBuildPath, "content"));
+
+                // Convert in-process (runs on current thread)
+                int nfsResult = Nfs2Iso2Nfs.ConvertNfs(nfsArgs.ToArray());
+                if (nfsResult != 0)
+                {
+                    throw new Exception("Nfs2Iso2Nfs conversion failed. Please verify that the Wii Common Key is correct and the source game ISO is not corrupted.");
+                }
+
+                Directory.SetCurrentDirectory(_options.TempRootPath);
+                if (File.Exists(gameIsoPath)) File.Delete(gameIsoPath);
+
+                // Encrypt package with NUSPacker
+                UpdateStatus("Encrypting contents into installable WUP package...", 90);
+                string sanitizedGameName = SanitizeFilename(_options.PackedTitleLine1);
+                finalOutputPath = Path.Combine(_options.SelectedOutputPath, sanitizedGameName + " WUP-N-" + _options.TitleIdText + "_" + _options.PackedTitleIDLine);
+
+                await LaunchProgramAsync(Path.Combine(_options.TempToolsPath, "JAR", "NUSPacker.exe"), $"-in BUILDDIR -out \"{finalOutputPath}\" -encryptKeyWith {_options.WiiUCommonKey}", true, cancellationToken);
+
+                // Cleanup
+                UpdateStatus("Cleaning up temporary directories...", 98);
+                if (Directory.Exists(_options.TempBuildPath)) Directory.Delete(_options.TempBuildPath, true);
+                if (Directory.Exists(Path.Combine(_options.TempRootPath, "output"))) Directory.Delete(Path.Combine(_options.TempRootPath, "output"), true);
+                if (Directory.Exists(Path.Combine(_options.TempRootPath, "tmp"))) Directory.Delete(Path.Combine(_options.TempRootPath, "tmp"), true);
+                Directory.CreateDirectory(_options.TempBuildPath);
 
                 if (Directory.Exists(finalOutputPath))
                 {

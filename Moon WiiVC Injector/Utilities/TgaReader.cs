@@ -22,10 +22,10 @@ namespace Moon_WiiVC_Injector
                     byte idLength = reader.ReadByte();
                     byte colorMapType = reader.ReadByte();
                     byte imageType = reader.ReadByte();
-                    
+
                     // Skip color map specification
                     reader.ReadBytes(5);
-                    
+
                     short xOrigin = reader.ReadInt16();
                     short yOrigin = reader.ReadInt16();
                     short width = reader.ReadInt16();
@@ -233,7 +233,7 @@ namespace Moon_WiiVC_Injector
                 writer.Write((byte)0); // ID length
                 writer.Write((byte)0); // Color map type
                 writer.Write((byte)2); // Image type (uncompressed true-color)
-                
+
                 // Color map specification (5 bytes)
                 writer.Write((ushort)0); // First entry index
                 writer.Write((ushort)0); // Color map length
