@@ -630,6 +630,25 @@ namespace Moon_WiiVC_Injector
                 {
                     targetExe = "sox";
                 }
+                else if (fileName == "c2w_patcher.exe")
+                {
+                    string linuxBin = Path.Combine(Path.GetDirectoryName(exeFile) ?? "", "c2w_patcher");
+                    if (File.Exists(linuxBin))
+                    {
+                        targetExe = linuxBin;
+                        targetArgs = arguments;
+                    }
+                    else if (IsCommandAvailable("c2w_patcher"))
+                    {
+                        targetExe = "c2w_patcher";
+                        targetArgs = arguments;
+                    }
+                    else
+                    {
+                        targetExe = "wine";
+                        targetArgs = $"\"{exeFile}\" {arguments}";
+                    }
+                }
                 else
                 {
                     string jarFile = Path.ChangeExtension(exeFile, ".jar");

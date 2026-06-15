@@ -82,6 +82,15 @@ namespace Moon_WiiVC_Injector
                 File.WriteAllBytes(toolZipPath, Properties.Resources.TOOLDIR);
                 ZipFile.ExtractToDirectory(toolZipPath, TempRootPath);
                 File.Delete(toolZipPath);
+
+                if (!OperatingSystem.IsWindows())
+                {
+                    string c2wPath = Path.Combine(TempToolsPath, "C2W", "c2w_patcher");
+                    if (File.Exists(c2wPath))
+                    {
+                        File.SetUnixFileMode(c2wPath, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute | UnixFileMode.GroupRead | UnixFileMode.GroupExecute | UnixFileMode.OtherRead | UnixFileMode.OtherExecute);
+                    }
+                }
             }
             catch { }
 
