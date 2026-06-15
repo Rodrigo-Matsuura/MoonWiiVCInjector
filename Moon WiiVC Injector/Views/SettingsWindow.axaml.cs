@@ -14,20 +14,10 @@ namespace Moon_WiiVC_Injector
             LoadSettings();
         }
 
-        private void InitializeComponent()
-        {
-            AvaloniaXamlLoader.Load(this);
-        }
-
         private void LoadSettings()
         {
-            var bannersRepo = this.FindControl<TextBox>("BannersRepository");
-            if (bannersRepo != null)
-                bannersRepo.Text = Settings.Default.BannersRepository;
-
-            var outputDir = this.FindControl<TextBox>("OutputDir");
-            if (outputDir != null)
-                outputDir.Text = Settings.Default.OutputPathFixed;
+            BannersRepository.Text = Settings.Default.BannersRepository;
+            OutputDir.Text = Settings.Default.OutputPathFixed;
         }
 
         private async void OnBrowseClick(object sender, RoutedEventArgs e)
@@ -44,23 +34,14 @@ namespace Moon_WiiVC_Injector
             if (result != null && result.Count > 0)
             {
                 var folder = result[0];
-                var outputDir = this.FindControl<TextBox>("OutputDir");
-                if (outputDir != null)
-                {
-                    outputDir.Text = folder.Path.LocalPath;
-                }
+                OutputDir.Text = folder.Path.LocalPath;
             }
         }
 
         private void OnOkClick(object sender, RoutedEventArgs e)
         {
-            var bannersRepo = this.FindControl<TextBox>("BannersRepository");
-            if (bannersRepo != null)
-                Settings.Default.BannersRepository = bannersRepo.Text ?? string.Empty;
-
-            var outputDir = this.FindControl<TextBox>("OutputDir");
-            if (outputDir != null)
-                Settings.Default.OutputPathFixed = outputDir.Text ?? string.Empty;
+            Settings.Default.BannersRepository = BannersRepository.Text ?? string.Empty;
+            Settings.Default.OutputPathFixed = OutputDir.Text ?? string.Empty;
 
             Settings.Default.Save();
             Close();

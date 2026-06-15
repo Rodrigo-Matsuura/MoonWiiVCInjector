@@ -15,28 +15,17 @@ namespace Moon_WiiVC_Injector
         {
             InitializeComponent();
             Title = title;
-            var messageText = this.FindControl<SelectableTextBlock>("MessageText");
-            if (messageText != null)
-                messageText.Text = text;
-
-            var okButton = this.FindControl<Button>("OkButton");
-            var yesButton = this.FindControl<Button>("YesButton");
-            var noButton = this.FindControl<Button>("NoButton");
+            MessageText.Text = text;
 
             if (buttons == MessageBoxButtons.Ok)
             {
-                if (okButton != null) okButton.IsVisible = true;
+                OkButton.IsVisible = true;
             }
             else if (buttons == MessageBoxButtons.YesNo)
             {
-                if (yesButton != null) yesButton.IsVisible = true;
-                if (noButton != null) noButton.IsVisible = true;
+                YesButton.IsVisible = true;
+                NoButton.IsVisible = true;
             }
-        }
-
-        private void InitializeComponent()
-        {
-            AvaloniaXamlLoader.Load(this);
         }
 
         private void OnOkClick(object sender, RoutedEventArgs e)

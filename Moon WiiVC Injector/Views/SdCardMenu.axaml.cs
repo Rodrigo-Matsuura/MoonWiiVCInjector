@@ -107,17 +107,23 @@ namespace Moon_WiiVC_Injector
                 if (res == MessageBoxResult.No) return;
             }
 
-            var actionStatus = this.FindControl<TextBlock>("ActionStatus");
-            if (actionStatus != null) actionStatus.Text = "Downloading...";
+            ActionStatus.Text = "Downloading...";
             await Task.Run(async () =>
             {
                 Directory.CreateDirectory(tempPath);
                 var client = Program.Client;
-                File.WriteAllBytes(Path.Combine(tempPath, "boot.dol"), await client.GetByteArrayAsync("https://raw.githubusercontent.com/FIX94/Nintendont/master/loader/loader.dol"));
-                File.WriteAllBytes(Path.Combine(tempPath, "meta.xml"), await client.GetByteArrayAsync("https://raw.githubusercontent.com/FIX94/Nintendont/master/nintendont/meta.xml"));
-                File.WriteAllBytes(Path.Combine(tempPath, "icon.png"), await client.GetByteArrayAsync("https://raw.githubusercontent.com/FIX94/Nintendont/master/nintendont/icon.png"));
+                async Task DownloadFileAsync(string url, string path)
+                {
+                    using var stream = await client.GetStreamAsync(url);
+                    using var file = File.Create(path);
+                    await stream.CopyToAsync(file);
+                }
+
+                await DownloadFileAsync("https://raw.githubusercontent.com/FIX94/Nintendont/master/loader/loader.dol", Path.Combine(tempPath, "boot.dol"));
+                await DownloadFileAsync("https://raw.githubusercontent.com/FIX94/Nintendont/master/nintendont/meta.xml", Path.Combine(tempPath, "meta.xml"));
+                await DownloadFileAsync("https://raw.githubusercontent.com/FIX94/Nintendont/master/nintendont/icon.png", Path.Combine(tempPath, "icon.png"));
             });
-            if (actionStatus != null) actionStatus.Text = string.Empty;
+            ActionStatus.Text = string.Empty;
 
             if (DriveSpecified)
             {

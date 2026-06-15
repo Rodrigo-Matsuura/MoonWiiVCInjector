@@ -17,27 +17,14 @@ namespace Moon_WiiVC_Injector
         {
             InitializeComponent();
             Title = title;
-            var promptText = this.FindControl<TextBlock>("PromptText");
-            if (promptText != null)
-                promptText.Text = text;
-
-            var inputTextBox = this.FindControl<TextBox>("InputTextBox");
-            if (inputTextBox != null)
-            {
-                inputTextBox.Text = defaultValue;
-                inputTextBox.Focus();
-            }
-        }
-
-        private void InitializeComponent()
-        {
-            AvaloniaXamlLoader.Load(this);
+            PromptText.Text = text;
+            InputTextBox.Text = defaultValue;
+            InputTextBox.Focus();
         }
 
         private void OnOkClick(object sender, RoutedEventArgs e)
         {
-            var inputTextBox = this.FindControl<TextBox>("InputTextBox");
-            Result = inputTextBox?.Text ?? string.Empty;
+            Result = InputTextBox.Text ?? string.Empty;
             Close(true);
         }
 
