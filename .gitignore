@@ -1,6 +1,14 @@
-Moon WiiVC Injector/bin/*
-Moon WiiVC Injector/obj/*
-.vs/*
+# C# Build Outputs
+[Bb]in/
+[Oo]bj/
+
+# Build and Publish Directories
+[Bb]uild/
+[Bb]uild-win/
+
+# Packaging outputs
+*.zip
+
+# Visual Studio Cache
+.vs/
 /packages
-build/
-Moon WiiVC Injector/build/

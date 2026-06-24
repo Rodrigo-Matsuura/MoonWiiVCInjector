@@ -1,36 +1,33 @@
 using Avalonia;
 
-namespace Moon_WiiVC_Injector
+namespace Moon_WiiVC_Injector;
+static class Program
 {
-    static class Program
+    public static readonly HttpClient Client = new HttpClient();
+
+    [STAThread]
+    static void Main(string[] args)
     {
-        public static readonly HttpClient Client = new HttpClient();
+        BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
+    }
 
-        [STAThread]
-        static void Main(string[] args)
+    public static AppBuilder BuildAvaloniaApp()
+        => AppBuilder.Configure<App>()
+            .UsePlatformDetect()
+            .LogToTrace();
+
+    public static async Task<bool> CheckForInternetConnectionAsync(CancellationToken cancellationToken = default)
+    {
+        try
         {
-            BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
+            using (var response = await Client.GetAsync("http://clients3.google.com/generate_204", HttpCompletionOption.ResponseHeadersRead, cancellationToken))
+            {
+                return response.IsSuccessStatusCode;
+            }
         }
-
-        public static AppBuilder BuildAvaloniaApp()
-            => AppBuilder.Configure<App>()
-                .UsePlatformDetect()
-                .LogToTrace();
-
-        public static bool CheckForInternetConnection()
+        catch
         {
-            try
-            {
-                using (var request = new HttpRequestMessage(HttpMethod.Get, "http://clients3.google.com/generate_204"))
-                using (var response = Client.Send(request))
-                {
-                    return response.IsSuccessStatusCode;
-                }
-            }
-            catch
-            {
-                return false;
-            }
+            return false;
         }
     }
 }
