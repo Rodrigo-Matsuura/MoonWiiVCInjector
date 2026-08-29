@@ -56,22 +56,18 @@ public class BuildOptions
     public string TempLogoPath { get; set; } = string.Empty;
 }
 
-public class BuildEngine
+public class BuildEngine(BuildOptions options, IProgress<(string Message, double Progress)> progress, Action<string>? onLogMessage = null)
 {
-    private readonly BuildOptions _options;
-    private readonly IProgress<(string Message, double Progress)> _progress;
-    private readonly List<string> _logLines = new();
-
-    public BuildEngine(BuildOptions options, IProgress<(string Message, double Progress)> progress)
-    {
-        _options = options;
-        _progress = progress;
-    }
+    private readonly BuildOptions _options = options;
+    private readonly IProgress<(string Message, double Progress)> _progress = progress;
+    private readonly Action<string>? _onLogMessage = onLogMessage;
+    private readonly List<string> _logLines = [];
 
     private void Log(string message)
     {
         string logLine = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {message}";
         _logLines.Add(logLine);
+        _onLogMessage?.Invoke(logLine);
         Debug.WriteLine(logLine);
     }
 
@@ -125,78 +121,78 @@ public class BuildEngine
             }
 
             // 1. Download base files with JNUSTool if not present
-            string[] downloadedFiles = new[]
-            {
-            Path.Combine(_options.JNUSToolDownloads, "0005001010004000", "code", "deint.txt"),
-            Path.Combine(_options.JNUSToolDownloads, "0005001010004000", "code", "font.bin"),
-            Path.Combine(_options.JNUSToolDownloads, "0005001010004001", "code", "c2w.img"),
-            Path.Combine(_options.JNUSToolDownloads, "0005001010004001", "code", "boot.bin"),
-            Path.Combine(_options.JNUSToolDownloads, "0005001010004001", "code", "dmcu.d.hex"),
-            Path.Combine(_options.JNUSToolDownloads, "Rhythm Heaven Fever [VAKE01]", "code", "cos.xml"),
-            Path.Combine(_options.JNUSToolDownloads, "Rhythm Heaven Fever [VAKE01]", "code", "frisbiiU.rpx"),
-            Path.Combine(_options.JNUSToolDownloads, "Rhythm Heaven Fever [VAKE01]", "code", "fw.img"),
-            Path.Combine(_options.JNUSToolDownloads, "Rhythm Heaven Fever [VAKE01]", "code", "fw.tmd"),
-            Path.Combine(_options.JNUSToolDownloads, "Rhythm Heaven Fever [VAKE01]", "code", "htk.bin"),
-            Path.Combine(_options.JNUSToolDownloads, "Rhythm Heaven Fever [VAKE01]", "code", "nn_hai_user.rpl"),
-            Path.Combine(_options.JNUSToolDownloads, "Rhythm Heaven Fever [VAKE01]", "content", "assets", "shaders", "cafe", "banner.gsh"),
-            Path.Combine(_options.JNUSToolDownloads, "Rhythm Heaven Fever [VAKE01]", "content", "assets", "shaders", "cafe", "fade.gsh"),
-            Path.Combine(_options.JNUSToolDownloads, "Rhythm Heaven Fever [VAKE01]", "meta", "bootMovie.h264"),
-            Path.Combine(_options.JNUSToolDownloads, "Rhythm Heaven Fever [VAKE01]", "meta", "bootLogoTex.tga"),
-            Path.Combine(_options.JNUSToolDownloads, "Rhythm Heaven Fever [VAKE01]", "meta", "bootSound.btsnd")
-        };
+            string[] downloadedFiles =
+            [
+                Path.Combine(_options.JNUSToolDownloads, "0005001010004000", "code", "deint.txt"),
+                Path.Combine(_options.JNUSToolDownloads, "0005001010004000", "code", "font.bin"),
+                Path.Combine(_options.JNUSToolDownloads, "0005001010004001", "code", "c2w.img"),
+                Path.Combine(_options.JNUSToolDownloads, "0005001010004001", "code", "boot.bin"),
+                Path.Combine(_options.JNUSToolDownloads, "0005001010004001", "code", "dmcu.d.hex"),
+                Path.Combine(_options.JNUSToolDownloads, "Rhythm Heaven Fever [VAKE01]", "code", "cos.xml"),
+                Path.Combine(_options.JNUSToolDownloads, "Rhythm Heaven Fever [VAKE01]", "code", "frisbiiU.rpx"),
+                Path.Combine(_options.JNUSToolDownloads, "Rhythm Heaven Fever [VAKE01]", "code", "fw.img"),
+                Path.Combine(_options.JNUSToolDownloads, "Rhythm Heaven Fever [VAKE01]", "code", "fw.tmd"),
+                Path.Combine(_options.JNUSToolDownloads, "Rhythm Heaven Fever [VAKE01]", "code", "htk.bin"),
+                Path.Combine(_options.JNUSToolDownloads, "Rhythm Heaven Fever [VAKE01]", "code", "nn_hai_user.rpl"),
+                Path.Combine(_options.JNUSToolDownloads, "Rhythm Heaven Fever [VAKE01]", "content", "assets", "shaders", "cafe", "banner.gsh"),
+                Path.Combine(_options.JNUSToolDownloads, "Rhythm Heaven Fever [VAKE01]", "content", "assets", "shaders", "cafe", "fade.gsh"),
+                Path.Combine(_options.JNUSToolDownloads, "Rhythm Heaven Fever [VAKE01]", "meta", "bootMovie.h264"),
+                Path.Combine(_options.JNUSToolDownloads, "Rhythm Heaven Fever [VAKE01]", "meta", "bootLogoTex.tga"),
+                Path.Combine(_options.JNUSToolDownloads, "Rhythm Heaven Fever [VAKE01]", "meta", "bootSound.btsnd")
+            ];
 
-            string[] fileHashes = new string[]
-            {
-            "E707A62EE5491DD16E5494631EA9870A",
-            "CDDAC70FDDB9428F220B048102DAAD40",
-            "FC5EE480F58796C3681BEE78BD3E5D1C",
-            "F4D5F095CBA9504A5CB8A94A4781114C",
-            "E32FCBCC817C443E0832DE5CA9032808",
-            "42215713D951C2023F90164ED9DF900F",
-            "69E191E8B0DF1D5304B36F1375C4F127",
-            "3CAF52A9A440EEE4F125A3AD22E305C8",
-            "AE4E06CAD3BEF60AE5C49E22CCDC3254",
-            "C99CAF5995E395F39C3FCAB4A8AF20E0",
-            "C4BF586BA0071BD8477986C1AA37E1F1",
-            "5F2FA196DFC158F0FCC69272073AE07E",
-            "307221985A7B46F0386A2637DC15DA3E",
-            "CA0DAC3E3C5654209C754357EF5A2507",
-            "67B312145ECB70514D5BD36FCAAE0193",
-            "43CD445B8569A445F97ECCC098C93B38"
-            };
+            string[] fileHashes =
+            [
+                "E707A62EE5491DD16E5494631EA9870A",
+                "CDDAC70FDDB9428F220B048102DAAD40",
+                "FC5EE480F58796C3681BEE78BD3E5D1C",
+                "F4D5F095CBA9504A5CB8A94A4781114C",
+                "E32FCBCC817C443E0832DE5CA9032808",
+                "42215713D951C2023F90164ED9DF900F",
+                "69E191E8B0DF1D5304B36F1375C4F127",
+                "3CAF52A9A440EEE4F125A3AD22E305C8",
+                "AE4E06CAD3BEF60AE5C49E22CCDC3254",
+                "C99CAF5995E395F39C3FCAB4A8AF20E0",
+                "C4BF586BA0071BD8477986C1AA37E1F1",
+                "5F2FA196DFC158F0FCC69272073AE07E",
+                "307221985A7B46F0386A2637DC15DA3E",
+                "CA0DAC3E3C5654209C754357EF5A2507",
+                "67B312145ECB70514D5BD36FCAAE0193",
+                "43CD445B8569A445F97ECCC098C93B38"
+            ];
 
-            string[] filesToDownload = new string[]
-            {
-            "0005001010004000 -file /code/deint.txt",
-            "0005001010004000 -file /code/font.bin",
-            "0005001010004001 -file /code/c2w.img",
-            "0005001010004001 -file /code/boot.bin",
-            "0005001010004001 -file /code/dmcu.d.hex",
-            "00050000101b0700 " + _options.TitleKey + " -file /code/cos.xml",
-            "00050000101b0700 " + _options.TitleKey + " -file /code/frisbiiU.rpx",
-            "00050000101b0700 " + _options.TitleKey + " -file /code/fw.img",
-            "00050000101b0700 " + _options.TitleKey + " -file /code/fw.tmd",
-            "00050000101b0700 " + _options.TitleKey + " -file /code/htk.bin",
-            "00050000101b0700 " + _options.TitleKey + " -file /code/nn_hai_user.rpl",
-            "00050000101b0700 " + _options.TitleKey + " -file /content/assets/shaders/cafe/banner.gsh",
-            "00050000101b0700 " + _options.TitleKey + " -file /content/assets/shaders/cafe/fade.gsh*",
-            "00050000101b0700 " + _options.TitleKey + " -file /meta/bootMovie.h264",
-            "00050000101b0700 " + _options.TitleKey + " -file /meta/bootLogoTex.tga",
-            "00050000101b0700 " + _options.TitleKey + " -file /meta/bootSound.btsnd"
-            };
+            string[] filesToDownload =
+            [
+                "0005001010004000 -file /code/deint.txt",
+                "0005001010004000 -file /code/font.bin",
+                "0005001010004001 -file /code/c2w.img",
+                "0005001010004001 -file /code/boot.bin",
+                "0005001010004001 -file /code/dmcu.d.hex",
+                "00050000101b0700 " + _options.TitleKey + " -file /code/cos.xml",
+                "00050000101b0700 " + _options.TitleKey + " -file /code/frisbiiU.rpx",
+                "00050000101b0700 " + _options.TitleKey + " -file /code/fw.img",
+                "00050000101b0700 " + _options.TitleKey + " -file /code/fw.tmd",
+                "00050000101b0700 " + _options.TitleKey + " -file /code/htk.bin",
+                "00050000101b0700 " + _options.TitleKey + " -file /code/nn_hai_user.rpl",
+                "00050000101b0700 " + _options.TitleKey + " -file /content/assets/shaders/cafe/banner.gsh",
+                "00050000101b0700 " + _options.TitleKey + " -file /content/assets/shaders/cafe/fade.gsh*",
+                "00050000101b0700 " + _options.TitleKey + " -file /meta/bootMovie.h264",
+                "00050000101b0700 " + _options.TitleKey + " -file /meta/bootLogoTex.tga",
+                "00050000101b0700 " + _options.TitleKey + " -file /meta/bootSound.btsnd"
+            ];
 
             UpdateStatus("Checking if the necessary files are present...", 10);
 
+            string jarDir = Path.Combine(_options.TempToolsPath, "JAR");
+            string c2wDir = Path.Combine(_options.TempToolsPath, "C2W");
+
             // Create config for JNUSTool
-            string jnusConfigPath = Path.Combine(_options.TempToolsPath, "JAR", "config");
-            string[] jnusToolConfig = { "http://ccs.cdn.wup.shop.nintendo.net/ccs/download", _options.WiiUCommonKey };
+            string jnusConfigPath = Path.Combine(jarDir, "config");
+            string[] jnusToolConfig = ["http://ccs.cdn.wup.shop.nintendo.net/ccs/download", _options.WiiUCommonKey];
             await File.WriteAllLinesAsync(jnusConfigPath, jnusToolConfig);
 
             // Create downloads directory if not exists
             Directory.CreateDirectory(_options.JNUSToolDownloads);
-
-            string currentDir = Directory.GetCurrentDirectory();
-            Directory.SetCurrentDirectory(Path.Combine(_options.TempToolsPath, "JAR"));
 
             bool hasDownloadedAnything = false;
             for (int i = 0; i < downloadedFiles.Length; i++)
@@ -210,27 +206,31 @@ public class BuildEngine
 
                 // Download it
                 UpdateStatus("(One-Time Download) Downloading base files from Nintendo...", 12 + i * 2);
-                await LaunchProgramAsync("JNUSTool.exe", filesToDownload[i], true, cancellationToken);
+                await LaunchProgramAsync("JNUSTool.exe", filesToDownload[i], true, cancellationToken, workingDirectory: jarDir);
                 hasDownloadedAnything = true;
             }
 
             if (hasDownloadedAnything)
             {
                 UpdateStatus("Saving files from Nintendo for future use...", 45);
-                if (Directory.Exists("Rhythm Heaven Fever [VAKE01]"))
+                string jnusVake = Path.Combine(jarDir, "Rhythm Heaven Fever [VAKE01]");
+                string jnus4000 = Path.Combine(jarDir, "0005001010004000");
+                string jnus4001 = Path.Combine(jarDir, "0005001010004001");
+
+                if (Directory.Exists(jnusVake))
                 {
-                    FileUtil.CopyDirectory("Rhythm Heaven Fever [VAKE01]", Path.Combine(_options.JNUSToolDownloads, "Rhythm Heaven Fever [VAKE01]"));
-                    Directory.Delete("Rhythm Heaven Fever [VAKE01]", true);
+                    FileUtil.CopyDirectory(jnusVake, Path.Combine(_options.JNUSToolDownloads, "Rhythm Heaven Fever [VAKE01]"));
+                    FileUtil.SafeDeleteDirectory(jnusVake);
                 }
-                if (Directory.Exists("0005001010004000"))
+                if (Directory.Exists(jnus4000))
                 {
-                    FileUtil.CopyDirectory("0005001010004000", Path.Combine(_options.JNUSToolDownloads, "0005001010004000"));
-                    Directory.Delete("0005001010004000", true);
+                    FileUtil.CopyDirectory(jnus4000, Path.Combine(_options.JNUSToolDownloads, "0005001010004000"));
+                    FileUtil.SafeDeleteDirectory(jnus4000);
                 }
-                if (Directory.Exists("0005001010004001"))
+                if (Directory.Exists(jnus4001))
                 {
-                    FileUtil.CopyDirectory("0005001010004001", Path.Combine(_options.JNUSToolDownloads, "0005001010004001"));
-                    Directory.Delete("0005001010004001", true);
+                    FileUtil.CopyDirectory(jnus4001, Path.Combine(_options.JNUSToolDownloads, "0005001010004001"));
+                    FileUtil.SafeDeleteDirectory(jnus4001);
                 }
 
                 // Verify
@@ -250,13 +250,12 @@ public class BuildEngine
                 }
             }
 
-            if (File.Exists("config")) File.Delete("config");
-            Directory.SetCurrentDirectory(_options.TempRootPath);
+            FileUtil.SafeDeleteFile(jnusConfigPath);
 
             // Copy downloaded files to build directory
             UpdateStatus("Copying base files to temporary build directory...", 48);
 
-            if (Directory.Exists(_options.TempBuildPath)) Directory.Delete(_options.TempBuildPath, true);
+            FileUtil.SafeDeleteDirectory(_options.TempBuildPath);
             Directory.CreateDirectory(_options.TempBuildPath);
             Directory.CreateDirectory(Path.Combine(_options.TempBuildPath, "code"));
             Directory.CreateDirectory(Path.Combine(_options.TempBuildPath, "meta"));
@@ -267,17 +266,20 @@ public class BuildEngine
             {
                 FileUtil.CopyDirectory(Path.Combine(_options.JNUSToolDownloads, "0005001010004000"), _options.TempBuildPath);
                 FileUtil.CopyDirectory(Path.Combine(_options.JNUSToolDownloads, "0005001010004001"), _options.TempBuildPath);
-                string[] ancastKeyCopy = { _options.AncastKey };
-                await File.WriteAllLinesAsync(Path.Combine(_options.TempToolsPath, "C2W", "starbuck_key.txt"), ancastKeyCopy);
-                File.Copy(Path.Combine(_options.TempBuildPath, "code", "c2w.img"), Path.Combine(_options.TempToolsPath, "C2W", "c2w.img"), true);
-                Directory.SetCurrentDirectory(Path.Combine(_options.TempToolsPath, "C2W"));
-                await LaunchProgramAsync("c2w_patcher.exe", "-nc", true, cancellationToken);
-                File.Delete(Path.Combine(_options.TempBuildPath, "code", "c2w.img"));
-                File.Copy(Path.Combine(_options.TempToolsPath, "C2W", "c2p.img"), Path.Combine(_options.TempBuildPath, "code", "c2w.img"), true);
-                File.Delete(Path.Combine(_options.TempToolsPath, "C2W", "c2p.img"));
-                File.Delete(Path.Combine(_options.TempToolsPath, "C2W", "c2w.img"));
-                File.Delete(Path.Combine(_options.TempToolsPath, "C2W", "starbuck_key.txt"));
-                Directory.SetCurrentDirectory(_options.TempRootPath);
+                string[] ancastKeyCopy = [_options.AncastKey];
+                string starbuckKeyPath = Path.Combine(c2wDir, "starbuck_key.txt");
+                string c2wToolsImg = Path.Combine(c2wDir, "c2w.img");
+                string c2pToolsImg = Path.Combine(c2wDir, "c2p.img");
+                string c2wBuildImg = Path.Combine(_options.TempBuildPath, "code", "c2w.img");
+
+                await File.WriteAllLinesAsync(starbuckKeyPath, ancastKeyCopy);
+                File.Copy(c2wBuildImg, c2wToolsImg, true);
+                await LaunchProgramAsync("c2w_patcher.exe", "-nc", true, cancellationToken, workingDirectory: c2wDir);
+                FileUtil.SafeDeleteFile(c2wBuildImg);
+                File.Copy(c2pToolsImg, c2wBuildImg, true);
+                FileUtil.SafeDeleteFile(c2pToolsImg);
+                FileUtil.SafeDeleteFile(c2wToolsImg);
+                FileUtil.SafeDeleteFile(starbuckKeyPath);
             }
 
             UpdateStatus("Generating app.xml and meta.xml...", 50);
@@ -410,26 +412,20 @@ public class BuildEngine
             bool flagDrcSpecified = File.Exists(_options.DrcDir);
             if (!flagDrcSpecified)
             {
-                using (var bmp = SkiaSharp.SKBitmap.Decode(_options.TempBannerPath))
-                {
-                    TgaReader.SaveAsTga(bmp, Path.Combine(_options.TempBuildPath, "meta", "bootDrcTex.tga"), 854, 480, 24);
-                }
+                using var bmp = SkiaSharp.SKBitmap.Decode(_options.TempBannerPath);
+                TgaReader.SaveAsTga(bmp, Path.Combine(_options.TempBuildPath, "meta", "bootDrcTex.tga"), 854, 480, 24);
             }
             else
             {
-                using (var bmp = SkiaSharp.SKBitmap.Decode(_options.TempDrcPath))
-                {
-                    TgaReader.SaveAsTga(bmp, Path.Combine(_options.TempBuildPath, "meta", "bootDrcTex.tga"), 854, 480, 24);
-                }
+                using var bmp = SkiaSharp.SKBitmap.Decode(_options.TempDrcPath);
+                TgaReader.SaveAsTga(bmp, Path.Combine(_options.TempBuildPath, "meta", "bootDrcTex.tga"), 854, 480, 24);
             }
 
             bool flagLogoSpecified = File.Exists(_options.LogoDir);
             if (flagLogoSpecified)
             {
-                using (var bmp = SkiaSharp.SKBitmap.Decode(_options.TempLogoPath))
-                {
-                    TgaReader.SaveAsTga(bmp, Path.Combine(_options.TempBuildPath, "meta", "bootLogoTex.tga"), 170, 42, 32);
-                }
+                using var bmp = SkiaSharp.SKBitmap.Decode(_options.TempLogoPath);
+                TgaReader.SaveAsTga(bmp, Path.Combine(_options.TempBuildPath, "meta", "bootLogoTex.tga"), 170, 42, 32);
             }
 
             UpdateStatus("Processing game for NFS Conversion...", 55);
@@ -554,7 +550,7 @@ public class BuildEngine
             // Convert ISO to NFS format
             UpdateStatus("Converting game ISO to NFS content format...", 80);
 
-            List<string> nfsArgs = new List<string> { "-enc" };
+            List<string> nfsArgs = ["-enc"];
             if (_options.SystemType == "dol" || _options.SystemType == "wiiware" || _options.SystemType == "gcn")
             {
                 nfsArgs.Add("-homebrew");
@@ -574,30 +570,36 @@ public class BuildEngine
             nfsArgs.Add("-iso");
             nfsArgs.Add(gameIsoPath);
 
-            Directory.SetCurrentDirectory(Path.Combine(_options.TempBuildPath, "content"));
+            string contentDir = Path.Combine(_options.TempBuildPath, "content");
 
-            // Convert in-process (runs on current thread)
-            int nfsResult = Nfs2Iso2Nfs.ConvertNfs(nfsArgs.ToArray());
+            // Convert in-process with real-time logging, cancellation and progress
+            int nfsResult = Nfs2Iso2Nfs.ConvertNfs(
+                [.. nfsArgs],
+                baseDirectory: contentDir,
+                onLog: Log,
+                progress: _progress,
+                cancellationToken: cancellationToken);
+
             if (nfsResult != 0)
             {
                 throw new Exception("Nfs2Iso2Nfs conversion failed. Please verify that the Wii Common Key is correct and the source game ISO is not corrupted.");
             }
 
-            Directory.SetCurrentDirectory(_options.TempRootPath);
-            if (File.Exists(gameIsoPath)) File.Delete(gameIsoPath);
+            FileUtil.SafeDeleteFile(gameIsoPath);
 
             // Encrypt package with NUSPacker
             UpdateStatus("Encrypting contents into installable WUP package...", 90);
             string sanitizedGameName = SanitizeFilename(_options.PackedTitleLine1);
             finalOutputPath = Path.Combine(_options.SelectedOutputPath, sanitizedGameName + " WUP-N-" + _options.TitleIdText + "_" + _options.PackedTitleIDLine);
 
-            await LaunchProgramAsync(Path.Combine(_options.TempToolsPath, "JAR", "NUSPacker.exe"), $"-in BUILDDIR -out \"{finalOutputPath}\" -encryptKeyWith {_options.WiiUCommonKey}", true, cancellationToken);
+            string nusPackerExe = Path.Combine(_options.TempToolsPath, "JAR", "NUSPacker.exe");
+            await LaunchProgramAsync(nusPackerExe, $"-in BUILDDIR -out \"{finalOutputPath}\" -encryptKeyWith {_options.WiiUCommonKey}", true, cancellationToken, workingDirectory: _options.TempRootPath);
 
             // Cleanup
             UpdateStatus("Cleaning up temporary directories...", 98);
-            if (Directory.Exists(_options.TempBuildPath)) Directory.Delete(_options.TempBuildPath, true);
-            if (Directory.Exists(Path.Combine(_options.TempRootPath, "output"))) Directory.Delete(Path.Combine(_options.TempRootPath, "output"), true);
-            if (Directory.Exists(Path.Combine(_options.TempRootPath, "tmp"))) Directory.Delete(Path.Combine(_options.TempRootPath, "tmp"), true);
+            FileUtil.SafeDeleteDirectory(_options.TempBuildPath);
+            FileUtil.SafeDeleteDirectory(Path.Combine(_options.TempRootPath, "output"));
+            FileUtil.SafeDeleteDirectory(Path.Combine(_options.TempRootPath, "tmp"));
             Directory.CreateDirectory(_options.TempBuildPath);
 
             if (Directory.Exists(finalOutputPath))
@@ -623,7 +625,13 @@ public class BuildEngine
         }
     }
 
-    private async Task LaunchProgramAsync(string exeFile, string arguments = "", bool hideProcess = true, CancellationToken cancellationToken = default, int[]? allowedExitCodes = null)
+    private async Task LaunchProgramAsync(
+        string exeFile,
+        string arguments = "",
+        bool hideProcess = true,
+        CancellationToken cancellationToken = default,
+        int[]? allowedExitCodes = null,
+        string? workingDirectory = null)
     {
         string targetExe = exeFile;
         string targetArgs = arguments;
@@ -673,10 +681,10 @@ public class BuildEngine
                     }
                     else
                     {
-                        string currentDirJar = Path.Combine(Directory.GetCurrentDirectory(), Path.ChangeExtension(Path.GetFileName(exeFile), ".jar"));
-                        if (File.Exists(currentDirJar))
+                        string fallbackJar = Path.Combine(!string.IsNullOrWhiteSpace(workingDirectory) ? workingDirectory : _options.TempRootPath, Path.ChangeExtension(Path.GetFileName(exeFile), ".jar"));
+                        if (File.Exists(fallbackJar))
                         {
-                            jarFile = currentDirJar;
+                            jarFile = fallbackJar;
                         }
                     }
                 }
@@ -699,11 +707,17 @@ public class BuildEngine
             }
         }
 
-        ProcessStartInfo launcher = new ProcessStartInfo(targetExe)
+        string effectiveWorkingDir = !string.IsNullOrWhiteSpace(workingDirectory) ? workingDirectory : _options.TempRootPath;
+        if (!Directory.Exists(effectiveWorkingDir))
+        {
+            Directory.CreateDirectory(effectiveWorkingDir);
+        }
+
+        ProcessStartInfo launcher = new(targetExe)
         {
             Arguments = targetArgs,
             UseShellExecute = false,
-            WorkingDirectory = Directory.GetCurrentDirectory(),
+            WorkingDirectory = effectiveWorkingDir,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             CreateNoWindow = hideProcess
@@ -714,79 +728,77 @@ public class BuildEngine
             launcher.WindowStyle = ProcessWindowStyle.Hidden;
         }
 
-        using (Process? process = Process.Start(launcher))
+        using Process? process = Process.Start(launcher);
+        if (process != null)
         {
-            if (process != null)
+            // Start reading standard output and standard error asynchronously
+            var stdOutBuilder = new StringBuilder();
+            var stdErrBuilder = new StringBuilder();
+
+            process.OutputDataReceived += (s, e) =>
             {
-                // Start reading standard output and standard error asynchronously
-                var stdOutBuilder = new StringBuilder();
-                var stdErrBuilder = new StringBuilder();
-
-                process.OutputDataReceived += (s, e) =>
+                if (e.Data != null)
                 {
-                    if (e.Data != null)
-                    {
-                        stdOutBuilder.AppendLine(e.Data);
-                    }
-                };
-                process.ErrorDataReceived += (s, e) =>
+                    stdOutBuilder.AppendLine(e.Data);
+                }
+            };
+            process.ErrorDataReceived += (s, e) =>
+            {
+                if (e.Data != null)
                 {
-                    if (e.Data != null)
-                    {
-                        stdErrBuilder.AppendLine(e.Data);
-                    }
-                };
+                    stdErrBuilder.AppendLine(e.Data);
+                }
+            };
 
-                process.BeginOutputReadLine();
-                process.BeginErrorReadLine();
+            process.BeginOutputReadLine();
+            process.BeginErrorReadLine();
 
-                await process.WaitForExitAsync(cancellationToken);
+            await process.WaitForExitAsync(cancellationToken);
 
-                string stdOut = stdOutBuilder.ToString().Trim();
-                string stdErr = stdErrBuilder.ToString().Trim();
+            string stdOut = stdOutBuilder.ToString().Trim();
+            string stdErr = stdErrBuilder.ToString().Trim();
 
+            if (!string.IsNullOrWhiteSpace(stdOut))
+            {
+                Log($"[STDOUT - {Path.GetFileName(exeFile)}]\n{stdOut}");
+            }
+            if (!string.IsNullOrWhiteSpace(stdErr))
+            {
+                Log($"[STDERR - {Path.GetFileName(exeFile)}]\n{stdErr}");
+            }
+
+            Log($"Program {exeFile} exited with code {process.ExitCode}");
+            int[] validCodes = allowedExitCodes ?? [0];
+            bool isCodeValid = false;
+            foreach (int code in validCodes)
+            {
+                if (process.ExitCode == code)
+                {
+                    isCodeValid = true;
+                    break;
+                }
+            }
+
+            if (!isCodeValid)
+            {
+                var sbErr = new StringBuilder();
+                sbErr.AppendLine($"Program {Path.GetFileName(exeFile)} exited with non-zero exit code: {process.ExitCode}");
                 if (!string.IsNullOrWhiteSpace(stdOut))
                 {
-                    Log($"[STDOUT - {Path.GetFileName(exeFile)}]\n{stdOut}");
+                    sbErr.AppendLine("\nOutput:");
+                    sbErr.AppendLine(stdOut);
                 }
                 if (!string.IsNullOrWhiteSpace(stdErr))
                 {
-                    Log($"[STDERR - {Path.GetFileName(exeFile)}]\n{stdErr}");
+                    sbErr.AppendLine("\nError:");
+                    sbErr.AppendLine(stdErr);
                 }
-
-                Log($"Program {exeFile} exited with code {process.ExitCode}");
-                int[] validCodes = allowedExitCodes ?? new[] { 0 };
-                bool isCodeValid = false;
-                foreach (int code in validCodes)
-                {
-                    if (process.ExitCode == code)
-                    {
-                        isCodeValid = true;
-                        break;
-                    }
-                }
-
-                if (!isCodeValid)
-                {
-                    var sbErr = new StringBuilder();
-                    sbErr.AppendLine($"Program {Path.GetFileName(exeFile)} exited with non-zero exit code: {process.ExitCode}");
-                    if (!string.IsNullOrWhiteSpace(stdOut))
-                    {
-                        sbErr.AppendLine("\nOutput:");
-                        sbErr.AppendLine(stdOut);
-                    }
-                    if (!string.IsNullOrWhiteSpace(stdErr))
-                    {
-                        sbErr.AppendLine("\nError:");
-                        sbErr.AppendLine(stdErr);
-                    }
-                    throw new Exception(sbErr.ToString());
-                }
+                throw new Exception(sbErr.ToString());
             }
-            else
-            {
-                throw new Exception($"Failed to start process for {exeFile}");
-            }
+        }
+        else
+        {
+            throw new Exception($"Failed to start process for {exeFile}");
         }
     }
 
@@ -794,16 +806,14 @@ public class BuildEngine
     {
         try
         {
-            using (var p = new Process())
-            {
-                p.StartInfo.FileName = "which";
-                p.StartInfo.Arguments = cmd;
-                p.StartInfo.UseShellExecute = false;
-                p.StartInfo.CreateNoWindow = true;
-                p.Start();
-                p.WaitForExit();
-                return p.ExitCode == 0;
-            }
+            using var p = new Process();
+            p.StartInfo.FileName = "which";
+            p.StartInfo.Arguments = cmd;
+            p.StartInfo.UseShellExecute = false;
+            p.StartInfo.CreateNoWindow = true;
+            p.Start();
+            p.WaitForExit();
+            return p.ExitCode == 0;
         }
         catch
         {
@@ -838,11 +848,9 @@ public class BuildEngine
 
     private static string GetMD5Checksum(string file)
     {
-        using (var stream = File.OpenRead(file))
-        {
-            byte[] checksum = MD5.HashData(stream);
-            return Convert.ToHexString(checksum);
-        }
+        using var stream = File.OpenRead(file);
+        byte[] checksum = MD5.HashData(stream);
+        return Convert.ToHexString(checksum);
     }
 
     private static bool IsNkitFile(string filePath)
@@ -850,14 +858,12 @@ public class BuildEngine
         try
         {
             if (!File.Exists(filePath)) return false;
-            using (var fs = File.OpenRead(filePath))
-            {
-                if (fs.Length < 0x204) return false;
-                fs.Position = 0x200;
-                byte[] idBytes = new byte[4];
-                fs.ReadExactly(idBytes);
-                return Encoding.ASCII.GetString(idBytes) == "NKIT";
-            }
+            using var fs = File.OpenRead(filePath);
+            if (fs.Length < 0x204) return false;
+            fs.Position = 0x200;
+            byte[] idBytes = new byte[4];
+            fs.ReadExactly(idBytes);
+            return Encoding.ASCII.GetString(idBytes) == "NKIT";
         }
         catch
         {
@@ -870,32 +876,19 @@ public class BuildEngine
         string nkitDir = Path.Combine(_options.TempToolsPath, "NKIT");
         string processedDir = Path.Combine(nkitDir, "Processed");
 
-        if (Directory.Exists(processedDir))
-        {
-            try { Directory.Delete(processedDir, true); } catch { }
-        }
+        FileUtil.SafeDeleteDirectory(processedDir);
 
         UpdateStatus("Unscrubbing NKit game image...", 66);
         string convertToIsoExe = Path.Combine(nkitDir, "ConvertToISO.exe");
 
-        string currentDir = Directory.GetCurrentDirectory();
-        Directory.SetCurrentDirectory(nkitDir);
+        await LaunchProgramAsync(convertToIsoExe, $"\"{nkitPath}\"", true, cancellationToken, [0, 2], workingDirectory: nkitDir);
 
-        try
-        {
-            await LaunchProgramAsync(convertToIsoExe, $"\"{nkitPath}\"", true, cancellationToken, new[] { 0, 2 });
-        }
-        finally
-        {
-            Directory.SetCurrentDirectory(currentDir);
-        }
-
-        string[] searchDirs = new[]
-        {
+        string[] searchDirs =
+        [
             Path.Combine(processedDir, "Temp"),
             Path.Combine(processedDir, "Wii_MatchFail"),
             Path.Combine(processedDir, "GameCube_MatchFail")
-        };
+        ];
 
         foreach (var dir in searchDirs)
         {
@@ -909,8 +902,7 @@ public class BuildEngine
                     File.Move(sourceFile, destFile);
                     Log($"Successfully recovered NKit file {nkitPath} to {destFile}");
 
-                    try { Directory.Delete(processedDir, true); } catch { }
-
+                    FileUtil.SafeDeleteDirectory(processedDir);
                     return destFile;
                 }
             }

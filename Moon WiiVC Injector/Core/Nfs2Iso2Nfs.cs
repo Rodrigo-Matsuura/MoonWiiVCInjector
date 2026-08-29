@@ -1,18 +1,31 @@
+using System;
 using System.Buffers.Binary;
+using System.IO;
 using System.Security.Cryptography;
+using System.Threading;
 
 namespace Moon_WiiVC_Injector;
-public class Nfs2Iso2Nfs
+
+public class Nfs2Iso2Nfs(
+    string? baseDirectory = null,
+    Action<string>? onLog = null,
+    IProgress<(string Message, double Progress)>? progress = null,
+    CancellationToken cancellationToken = default)
 {
-    public static int ConvertNfs(string[] args)
+    public static int ConvertNfs(
+        string[] args,
+        string? baseDirectory = null,
+        Action<string>? onLog = null,
+        IProgress<(string Message, double Progress)>? progress = null,
+        CancellationToken cancellationToken = default)
     {
-        var instance = new Nfs2Iso2Nfs();
+        var instance = new Nfs2Iso2Nfs(baseDirectory, onLog, progress, cancellationToken);
         return instance.ConvertNfsInstance(args);
     }
 
     public const int SECTOR_SIZE = 0x8000;
     public const int HEADER_SIZE = 0x200;
-    public byte[] WII_COMMON_KEY = { 0xeb, 0xe4, 0x2a, 0x22, 0x5e, 0x85, 0x93, 0xe4, 0x48, 0xd9, 0xc5, 0x45, 0x73, 0x81, 0xaa, 0xf7 };
+    public byte[] WII_COMMON_KEY = [0xeb, 0xe4, 0x2a, 0x22, 0x5e, 0x85, 0x93, 0xe4, 0x48, 0xd9, 0xc5, 0x45, 0x73, 0x81, 0xaa, 0xf7];
     public const int NFS_SIZE = 0xFA00000;
     public bool dec = false;
     public bool enc = false;
@@ -31,6 +44,23 @@ public class Nfs2Iso2Nfs
     public string nfsDir = "";
     public string fw_file = Path.Combine("..", "code", "fw.img");
 
+    private readonly string _baseDirectory = !string.IsNullOrWhiteSpace(baseDirectory) ? Path.GetFullPath(baseDirectory) : Directory.GetCurrentDirectory();
+    private readonly Action<string>? _onLog = onLog;
+    private readonly IProgress<(string Message, double Progress)>? _progress = progress;
+    private readonly CancellationToken _cancellationToken = cancellationToken;
+
+    private void Log(string message)
+    {
+        _onLog?.Invoke(message);
+        Console.WriteLine(message);
+    }
+
+    private void ReportProgress(string message, double percent)
+    {
+        Log(message);
+        _progress?.Report((message, percent));
+    }
+
     private void ResetDefaults()
     {
         dec = false;
@@ -47,19 +77,19 @@ public class Nfs2Iso2Nfs
         keyFile = Path.Combine("..", "code", "htk.bin");
         isoFile = "game.iso";
         wiiKeyFile = "wii_common_key.bin";
-        nfsDir = "";
+        nfsDir = _baseDirectory;
         fw_file = Path.Combine("..", "code", "fw.img");
-        WII_COMMON_KEY = new byte[] { 0xeb, 0xe4, 0x2a, 0x22, 0x5e, 0x85, 0x93, 0xe4, 0x48, 0xd9, 0xc5, 0x45, 0x73, 0x81, 0xaa, 0xf7 };
+        WII_COMMON_KEY = [0xeb, 0xe4, 0x2a, 0x22, 0x5e, 0x85, 0x93, 0xe4, 0x48, 0xd9, 0xc5, 0x45, 0x73, 0x81, 0xaa, 0xf7];
     }
 
     private string ResolvePath(string path)
     {
         if (string.IsNullOrWhiteSpace(path))
-            return Directory.GetCurrentDirectory();
+            return _baseDirectory;
 
         return Path.IsPathRooted(path)
             ? Path.GetFullPath(path)
-            : Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), path));
+            : Path.GetFullPath(Path.Combine(_baseDirectory, path));
     }
 
     private bool TryReadOptionValue(string[] args, int index, out string value)
@@ -171,49 +201,75 @@ public class Nfs2Iso2Nfs
     public int ConvertNfsInstance(string[] args)
     {
         ResetDefaults();
-        Console.WriteLine();
-        if (checkArgs(args) == -1)
+        Log("");
+        if (CheckArgs(args) == -1)
             return -1;
-        byte[]? key = checkKeyFiles();
+        byte[]? key = CheckKeyFiles();
         if (key == null)
             return -1;
+
+        _cancellationToken.ThrowIfCancellationRequested();
+
         if (dec)
         {
-            byte[] header = getHeader(Path.Combine(nfsDir, "hif_000000.nfs"));
-            combineNFSFiles("hif.nfs");
-            EnDecryptNFS("hif.nfs", "hif_dec.nfs", key, new byte[key.Length], false, header);
+            byte[] header = GetHeader(Path.Combine(nfsDir, "hif_000000.nfs"));
+            string hifNfs = ResolvePath("hif.nfs");
+            string hifDecNfs = ResolvePath("hif_dec.nfs");
+            string hifUnpackNfs = ResolvePath("hif_unpack.nfs");
+            string gameIso = ResolvePath("game.iso");
+
+            CombineNFSFiles(hifNfs);
+            _cancellationToken.ThrowIfCancellationRequested();
+
+            EnDecryptNFS(hifNfs, hifDecNfs, key, new byte[key.Length], false, header);
             if (!keepFiles)
-                File.Delete("hif.nfs");
-            unpackNFS("hif_dec.nfs", "hif_unpack.nfs", header);
+                FileUtil.SafeDeleteFile(hifNfs);
+            _cancellationToken.ThrowIfCancellationRequested();
+
+            UnpackNFS(hifDecNfs, hifUnpackNfs, header);
             if (!keepFiles)
-                File.Delete("hif_dec.nfs");
-            manipulateISO("hif_unpack.nfs", "game.iso", true);
+                FileUtil.SafeDeleteFile(hifDecNfs);
+            _cancellationToken.ThrowIfCancellationRequested();
+
+            ManipulateISO(hifUnpackNfs, gameIso, true);
             if (!keepFiles)
-                File.Delete("hif_unpack.nfs");
+                FileUtil.SafeDeleteFile(hifUnpackNfs);
         }
         else if (enc)
         {
             if (!keepLegit || horiz_wiimote || vert_wiimote || map_shoulder_to_trigger)
                 DoThePatching(fw_file);
-            long[]? size = manipulateISO(isoFile, "hif_unpack.nfs", false);
+
+            _cancellationToken.ThrowIfCancellationRequested();
+            string hifUnpackNfs = ResolvePath("hif_unpack.nfs");
+            string hifDecNfs = ResolvePath("hif_dec.nfs");
+            string hifNfs = ResolvePath("hif.nfs");
+
+            long[]? size = ManipulateISO(isoFile, hifUnpackNfs, false);
             if (size == null)
             {
                 return -1;
             }
-            byte[] header = packNFS("hif_unpack.nfs", "hif_dec.nfs", size);
+            _cancellationToken.ThrowIfCancellationRequested();
+
+            byte[] header = PackNFS(hifUnpackNfs, hifDecNfs, size);
             if (!keepFiles)
-                File.Delete("hif_unpack.nfs");
-            EnDecryptNFS("hif_dec.nfs", "hif.nfs", key, new byte[key.Length], true, header);
+                FileUtil.SafeDeleteFile(hifUnpackNfs);
+            _cancellationToken.ThrowIfCancellationRequested();
+
+            EnDecryptNFS(hifDecNfs, hifNfs, key, new byte[key.Length], true, header);
             if (!keepFiles)
-                File.Delete("hif_dec.nfs");
-            splitNFSFile("hif.nfs");
+                FileUtil.SafeDeleteFile(hifDecNfs);
+            _cancellationToken.ThrowIfCancellationRequested();
+
+            SplitNFSFile(hifNfs);
             if (!keepFiles)
-                File.Delete("hif.nfs");
+                FileUtil.SafeDeleteFile(hifNfs);
         }
         return 0;
     }
 
-    public int checkArgs(string[] args)
+    public int CheckArgs(string[] args)
     {
         for (int i = 0; i < args.Length; i++)
         {
@@ -294,142 +350,145 @@ public class Nfs2Iso2Nfs
 
         if (map_shoulder_to_trigger && (horiz_wiimote || vert_wiimote))
         {
-            Console.WriteLine("ERROR: Please don't mix patches for Classic Controller and  Wii Remote.");
+            Log("ERROR: Please don't mix patches for Classic Controller and Wii Remote.");
             return -1;
         }
 
         string nfsFile = Path.Combine(nfsDir, "hif_000000.nfs");
         if (dec || ((!dec && !enc) && File.Exists(nfsFile)))
         {
-            Console.WriteLine("+++++ NFS2ISO +++++");
-            Console.WriteLine();
+            Log("+++++ NFS2ISO +++++");
+            Log("");
             if (dec && !enc && !File.Exists(nfsFile))
             {
-                Console.WriteLine("ERROR: .nfs files not found! Exiting...");
+                Log("ERROR: .nfs files not found! Exiting...");
                 return -1;
             }
             else if ((!dec && !enc) && File.Exists(nfsFile))
             {
-                Console.WriteLine("You haven't specified if you want to use nfs2iso or iso2nfs");
-                Console.WriteLine("Found .nfs files! Assuming you want to use nfs2iso...");
+                Log("You haven't specified if you want to use nfs2iso or iso2nfs");
+                Log("Found .nfs files! Assuming you want to use nfs2iso...");
                 dec = true;
                 enc = false;
             }
         }
         else if (enc || ((!dec && !enc) && File.Exists(isoFile)))
         {
-            Console.WriteLine("+++++ ISO2NFS +++++");
-            Console.WriteLine();
+            Log("+++++ ISO2NFS +++++");
+            Log("");
             if (!dec && enc && !File.Exists(isoFile))
             {
-                Console.WriteLine("ERROR: .iso file not found! Exiting...");
+                Log("ERROR: .iso file not found! Exiting...");
                 return -1;
             }
             if (!dec && enc && !File.Exists(fw_file))
             {
-                Console.WriteLine("ERROR: fw.img not found! Exiting...");
+                Log("ERROR: fw.img not found! Exiting...");
                 return -1;
             }
             else if (((dec && enc) || (!dec && !enc)) && File.Exists(isoFile))
             {
-                Console.WriteLine("You haven't specified if you want to use nfs2iso or iso2nfs");
-                Console.WriteLine("Found .iso file!  Assuming you want to use iso2nfs...");
+                Log("You haven't specified if you want to use nfs2iso or iso2nfs");
+                Log("Found .iso file! Assuming you want to use iso2nfs...");
                 dec = false;
                 enc = true;
             }
         }
         else
         {
-            Console.WriteLine("You haven't specified if you want to use nfs2iso or iso2nfs");
-            Console.WriteLine("Found neither .iso nor .nfs files! Check -help for usage of this program.");
+            Log("You haven't specified if you want to use nfs2iso or iso2nfs");
+            Log("Found neither .iso nor .nfs files! Check -help for usage of this program.");
             return -1;
         }
 
         return 0;
     }
 
-    public byte[]? checkKeyFiles()
+    public byte[]? CheckKeyFiles()
     {
-        Console.WriteLine("Searching for AES key file...");
+        Log("Searching for AES key file...");
         if (!File.Exists(keyFile))
         {
-            Console.WriteLine("ERROR: Could not find AES key file! Exiting...");
+            Log($"ERROR: Could not find AES key file at '{keyFile}'! Exiting...");
             return null;
         }
-        byte[]? key = getKey(keyFile);
+        byte[]? key = GetKey(keyFile);
         if (key == null)
         {
-            Console.WriteLine("ERROR: AES key file has wrong file size! Exiting...");
+            Log("ERROR: AES key file has wrong file size! Exiting...");
             return null;
         }
-        Console.WriteLine("AES key file found!");
+        Log("AES key file found!");
 
         if (WII_COMMON_KEY[0] != 0xeb)
         {
-            Console.WriteLine("Wii common key not found in source code. Looking for file...");
+            Log("Wii common key not found in source code. Looking for file...");
             if (!File.Exists(wiiKeyFile))
             {
-                Console.WriteLine("ERROR: Could not find Wii common key file! Exiting...");
+                Log($"ERROR: Could not find Wii common key file at '{wiiKeyFile}'! Exiting...");
                 return null;
             }
-            byte[]? wiiKey = getKey(wiiKeyFile);
+            byte[]? wiiKey = GetKey(wiiKeyFile);
             if (wiiKey == null)
             {
-                Console.WriteLine("ERROR: Wii common key file has wrong file size! Exiting...");
+                Log("ERROR: Wii common key file has wrong file size! Exiting...");
                 return null;
             }
             WII_COMMON_KEY = wiiKey;
-            Console.WriteLine("Wii Common Key file found!");
+            Log("Wii Common Key file found!");
         }
-        else Console.WriteLine("Wii common key found in source code!");
+        else Log("Wii common key found in source code!");
 
-        Console.WriteLine();
+        Log("");
         return key;
     }
 
-    public byte[]? getKey(string keyPath)
+    public byte[]? GetKey(string keyPath)
     {
         byte[] data = File.ReadAllBytes(keyPath);
         return data.Length == 16 ? data : null;
     }
 
-    public void combineNFSFiles(string outFile)
+    public void CombineNFSFiles(string outFile)
     {
-        using var nfs = File.Create(outFile);
-        Console.WriteLine("Looking for .nfs files...");
+        using var nfs = new FileStream(outFile, FileMode.Create, FileAccess.Write, FileShare.None, 128 * 1024, FileOptions.SequentialScan);
+        Log("Looking for .nfs files...");
         int nfsNo = -1;
         while (File.Exists(Path.Combine(nfsDir, $"hif_{nfsNo + 1:D6}.nfs")))
             nfsNo++;
-        Console.WriteLine((nfsNo + 1) + " .nfs files found!");
-        Console.WriteLine("Joining .nfs files...");
-        Console.WriteLine();
+        Log((nfsNo + 1) + " .nfs files found!");
+        Log("Joining .nfs files...");
+        Log("");
         for (int i = 0; i <= nfsNo; i++)
         {
+            _cancellationToken.ThrowIfCancellationRequested();
             string sourcePath = Path.Combine(nfsDir, $"hif_{i:D6}.nfs");
-            Console.WriteLine("Processing hif_" + i.ToString("D6") + ".nfs...");
-            using var nfsTemp = File.OpenRead(sourcePath);
+            Log("Processing hif_" + i.ToString("D6") + ".nfs...");
+            using var nfsTemp = new FileStream(sourcePath, FileMode.Open, FileAccess.Read, FileShare.Read, 128 * 1024, FileOptions.SequentialScan);
             if (i == 0)
                 nfsTemp.Seek(HEADER_SIZE, SeekOrigin.Begin);
             nfsTemp.CopyTo(nfs);
         }
     }
 
-    public void splitNFSFile(string inFile)
+    public void SplitNFSFile(string inFile)
     {
-        using var nfs = File.OpenRead(inFile);
-        Console.WriteLine();
+        using var nfs = new FileStream(inFile, FileMode.Open, FileAccess.Read, FileShare.Read, 128 * 1024, FileOptions.SequentialScan);
+        Log("");
         long size = nfs.Length;
         int i = 0;
-        byte[] buffer = new byte[81920]; // 80 KB copy buffer
+        byte[] buffer = new byte[128 * 1024]; // 128 KB copy buffer
         while (size > 0)
         {
-            string outputPath = Path.Combine(Directory.GetCurrentDirectory(), $"hif_{i:D6}.nfs");
-            Console.WriteLine("Building hif_" + i.ToString("D6") + ".nfs...");
-            using var nfsTemp = File.Create(outputPath);
+            _cancellationToken.ThrowIfCancellationRequested();
+            string outputPath = Path.Combine(_baseDirectory, $"hif_{i:D6}.nfs");
+            Log("Building hif_" + i.ToString("D6") + ".nfs...");
+            using var nfsTemp = new FileStream(outputPath, FileMode.Create, FileAccess.Write, FileShare.None, 128 * 1024, FileOptions.SequentialScan);
             long bytesToCopy = Math.Min(NFS_SIZE, size);
             long copied = 0;
             while (copied < bytesToCopy)
             {
+                _cancellationToken.ThrowIfCancellationRequested();
                 int toRead = (int)Math.Min(buffer.Length, bytesToCopy - copied);
                 int read = nfs.Read(buffer, 0, toRead);
                 if (read <= 0) break;
@@ -441,7 +500,7 @@ public class Nfs2Iso2Nfs
         }
     }
 
-    public byte[] getHeader(string inFile)
+    public byte[] GetHeader(string inFile)
     {
         using var file = File.OpenRead(inFile);
         byte[] header = new byte[HEADER_SIZE];
@@ -453,16 +512,16 @@ public class Nfs2Iso2Nfs
     /// When <c>true</c>: encrypt the Wii partition sector data (used when building an ISO from NFS).
     /// When <c>false</c>: decrypt the Wii partition sector data (used when building NFS from an ISO).
     /// </param>
-    public long[]? manipulateISO(string inFile, string outFile, bool enc)
+    public long[]? ManipulateISO(string inFile, string outFile, bool enc)
     {
-        using var reader = File.OpenRead(inFile);
-        using var writer = File.Create(outFile);
+        using var reader = new FileStream(inFile, FileMode.Open, FileAccess.Read, FileShare.Read, 128 * 1024, FileOptions.SequentialScan);
+        using var writer = new FileStream(outFile, FileMode.Create, FileAccess.Write, FileShare.None, 128 * 1024, FileOptions.SequentialScan);
 
         long[] sizeInfo = new long[2];
 
-        Console.WriteLine();
-        Console.WriteLine("Read partition table...");
-        Console.WriteLine();
+        Log("");
+        Log("Read partition table...");
+        Log("");
 
         // Copy leading disc header (0x40000 bytes)
         CopyStream(reader, writer, 0x40000);
@@ -477,16 +536,16 @@ public class Nfs2Iso2Nfs
         {
             int tableBase = 0x8 * i;
             partitionInfo[0, i] = ReadBigEndianInt32(partitionTable, tableBase);
-            Console.WriteLine("Number of " + (i + 1) + ". partitions: " + partitionInfo[0, i]);
+            Log("Number of " + (i + 1) + ". partitions: " + partitionInfo[0, i]);
             if (partitionInfo[0, i] == 0)
                 partitionInfo[1, i] = 0;
             else
                 partitionInfo[1, i] = ReadBigEndianInt32(partitionTable, tableBase + 4) * 4;
-            Console.WriteLine("Partition info table offset: 0x" + Convert.ToString(partitionInfo[1, i], 16));
+            Log("Partition info table offset: 0x" + Convert.ToString(partitionInfo[1, i], 16));
         }
-        Console.WriteLine();
+        Log("");
 
-        partitionInfo = sort(partitionInfo, 4);
+        partitionInfo = Sort(partitionInfo, 4);
         byte[][] partitionInfoTable = new byte[4][];
         var partitionOffsetList = new List<int>();
         long curPos = 0x40020;
@@ -494,6 +553,7 @@ public class Nfs2Iso2Nfs
 
         for (int i = 0; i < 4; i++)
         {
+            _cancellationToken.ThrowIfCancellationRequested();
             if (partitionInfo[0, i] != 0)
             {
                 long skipBytes = partitionInfo[1, i] - curPos;
@@ -511,7 +571,7 @@ public class Nfs2Iso2Nfs
                     {
                         int partOffset = ReadBigEndianInt32(partitionInfoTable[i], 0x8 * j) * 4;
                         partitionOffsetList.Add(partOffset);
-                        Console.WriteLine("Data partition at offset: 0x" + Convert.ToString(partitionOffsetList[k], 16));
+                        Log("Data partition at offset: 0x" + Convert.ToString(partitionOffsetList[k], 16));
                         k++;
                     }
                 }
@@ -519,14 +579,14 @@ public class Nfs2Iso2Nfs
             }
         }
 
-        Console.WriteLine();
-        int[] partitionOffsets = partitionOffsetList.ToArray();
+        Log("");
+        int[] partitionOffsets = [.. partitionOffsetList];
         if (partitionOffsets.Length == 0)
         {
-            Console.WriteLine("ERROR: No data partitions found!");
+            Log("ERROR: No data partitions found!");
             return null;
         }
-        partitionOffsets = sort(partitionOffsets, partitionOffsets.Length);
+        partitionOffsets = Sort(partitionOffsets, partitionOffsets.Length);
         sizeInfo[0] = partitionOffsets[0];
 
         byte[] iv = new byte[0x10];
@@ -537,6 +597,7 @@ public class Nfs2Iso2Nfs
 
         for (int i = 0; i < partitionOffsets.Length; i++)
         {
+            _cancellationToken.ThrowIfCancellationRequested();
             long skipBytes = partitionOffsets[i] - curPos;
             CopyStream(reader, writer, skipBytes);
             curPos += skipBytes;
@@ -563,7 +624,7 @@ public class Nfs2Iso2Nfs
             byte[] partitionHeader = new byte[0x1FD5C];
             reader.ReadExactly(partitionHeader);
             long partitionSize = (long)4 * ReadBigEndianInt32(partitionHeader, 0x18);
-            Console.WriteLine("Partition size: 0x" + Convert.ToString(partitionSize, 16));
+            Log("Partition size: 0x" + Convert.ToString(partitionSize, 16));
             writer.Write(partitionHeader);
 
             curPos += 0x20000;
@@ -576,18 +637,19 @@ public class Nfs2Iso2Nfs
                 aesCommon.Key = WII_COMMON_KEY;
                 aesCommon.DecryptCbc(encTitleKey, iv, titleKey, PaddingMode.None);
             }
-            Console.WriteLine("Write game partition " + i + "...");
+            Log("Write game partition " + i + "...");
 
             using (var aesTitle = Aes.Create())
             {
                 aesTitle.Key = titleKey;
                 while (partitionSize >= SECTOR_SIZE)
                 {
+                    _cancellationToken.ThrowIfCancellationRequested();
                     if (timer == 8000)
                     {
                         timer = 0;
                         mbCounter++;
-                        Console.WriteLine((mbCounter * 256) + " MB processed...");
+                        Log((mbCounter * 256) + " MB processed...");
                     }
                     timer++;
 
@@ -636,24 +698,25 @@ public class Nfs2Iso2Nfs
 
             sizeInfo[1] = curPos - sizeInfo[0];
             if (partitionSize != 0)
-                Console.WriteLine("WARNING: Last cluster was not complete. This may be a problem.");
+                Log("WARNING: Last cluster was not complete. This may be a problem.");
         }
 
         if (enc)
         {
-            Console.WriteLine();
-            Console.WriteLine("Writing zeros...");
+            Log("");
+            Log("Writing zeros...");
             long rest = curPos > 0x118240000 ? 0x1FB4E0000 - curPos : 0x118240000 - curPos;
             int zeroTimer = 0;
             int zeroCounter = 0;
             byte[] zeroBuffer = new byte[SECTOR_SIZE];
             while (rest > 0)
             {
+                _cancellationToken.ThrowIfCancellationRequested();
                 if (zeroTimer == 8000)
                 {
                     zeroTimer = 0;
                     zeroCounter++;
-                    Console.WriteLine((zeroCounter * 256) + " MB processed...");
+                    Log((zeroCounter * 256) + " MB processed...");
                 }
                 zeroTimer++;
                 int toWrite = rest > SECTOR_SIZE ? SECTOR_SIZE : (int)rest;
@@ -668,17 +731,17 @@ public class Nfs2Iso2Nfs
         }
     }
 
-    public void unpackNFS(string inFile, string outFile, byte[] header)
+    public void UnpackNFS(string inFile, string outFile, byte[] header)
     {
-        using var reader = File.OpenRead(inFile);
-        using var writer = File.Create(outFile);
+        using var reader = new FileStream(inFile, FileMode.Open, FileAccess.Read, FileShare.Read, 128 * 1024, FileOptions.SequentialScan);
+        using var writer = new FileStream(outFile, FileMode.Create, FileAccess.Write, FileShare.None, 128 * 1024, FileOptions.SequentialScan);
 
-        Console.WriteLine();
-        Console.WriteLine("Unpacking nfs...");
-        Console.WriteLine();
+        Log("");
+        Log("Unpacking nfs...");
+        Log("");
 
         int numberOfParts = ReadBigEndianInt32(header, 0x10);
-        Console.WriteLine(numberOfParts + " parts found...");
+        Log(numberOfParts + " parts found...");
 
         // Pre-allocate reusable buffers — eliminates per-sector heap allocations
         byte[] sectorBuffer = new byte[SECTOR_SIZE];
@@ -687,17 +750,22 @@ public class Nfs2Iso2Nfs
         long pos = 0;
         for (int i = 0; i < numberOfParts; i++)
         {
+            _cancellationToken.ThrowIfCancellationRequested();
             long start = (long)SECTOR_SIZE * ReadBigEndianInt32(header, 0x14 + i * 8);
             long length = (long)SECTOR_SIZE * ReadBigEndianInt32(header, 0x18 + i * 8);
 
             long zeroCount = start - pos;
-            Console.WriteLine("Writing zero segment " + i + " of size 0x" + Convert.ToString(zeroCount, 16));
+            Log("Writing zero segment " + i + " of size 0x" + Convert.ToString(zeroCount, 16));
             for (long j = 0; j < zeroCount; j += SECTOR_SIZE)
+            {
+                _cancellationToken.ThrowIfCancellationRequested();
                 writer.Write(zeroSector);
+            }
 
-            Console.WriteLine("Writing data segment " + i + " of size 0x" + Convert.ToString(length, 16));
+            Log("Writing data segment " + i + " of size 0x" + Convert.ToString(length, 16));
             for (long j = 0; j < length; j += SECTOR_SIZE)
             {
+                _cancellationToken.ThrowIfCancellationRequested();
                 reader.ReadExactly(sectorBuffer);
                 writer.Write(sectorBuffer);
             }
@@ -706,19 +774,19 @@ public class Nfs2Iso2Nfs
         }
     }
 
-    public byte[] packNFS(string inFile, string outFile, long[] sizeInfo)
+    public byte[] PackNFS(string inFile, string outFile, long[] sizeInfo)
     {
-        using var reader = File.OpenRead(inFile);
-        using var writer = File.Create(outFile);
+        using var reader = new FileStream(inFile, FileMode.Open, FileAccess.Read, FileShare.Read, 128 * 1024, FileOptions.SequentialScan);
+        using var writer = new FileStream(outFile, FileMode.Create, FileAccess.Write, FileShare.None, 128 * 1024, FileOptions.SequentialScan);
 
-        Console.WriteLine();
-        Console.WriteLine("Generating EGGS header...");
+        Log("");
+        Log("Generating EGGS header...");
         byte[] header = CreateEggsHeader(sizeInfo);
 
-        Console.WriteLine("Packing nfs...");
+        Log("Packing nfs...");
 
         int numberOfParts = ReadBigEndianInt32(header, 0x10);
-        Console.WriteLine("Packing " + numberOfParts + " parts...");
+        Log("Packing " + numberOfParts + " parts...");
 
         // Pre-allocate a reusable sector buffer — eliminates per-sector heap allocations
         byte[] sectorBuffer = new byte[SECTOR_SIZE];
@@ -726,17 +794,19 @@ public class Nfs2Iso2Nfs
 
         for (int i = 0; i < numberOfParts; i++)
         {
+            _cancellationToken.ThrowIfCancellationRequested();
             long start = (long)SECTOR_SIZE * ReadBigEndianInt32(header, 0x14 + i * 8);
             long length = (long)SECTOR_SIZE * ReadBigEndianInt32(header, 0x18 + i * 8);
 
             long skipCount = start - pos;
-            Console.WriteLine("Delete zero segment " + i + " of size 0x" + Convert.ToString(skipCount, 16));
+            Log("Delete zero segment " + i + " of size 0x" + Convert.ToString(skipCount, 16));
             // Skip zero-filled segments without reading them into memory
             reader.Seek(skipCount, SeekOrigin.Current);
 
-            Console.WriteLine("Writing data segment " + i + " of size 0x" + Convert.ToString(length, 16));
+            Log("Writing data segment " + i + " of size 0x" + Convert.ToString(length, 16));
             for (long j = 0; j < length; j += SECTOR_SIZE)
             {
+                _cancellationToken.ThrowIfCancellationRequested();
                 reader.ReadExactly(sectorBuffer);
                 writer.Write(sectorBuffer);
             }
@@ -748,19 +818,19 @@ public class Nfs2Iso2Nfs
 
     public void EnDecryptNFS(string inFile, string outFile, byte[] key, byte[] iv, bool encrypt, byte[] header)
     {
-        using var reader = File.OpenRead(inFile);
-        using var writer = File.Create(outFile);
+        using var reader = new FileStream(inFile, FileMode.Open, FileAccess.Read, FileShare.Read, 128 * 1024, FileOptions.SequentialScan);
+        using var writer = new FileStream(outFile, FileMode.Create, FileAccess.Write, FileShare.None, 128 * 1024, FileOptions.SequentialScan);
 
-        Console.WriteLine();
+        Log("");
         if (encrypt)
         {
-            Console.WriteLine("Writing EGGS header...");
+            Log("Writing EGGS header...");
             writer.Write(header, 0, header.Length);
-            Console.WriteLine("Encrypting hif.nfs...");
+            Log("Encrypting hif.nfs...");
         }
         else
-            Console.WriteLine("Decrypting hif.nfs...");
-        Console.WriteLine();
+            Log("Decrypting hif.nfs...");
+        Log("");
 
         // blockIv is used for sectors at position >= 0x18000 and incremented per sector.
         // The first ~3 sectors use the caller-provided iv.
@@ -778,11 +848,12 @@ public class Nfs2Iso2Nfs
 
             do
             {
+                _cancellationToken.ThrowIfCancellationRequested();
                 if (timer == 8000)
                 {
                     timer = 0;
                     mbCounter++;
-                    Console.WriteLine((mbCounter * 256) + " MB processed...");
+                    Log((mbCounter * 256) + " MB processed...");
                 }
                 timer++;
 
@@ -813,7 +884,7 @@ public class Nfs2Iso2Nfs
         }
     }
 
-    public static int[,] sort(int[,] list, int size)
+    public static int[,] Sort(int[,] list, int size)
     {
         if (list == null)
             throw new ArgumentNullException(nameof(list));
@@ -836,7 +907,7 @@ public class Nfs2Iso2Nfs
         return sorted;
     }
 
-    public static int[] sort(int[] list, int size)
+    public static int[] Sort(int[] list, int size)
     {
         if (list == null)
             throw new ArgumentNullException(nameof(list));
@@ -892,9 +963,9 @@ public class Nfs2Iso2Nfs
         byte[] fileBytes = File.ReadAllBytes(fw_file);
         Span<byte> fileSpan = fileBytes.AsSpan();
 
-        Console.WriteLine("Checking fw.img's revision number...");
+        Log("Checking fw.img's revision number...");
 
-        byte[] revPattern = { 0x73, 0x76, 0x6E, 0x2D }; // "svn-"
+        byte[] revPattern = [0x73, 0x76, 0x6E, 0x2D]; // "svn-"
         string revision = "";
 
         int revOffset = fileSpan.IndexOf(revPattern);
@@ -902,17 +973,17 @@ public class Nfs2Iso2Nfs
             revision = System.Text.Encoding.UTF8.GetString(fileSpan.Slice(revOffset + 4, 4));
 
         if (revision == "r590")
-            Console.WriteLine("OK, revision 590 detected.");
+            Log("OK, revision 590 detected.");
         else
-            Console.WriteLine("Warning: {0} detected. These patches are designed for revision 590 only.", revision);
-        Console.WriteLine();
+            Log($"Warning: {revision} detected. These patches are designed for revision 590 only.");
+        Log("");
 
-        Console.WriteLine("Patching fw.img.");
+        Log("Patching fw.img.");
         if (!keepLegit)
         {
             int patchCount = 0;
-            byte[] oldHashCheck = { 0x20, 0x07, 0x23, 0xA2 };
-            byte[] newHashCheck = { 0x20, 0x07, 0x4B, 0x0B };
+            byte[] oldHashCheck = [0x20, 0x07, 0x23, 0xA2];
+            byte[] newHashCheck = [0x20, 0x07, 0x4B, 0x0B];
 
             for (int offset = 0; offset <= fileSpan.Length - 4; offset++)
             {
@@ -925,11 +996,11 @@ public class Nfs2Iso2Nfs
             }
 
             if (patchCount == 0)
-                Console.WriteLine("Fakesign patching: Nothing to patch.");
+                Log("Fakesign patching: Nothing to patch.");
             else
-                Console.WriteLine("Fakesigning patching finished... (Patches applied: {0})", patchCount);
+                Log($"Fakesigning patching finished... (Patches applied: {patchCount})");
 
-            Console.WriteLine();
+            Log("");
         }
 
         // Map Classic Controller's L & R to Gamepad's ZL & ZR
@@ -937,16 +1008,16 @@ public class Nfs2Iso2Nfs
         {
             int patchCount = 0;
 
-            byte[] pattern1 = { 0x40, 0x05, 0x46, 0xA9 };
-            byte[] patch1 = { 0x26, 0x80, 0x40, 0x06 };
-            byte[] pattern2 = { 0x1C, 0x05, 0x40, 0x35 };
-            byte[] patch2 = { 0x25, 0x40, 0x40, 0x05 };
-            byte[] pattern3 = { 0x23, 0x7F, 0x1C, 0x02 };
-            byte[] patch3 = { 0x46, 0xB1, 0x23, 0x20, 0x40, 0x03 };
-            byte[] pattern4 = { 0x46, 0x53, 0x42, 0x18 };
-            byte[] patch4 = { 0x23, 0x10, 0x40, 0x03 };
-            byte[] pattern5 = { 0x1C, 0x05, 0x80, 0x22 };
-            byte[] patch5 = { 0x25, 0x40, 0x80, 0x22, 0x40, 0x05 };
+            byte[] pattern1 = [0x40, 0x05, 0x46, 0xA9];
+            byte[] patch1 = [0x26, 0x80, 0x40, 0x06];
+            byte[] pattern2 = [0x1C, 0x05, 0x40, 0x35];
+            byte[] patch2 = [0x25, 0x40, 0x40, 0x05];
+            byte[] pattern3 = [0x23, 0x7F, 0x1C, 0x02];
+            byte[] patch3 = [0x46, 0xB1, 0x23, 0x20, 0x40, 0x03];
+            byte[] pattern4 = [0x46, 0x53, 0x42, 0x18];
+            byte[] patch4 = [0x23, 0x10, 0x40, 0x03];
+            byte[] pattern5 = [0x1C, 0x05, 0x80, 0x22];
+            byte[] patch5 = [0x25, 0x40, 0x80, 0x22, 0x40, 0x05];
 
             patchCount += PatchBuffer(fileSpan, pattern1, 0, patch1);
             patchCount += PatchBuffer(fileSpan, pattern2, 0, patch2);
@@ -955,35 +1026,35 @@ public class Nfs2Iso2Nfs
             patchCount += PatchBuffer(fileSpan, pattern5, 0, patch5);
 
             if (patchCount == 0)
-                Console.WriteLine("LR to ZLZR patching: Nothing to patch.");
+                Log("LR to ZLZR patching: Nothing to patch.");
             else
-                Console.WriteLine("LR to ZLZR patching finished. (Patches applied: {0})", patchCount);
+                Log($"LR to ZLZR patching finished. (Patches applied: {patchCount})");
 
-            Console.WriteLine();
+            Log("");
         }
 
         // Enable Wii Remote emulation
         if (horiz_wiimote || vert_wiimote)
         {
             int patchCount = 0;
-            byte[] pattern = { 0x16, 0x13, 0x1C, 0x02, 0x40, 0x9A, 0x1C, 0x13 };
-            byte[] patch = { 0x23, 0x00 };
+            byte[] pattern = [0x16, 0x13, 0x1C, 0x02, 0x40, 0x9A, 0x1C, 0x13];
+            byte[] patch = [0x23, 0x00];
 
             patchCount += PatchBuffer(fileSpan, pattern, 0, patch);
 
             if (patchCount == 0)
-                Console.WriteLine("Wii Remote emulation patching: Nothing to patch.");
+                Log("Wii Remote emulation patching: Nothing to patch.");
             else
-                Console.WriteLine("Wii Remote emulation enabled... (Patches applied: {0})", patchCount);
+                Log($"Wii Remote emulation enabled... (Patches applied: {patchCount})");
 
-            Console.WriteLine();
+            Log("");
         }
 
         // Enable horizontal Wii Remote emulation (remap d-pad and A/B/1/2 buttons)
         if (horiz_wiimote)
         {
             int patchCount = 0;
-            byte[] pattern = { 0x4A, 0x71, 0x42, 0x13, 0xD0, 0xD2, 0x9B, 0x00 };
+            byte[] pattern = [0x4A, 0x71, 0x42, 0x13, 0xD0, 0xD2, 0x9B, 0x00];
 
             patchCount += PatchBufferCustom(fileSpan, pattern, (buf, offset) =>
             {
@@ -998,59 +1069,59 @@ public class Nfs2Iso2Nfs
             });
 
             if (patchCount == 0)
-                Console.WriteLine("Horizontal Wii Remote patching: Nothing to patch.");
+                Log("Horizontal Wii Remote patching: Nothing to patch.");
             else
-                Console.WriteLine("Horizontal Wii Remote emulation enabled... (Patches applied: {0})", patchCount);
+                Log($"Horizontal Wii Remote emulation enabled... (Patches applied: {patchCount})");
 
-            Console.WriteLine();
+            Log("");
         }
 
         // Enable proper input support in homebrew
         if (homebrew)
         {
-            Console.WriteLine("Homebrew-related patches:");
+            Log("Homebrew-related patches:");
             int patchCount = 0;
 
             // Disable AHBPROT
-            byte[] patternAhbprot = { 0xD0, 0x0B, 0x23, 0x08, 0x43, 0x13, 0x60, 0x0B };
-            byte[] patchAhbprot = { 0x46, 0xC0 };
+            byte[] patternAhbprot = [0xD0, 0x0B, 0x23, 0x08, 0x43, 0x13, 0x60, 0x0B];
+            byte[] patchAhbprot = [0x46, 0xC0];
             patchCount += PatchBufferCustom(fileSpan, patternAhbprot, (buf, offset) =>
             {
-                Console.WriteLine("* Disabling AHBPROT...");
+                Log("* Disabling AHBPROT...");
                 patchAhbprot.CopyTo(buf.Slice(offset, 2));
             });
 
             // Disable MEMPROT
-            byte[] patternMemprot = { 0x01, 0x94, 0xB5, 0x00, 0x4B, 0x08, 0x22, 0x01 };
-            byte[] patchMemprot = { 0x22, 0x00 };
+            byte[] patternMemprot = [0x01, 0x94, 0xB5, 0x00, 0x4B, 0x08, 0x22, 0x01];
+            byte[] patchMemprot = [0x22, 0x00];
             patchCount += PatchBufferCustom(fileSpan, patternMemprot, (buf, offset) =>
             {
-                Console.WriteLine("* Disabling MEMPROT...");
+                Log("* Disabling MEMPROT...");
                 patchMemprot.CopyTo(buf.Slice(offset + 6, 2));
             });
 
             // Nintendont patch 1
-            byte[] patternNintendont1 = { 0xB0, 0xBA, 0x1C, 0x0F };
-            byte[] patchNintendont1 = { 0xE5, 0x9F, 0x10, 0x04, 0xE5, 0x91, 0x00, 0x00, 0xE1, 0x2F, 0xFF, 0x10, 0x12, 0xFF, 0xFF, 0xE0 };
+            byte[] patternNintendont1 = [0xB0, 0xBA, 0x1C, 0x0F];
+            byte[] patchNintendont1 = [0xE5, 0x9F, 0x10, 0x04, 0xE5, 0x91, 0x00, 0x00, 0xE1, 0x2F, 0xFF, 0x10, 0x12, 0xFF, 0xFF, 0xE0];
             patchCount += PatchBufferCustom(fileSpan, patternNintendont1, (buf, offset) =>
             {
-                Console.WriteLine("* Nintendont patch 1...");
+                Log("* Nintendont patch 1...");
                 patchNintendont1.CopyTo(buf.Slice(offset - 12, 16));
             });
 
             // Nintendont patch 2
-            byte[] patternNintendont2 = { 0x68, 0x4B, 0x2B, 0x06 };
-            byte[] patchNintendont2 = { 0x49, 0x01, 0x47, 0x88, 0x46, 0xC0, 0xE0, 0x01, 0x12, 0xFF, 0xFE, 0x00, 0x22, 0x00, 0x23, 0x01, 0x46, 0xC0, 0x46, 0xC0 };
+            byte[] patternNintendont2 = [0x68, 0x4B, 0x2B, 0x06];
+            byte[] patchNintendont2 = [0x49, 0x01, 0x47, 0x88, 0x46, 0xC0, 0xE0, 0x01, 0x12, 0xFF, 0xFE, 0x00, 0x22, 0x00, 0x23, 0x01, 0x46, 0xC0, 0x46, 0xC0];
             patchCount += PatchBufferCustom(fileSpan, patternNintendont2, (buf, offset) =>
             {
-                Console.WriteLine("* Nintendont patch 2...");
+                Log("* Nintendont patch 2...");
                 patchNintendont2.CopyTo(buf.Slice(offset, 20));
             });
 
             // Nintendont patch 3 (two-stage search)
-            byte[] patternNintendont3a = { 0x0D, 0x80, 0x00, 0x00, 0x0D, 0x80, 0x00, 0x00 };
-            byte[] patternNintendont3b = { 0x00, 0x00, 0x00, 0x02 };
-            byte[] patchNintendont3 = { 0x00, 0x00, 0x00, 0x03 };
+            byte[] patternNintendont3a = [0x0D, 0x80, 0x00, 0x00, 0x0D, 0x80, 0x00, 0x00];
+            byte[] patternNintendont3b = [0x00, 0x00, 0x00, 0x02];
+            byte[] patchNintendont3 = [0x00, 0x00, 0x00, 0x03];
             for (int offset = 0; offset <= fileSpan.Length - 8; offset++)
             {
                 if (fileSpan.Slice(offset, 8).SequenceEqual(patternNintendont3a))
@@ -1060,7 +1131,7 @@ public class Nfs2Iso2Nfs
                         var target = fileSpan.Slice(offset + 0x10, 4);
                         if (target.SequenceEqual(patternNintendont3b))
                         {
-                            Console.WriteLine("* Nintendont patch 3...");
+                            Log("* Nintendont patch 3...");
                             patchNintendont3.CopyTo(fileSpan.Slice(offset + 0x10, 4));
                             patchCount++;
                         }
@@ -1069,71 +1140,71 @@ public class Nfs2Iso2Nfs
             }
 
             if (patchCount == 0)
-                Console.WriteLine("Homebrew patching: Nothing to patch.");
+                Log("Homebrew patching: Nothing to patch.");
             else
-                Console.WriteLine("Homebrew patching finished... (Patches applied: {0})", patchCount);
+                Log($"Homebrew patching finished... (Patches applied: {patchCount})");
 
-            Console.WriteLine();
+            Log("");
         }
 
         // Allow homebrew to keep using normal Wiimotes with gamepad enabled
         if (passthrough)
         {
-            Console.WriteLine("Wiimote Passthrough patching:");
+            Log("Wiimote Passthrough patching:");
             int patchCount = 0;
 
-            byte[] patternPassthrough = { 0x20, 0x4B, 0x01, 0x68, 0x18, 0x47, 0x70, 0x00 };
-            byte[] patchPassthrough = { 0x20, 0x00 };
+            byte[] patternPassthrough = [0x20, 0x4B, 0x01, 0x68, 0x18, 0x47, 0x70, 0x00];
+            byte[] patchPassthrough = [0x20, 0x00];
             patchCount += PatchBuffer(fileSpan, patternPassthrough, 3, patchPassthrough);
 
-            byte[] patternCustomFunc = { 0x28, 0x00, 0xD0, 0x03, 0x49, 0x02, 0x22, 0x09 };
-            byte[] patchCustomFunc = { 0xF0, 0x04, 0xFF, 0x21, 0x48, 0x02, 0x21, 0x09, 0xF0, 0x04, 0xFE, 0xF9 };
+            byte[] patternCustomFunc = [0x28, 0x00, 0xD0, 0x03, 0x49, 0x02, 0x22, 0x09];
+            byte[] patchCustomFunc = [0xF0, 0x04, 0xFF, 0x21, 0x48, 0x02, 0x21, 0x09, 0xF0, 0x04, 0xFE, 0xF9];
             patchCount += PatchBuffer(fileSpan, patternCustomFunc, 0, patchCustomFunc);
 
-            byte[] patternCustomCall = { 0xF0, 0x01, 0xFA, 0xB9 };
-            byte[] patchCustomCall = { 0xF7, 0xFC, 0xFB, 0x95 };
+            byte[] patternCustomCall = [0xF0, 0x01, 0xFA, 0xB9];
+            byte[] patchCustomCall = [0xF7, 0xFC, 0xFB, 0x95];
             patchCount += PatchBuffer(fileSpan, patternCustomCall, 0, patchCustomCall);
 
             if (patchCount == 0)
-                Console.WriteLine("Wiimote Passthrough patching: Nothing to patch.");
+                Log("Wiimote Passthrough patching: Nothing to patch.");
             else
-                Console.WriteLine("Wiimote Passthrough patching finished... (Patches applied: {0})", patchCount);
+                Log($"Wiimote Passthrough patching finished... (Patches applied: {patchCount})");
 
-            Console.WriteLine();
+            Log("");
         }
 
         // Report Classic Controller at first check
         if (instantcc)
         {
             int patchCount = 0;
-            byte[] pattern = { 0x78, 0x93, 0x21, 0x10, 0x2B, 0x02, 0xD1, 0xB7 };
-            byte[] patch = { 0x78, 0x93, 0x21, 0x10, 0x2B, 0x02, 0x46, 0xC0 };
+            byte[] pattern = [0x78, 0x93, 0x21, 0x10, 0x2B, 0x02, 0xD1, 0xB7];
+            byte[] patch = [0x78, 0x93, 0x21, 0x10, 0x2B, 0x02, 0x46, 0xC0];
 
             patchCount += PatchBuffer(fileSpan, pattern, 0, patch);
 
             if (patchCount == 0)
-                Console.WriteLine("Instant Classic Controller report patching: Nothing to patch.");
+                Log("Instant Classic Controller report patching: Nothing to patch.");
             else
-                Console.WriteLine("Instant Classic Controller report patched... (Patches applied: {0})", patchCount);
+                Log($"Instant Classic Controller report patched... (Patches applied: {patchCount})");
 
-            Console.WriteLine();
+            Log("");
         }
 
         // Report no Classic Controller connected
         if (nocc)
         {
             int patchCount = 0;
-            byte[] pattern = { 0x78, 0x93, 0x21, 0x10, 0x2B, 0x02, 0xD1, 0xB7 };
-            byte[] patch = { 0x78, 0x93, 0x21, 0x10, 0x2B, 0x02, 0xE0, 0xB7 };
+            byte[] pattern = [0x78, 0x93, 0x21, 0x10, 0x2B, 0x02, 0xD1, 0xB7];
+            byte[] patch = [0x78, 0x93, 0x21, 0x10, 0x2B, 0x02, 0xE0, 0xB7];
 
             patchCount += PatchBuffer(fileSpan, pattern, 0, patch);
 
             if (patchCount == 0)
-                Console.WriteLine("No Classic Controller report patching: Nothing to patch.");
+                Log("No Classic Controller report patching: Nothing to patch.");
             else
-                Console.WriteLine("No Classic Controller report patched... (Patches applied: {0})", patchCount);
+                Log($"No Classic Controller report patched... (Patches applied: {patchCount})");
 
-            Console.WriteLine();
+            Log("");
         }
 
         File.WriteAllBytes(fw_file, fileBytes);

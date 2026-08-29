@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Text;
 using System.Security.Cryptography;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
 using Avalonia.Platform.Storage;
@@ -53,12 +54,22 @@ public partial class MainWindow : Window
     private long _gameType;
     private string _cucholixRepoId = "";
     private string _selectedGamePath = string.Empty;
+    private CancellationTokenSource? _buildCts;
+    private Button? _cancelBuildButton;
+    private TextBox? _logOutputBox;
 
     public MainWindow()
     {
         InitializeComponent();
         _setupTask = SetupEnvironmentAsync();
         WireEvents();
+        SetupDragAndDrop();
+    }
+
+    private void SetupDragAndDrop()
+    {
+        AddHandler(DragDrop.DragOverEvent, OnWindowDragOver);
+        AddHandler(DragDrop.DropEvent, OnWindowDrop);
     }
 
     private async Task SetupEnvironmentAsync()
@@ -103,6 +114,9 @@ public partial class MainWindow : Window
 
     private void WireEvents()
     {
+        _cancelBuildButton = this.FindControl<Button>("CancelBuildButton");
+        _logOutputBox = this.FindControl<TextBox>("LogOutputBox");
+
         WiiRetail.IsCheckedChanged += SystemType_Checked;
         WiiHomebrew.IsCheckedChanged += SystemType_Checked;
         WiiNAND.IsCheckedChanged += WiiNAND_Checked;
@@ -152,7 +166,7 @@ public partial class MainWindow : Window
                 _titleIdText = inputId.ToUpper();
                 _cucholixRepoId = inputId.ToUpper();
 
-                StringBuilder sb = new StringBuilder();
+                StringBuilder sb = new();
                 foreach (char c in _titleIdText)
                 {
                     sb.Append(((short)c).ToString("X2"));
@@ -207,6 +221,64 @@ public partial class MainWindow : Window
         sdMenu.ShowDialog(this);
     }
 
+    private void OnWindowDragOver(object? sender, DragEventArgs e)
+    {
+        if (e.DataTransfer.Items.Count > 0)
+        {
+            e.DragEffects = DragDropEffects.Copy;
+            e.Handled = true;
+        }
+    }
+
+    private async void OnWindowDrop(object? sender, DragEventArgs e)
+    {
+        IEnumerable<IStorageItem>? files = null;
+        if (e.DataTransfer is IAsyncDataTransfer asyncDt)
+        {
+            files = await asyncDt.TryGetFilesAsync();
+        }
+
+        if (files == null) return;
+
+        foreach (var file in files)
+        {
+            string path = file.Path.LocalPath;
+            string ext = Path.GetExtension(path).ToLowerInvariant();
+
+            if (ext is ".iso" or ".wbfs" or ".gcm" or ".dol")
+            {
+                await LoadGameFromFileAsync(path);
+                break;
+            }
+            else if (ext is ".png" or ".tga" or ".jpg" or ".jpeg" or ".bmp")
+            {
+                if (!_flagIconSpecified)
+                {
+                    if (await ProcessImageFileAsync("Icon", path, TempIconPath, 128, 128, IconPreviewBox, IconSourceDirectory))
+                        _flagIconSpecified = true;
+                }
+                else if (!_flagBannerSpecified)
+                {
+                    if (await ProcessImageFileAsync("Banner", path, TempBannerPath, 1280, 720, BannerPreviewBox, BannerSourceDirectory))
+                        _flagBannerSpecified = true;
+                }
+                else
+                {
+                    await ProcessImageFileAsync("Banner", path, TempBannerPath, 1280, 720, BannerPreviewBox, BannerSourceDirectory);
+                }
+            }
+            else if (ext is ".wav" or ".btsnd")
+            {
+                BootSoundDirectory.Text = path;
+                try
+                {
+                    File.Copy(path, TempSoundPath, true);
+                }
+                catch { }
+            }
+        }
+    }
+
     private async void OnGameSourceClick(object sender, RoutedEventArgs e)
     {
         var topLevel = TopLevel.GetTopLevel(this);
@@ -218,17 +290,17 @@ public partial class MainWindow : Window
         if (_systemType == "wii")
         {
             title = "Select Wii game dump (ISO, WBFS)";
-            filters.Add(new FilePickerFileType("Wii Game Dumps") { Patterns = new[] { "*.iso", "*.wbfs" } });
+            filters.Add(new FilePickerFileType("Wii Game Dumps") { Patterns = ["*.iso", "*.wbfs"] });
         }
         else if (_systemType == "gcn")
         {
             title = "Select GameCube game dump (ISO, GCM)";
-            filters.Add(new FilePickerFileType("GameCube Game Dumps") { Patterns = new[] { "*.iso", "*.gcm" } });
+            filters.Add(new FilePickerFileType("GameCube Game Dumps") { Patterns = ["*.iso", "*.gcm"] });
         }
         else if (_systemType == "dol")
         {
             title = "Select Homebrew executable (DOL)";
-            filters.Add(new FilePickerFileType("DOL Executable") { Patterns = new[] { "*.dol" } });
+            filters.Add(new FilePickerFileType("DOL Executable") { Patterns = ["*.dol"] });
         }
 
         var result = await topLevel.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
@@ -240,135 +312,139 @@ public partial class MainWindow : Window
 
         if (result != null && result.Count > 0)
         {
-            _selectedGamePath = result[0].Path.LocalPath;
-            CleanUp();
+            await LoadGameFromFileAsync(result[0].Path.LocalPath);
+        }
+    }
 
-            GameSourceDirectory.Text = _selectedGamePath;
+    private async Task LoadGameFromFileAsync(string gamePath)
+    {
+        _selectedGamePath = gamePath;
+        CleanUp();
 
-            _flagGameSpecified = true;
-            byte[] idBytes = new byte[4];
+        GameSourceDirectory.Text = _selectedGamePath;
+        _flagGameSpecified = true;
+        byte[] idBytes = new byte[4];
 
-            try
+        try
+        {
+            using (var fs = File.OpenRead(_selectedGamePath))
             {
-                using (var fs = File.OpenRead(_selectedGamePath))
+                fs.Position = 0;
+                fs.ReadExactly(idBytes);
+                _titleIdInt = BitConverter.ToInt32(idBytes);
+                string idString = Encoding.ASCII.GetString(idBytes);
+
+                if (idString == "WBFS")
                 {
-                    fs.Position = 0;
+                    _flagWbfs = true;
+                    fs.Position = 0x200;
                     fs.ReadExactly(idBytes);
                     _titleIdInt = BitConverter.ToInt32(idBytes);
-                    string idString = Encoding.ASCII.GetString(idBytes);
 
-                    if (idString == "WBFS")
+                    fs.Position = 0x218;
+                    byte[] tempLong = new byte[8];
+                    fs.ReadExactly(tempLong);
+                    _gameType = BitConverter.ToInt64(tempLong);
+
+                    fs.Position = 0x220;
+                    _internalGameName = ReadNullTerminatedString(fs);
+
+                    fs.Position = 0x200;
+                    _cucholixRepoId = ReadNullTerminatedString(fs);
+                }
+                else
+                {
+                    _flagWbfs = false;
+                    if (_titleIdInt == 65536 || _systemType == "dol")
                     {
-                        _flagWbfs = true;
-                        fs.Position = 0x200;
+                        fs.Position = 0x2A0;
+                        fs.ReadExactly(idBytes);
+                        _titleIdInt = BitConverter.ToInt32(idBytes);
+                        _internalGameName = "N/A";
+                    }
+                    else
+                    {
+                        uint startOffset = 0;
+
+                        if (idString == "WII5") startOffset = 0x1182800;
+                        else if (idString == "WII9") startOffset = 0x1FB5000;
+
+                        fs.Position = startOffset;
                         fs.ReadExactly(idBytes);
                         _titleIdInt = BitConverter.ToInt32(idBytes);
 
-                        fs.Position = 0x218;
+                        fs.Position = startOffset + 0x18;
                         byte[] tempLong = new byte[8];
                         fs.ReadExactly(tempLong);
                         _gameType = BitConverter.ToInt64(tempLong);
 
-                        fs.Position = 0x220;
+                        fs.Position = startOffset + 0x20;
                         _internalGameName = ReadNullTerminatedString(fs);
 
-                        fs.Position = 0x200;
+                        fs.Position = startOffset + 0x00;
                         _cucholixRepoId = ReadNullTerminatedString(fs);
                     }
-                    else
-                    {
-                        _flagWbfs = false;
-                        if (_titleIdInt == 65536 || _systemType == "dol")
-                        {
-                            fs.Position = 0x2A0;
-                            fs.ReadExactly(idBytes);
-                            _titleIdInt = BitConverter.ToInt32(idBytes);
-                            _internalGameName = "N/A";
-                        }
-                        else
-                        {
-                            uint startOffset = 0;
-
-                            if (idString == "WII5") startOffset = 0x1182800;
-                            else if (idString == "WII9") startOffset = 0x1FB5000;
-
-                            fs.Position = startOffset;
-                            fs.ReadExactly(idBytes);
-                            _titleIdInt = BitConverter.ToInt32(idBytes);
-
-                            fs.Position = startOffset + 0x18;
-                            byte[] tempLong = new byte[8];
-                            fs.ReadExactly(tempLong);
-                            _gameType = BitConverter.ToInt64(tempLong);
-
-                            fs.Position = startOffset + 0x20;
-                            _internalGameName = ReadNullTerminatedString(fs);
-
-                            fs.Position = startOffset + 0x00;
-                            _cucholixRepoId = ReadNullTerminatedString(fs);
-                        }
-                    }
-                }
-
-                // Check gametype
-                if ((_systemType == "wii" && _gameType != WiiGameType) || (_systemType == "gcn" && _gameType != GCGameType))
-                {
-                    string err = _systemType == "wii" ? "This is not a Wii image. It will not be loaded." : "This is not a GameCube image. It will not be loaded.";
-                    UpdateUIForSystemType();
-                    await MessageBoxWindow.Show(this, err, "Error", MessageBoxButtons.Ok);
-                    return;
-                }
-
-                InternalGameName.Text = _internalGameName;
-
-                var dbName = RemoveSpecialChars(GameTdb.GetName(_cucholixRepoId) ?? string.Empty);
-                PackedTitleLine1.Text = !string.IsNullOrEmpty(dbName) ? dbName : _internalGameName;
-
-                byte[] titleIdBytes = BitConverter.GetBytes(_titleIdInt);
-                if (!BitConverter.IsLittleEndian)
-                {
-                    Array.Reverse(titleIdBytes);
-                }
-                _titleIdHex = BitConverter.ToString(titleIdBytes).Replace("-", "");
-
-                if (_systemType == "dol")
-                {
-                    InternalGameID.Text = _titleIdHex;
-                    PackedTitleIDLine.Text = $"00050002{_titleIdHex}";
-                    _titleIdText = "BOOT";
-                }
-                else
-                {
-                    _titleIdText = string.Join("", System.Text.RegularExpressions.Regex.Split(_titleIdHex, "(?<=\\G..)(?!$)").Select(x => (char)Convert.ToByte(x, 16)));
-                    InternalGameID.Text = $"{_titleIdText} / {_titleIdHex}";
-                    PackedTitleIDLine.Text = $"00050002{_titleIdHex}";
                 }
             }
-            catch (Exception ex)
+
+            // Check gametype
+            if ((_systemType == "wii" && _gameType != WiiGameType) || (_systemType == "gcn" && _gameType != GCGameType))
             {
-                await MessageBoxWindow.Show(this, $"Failed to read game file metadata: {ex.Message}", "Error", MessageBoxButtons.Ok);
+                string err = _systemType == "wii" ? "This is not a Wii image. It will not be loaded." : "This is not a GameCube image. It will not be loaded.";
                 UpdateUIForSystemType();
+                await MessageBoxWindow.Show(this, err, "Error", MessageBoxButtons.Ok);
+                return;
             }
+
+            InternalGameName.Text = _internalGameName;
+
+            var dbName = RemoveSpecialChars(GameTdb.GetName(_cucholixRepoId) ?? string.Empty);
+            PackedTitleLine1.Text = !string.IsNullOrEmpty(dbName) ? dbName : _internalGameName;
+
+            byte[] titleIdBytes = BitConverter.GetBytes(_titleIdInt);
+            if (!BitConverter.IsLittleEndian)
+            {
+                Array.Reverse(titleIdBytes);
+            }
+            _titleIdHex = BitConverter.ToString(titleIdBytes).Replace("-", "");
+
+            if (_systemType == "dol")
+            {
+                InternalGameID.Text = _titleIdHex;
+                PackedTitleIDLine.Text = $"00050002{_titleIdHex}";
+                _titleIdText = "BOOT";
+            }
+            else
+            {
+                _titleIdText = Encoding.ASCII.GetString(Convert.FromHexString(_titleIdHex));
+                InternalGameID.Text = $"{_titleIdText} / {_titleIdHex}";
+                PackedTitleIDLine.Text = $"00050002{_titleIdHex}";
+            }
+        }
+        catch (Exception ex)
+        {
+            await MessageBoxWindow.Show(this, $"Failed to read game file metadata: {ex.Message}", "Error", MessageBoxButtons.Ok);
+            UpdateUIForSystemType();
         }
     }
 
     private string ReadNullTerminatedString(Stream stream)
     {
-        List<byte> bytes = new List<byte>();
+        List<byte> bytes = [];
         int b;
         while (stream.Position < stream.Length && (b = stream.ReadByte()) > 0)
         {
             bytes.Add((byte)b);
         }
-        return Encoding.UTF8.GetString(bytes.ToArray());
+        return Encoding.UTF8.GetString([.. bytes]);
     }
 
     private void CleanUp()
     {
+        FileUtil.SafeDeleteDirectory(TempSourcePath);
+        FileUtil.SafeDeleteDirectory(TempBuildPath);
         try
         {
-            if (Directory.Exists(TempSourcePath)) Directory.Delete(TempSourcePath, true);
-            if (Directory.Exists(TempBuildPath)) Directory.Delete(TempBuildPath, true);
             Directory.CreateDirectory(TempSourcePath);
             Directory.CreateDirectory(TempBuildPath);
         }
@@ -384,6 +460,37 @@ public partial class MainWindow : Window
         BannerSourceDirectory.Text = "Banner has not been specified";
     }
 
+    private async Task<bool> ProcessImageFileAsync(string imageType, string path, string tempPath, int width, int height, Image previewBox, TextBox sourceDirBox)
+    {
+        try
+        {
+            FileUtil.SafeDeleteFile(tempPath);
+
+            if (Path.GetExtension(path).Equals(".tga", StringComparison.OrdinalIgnoreCase))
+            {
+                using var bmp = TgaReader.LoadTga(path);
+                TgaReader.SaveAsTga(bmp, tempPath, width, height, 32);
+            }
+            else
+            {
+                File.Copy(path, tempPath, true);
+            }
+
+            using (var stream = File.OpenRead(tempPath))
+            {
+                previewBox.Source = new Bitmap(stream);
+            }
+
+            sourceDirBox.Text = path;
+            return true;
+        }
+        catch (Exception ex)
+        {
+            await MessageBoxWindow.Show(this, $"Failed to load {imageType.ToLower()}: {ex.Message}", "Error", MessageBoxButtons.Ok);
+            return false;
+        }
+    }
+
     private async Task<bool> SelectAndProcessImageAsync(string imageType, string tempPath, int width, int height, Image previewBox, TextBox sourceDirBox)
     {
         var topLevel = TopLevel.GetTopLevel(this);
@@ -395,40 +502,12 @@ public partial class MainWindow : Window
         {
             Title = $"Select {imageType} PNG or TGA",
             AllowMultiple = false,
-            FileTypeFilter = new[] { new FilePickerFileType("Images") { Patterns = new[] { "*.png", "*.tga" } } }
+            FileTypeFilter = [new FilePickerFileType("Images") { Patterns = ["*.png", "*.tga"] }]
         });
 
         if (result != null && result.Count > 0)
         {
-            var path = result[0].Path.LocalPath;
-            try
-            {
-                if (File.Exists(tempPath)) { File.Delete(tempPath); }
-
-                if (Path.GetExtension(path).Equals(".tga", StringComparison.OrdinalIgnoreCase))
-                {
-                    using (var bmp = TgaReader.LoadTga(path))
-                    {
-                        TgaReader.SaveAsTga(bmp, tempPath, width, height, 32);
-                    }
-                }
-                else
-                {
-                    File.Copy(path, tempPath, true);
-                }
-
-                using (var stream = File.OpenRead(tempPath))
-                {
-                    previewBox.Source = new Bitmap(stream);
-                }
-
-                sourceDirBox.Text = path;
-                return true;
-            }
-            catch (Exception ex)
-            {
-                await MessageBoxWindow.Show(this, $"Failed to load {imageType.ToLower()}: {ex.Message}", "Error", MessageBoxButtons.Ok);
-            }
+            return await ProcessImageFileAsync(imageType, result[0].Path.LocalPath, tempPath, width, height, previewBox, sourceDirBox);
         }
         return false;
     }
@@ -453,92 +532,90 @@ public partial class MainWindow : Window
     {
         if (string.IsNullOrEmpty(_cucholixRepoId))
         {
-            await MessageBoxWindow.Show(this, "Please select your game before using this option", "No game specified", MessageBoxButtons.Ok);
+            await MessageBoxWindow.Show(this, "Could not identify game to download repository files for", "Error", MessageBoxButtons.Ok);
             return;
         }
 
-        if (!await TryDownloadImagesAsync(_cucholixRepoId))
-        {
-            var dialogResult = await MessageBoxWindow.Show(this,
-                "Cucholix's Repo does not have assets for your game. You will need to provide your own. Would you like to visit the GBAtemp request thread?",
-                "Game not found on Repo",
-                MessageBoxButtons.YesNo);
-            if (dialogResult == MessageBoxResult.Yes)
-            {
-                Process.Start(new ProcessStartInfo("https://gbatemp.net/threads/483080/") { UseShellExecute = true });
-            }
-        }
-    }
+        string baseUrl = "https://raw.githubusercontent.com/cucholix/wii-u-virtual-console-autoboot-icons/master/";
+        string iconUrl = $"{baseUrl}iconTex/{_cucholixRepoId}.png";
+        string bannerUrl = $"{baseUrl}bootTvTex/{_cucholixRepoId}.png";
+        string drcUrl = $"{baseUrl}bootDrcTex/{_cucholixRepoId}.png";
+        string logoUrl = $"{baseUrl}bootLogoTex/{_cucholixRepoId}.png";
+        string soundUrl = $"{baseUrl}bootSound/{_cucholixRepoId}.btsnd";
 
-    private async Task<bool> TryDownloadImagesAsync(string cucholixRepoID)
-    {
-        var ids = GameTdb.GetAlternativeIds(cucholixRepoID);
-        foreach (var id in ids)
-        {
-            string url = Properties.Settings.Default.BannersRepository + _systemType + "/" + id + "/iconTex.png";
-            if (await RemoteFileExistsAsync(url))
-            {
-                await DownloadFromRepoAsync(id);
-                return true;
-            }
-        }
-        return false;
-    }
+        bool anyDownloaded = false;
 
-    public async Task DownloadFromRepoAsync(string cucholixRepoID)
-    {
-        string baseUrl = Properties.Settings.Default.BannersRepository;
-        string iconUrl = $"{baseUrl}{_systemType}/{cucholixRepoID}/iconTex.png";
-        string bannerUrl = $"{baseUrl}{_systemType}/{cucholixRepoID}/bootTvTex.png";
-
-        try
+        if (await UrlExistsAsync(iconUrl))
         {
-            if (File.Exists(TempIconPath)) { File.Delete(TempIconPath); }
-            var iconBytes = await Program.Client.GetByteArrayAsync(iconUrl);
+            byte[] iconBytes = await Program.Client.GetByteArrayAsync(iconUrl);
             await File.WriteAllBytesAsync(TempIconPath, iconBytes);
-
-            using (var stream = File.OpenRead(TempIconPath))
+            using (var stream = new MemoryStream(iconBytes))
             {
                 IconPreviewBox.Source = new Bitmap(stream);
             }
-
-            IconSourceDirectory.Text = "iconTex.png downloaded from Cucholix's Repo";
+            IconSourceDirectory.Text = "Downloaded from cucholix's repository";
             _flagIconSpecified = true;
-        }
-        catch (Exception ex)
-        {
-            await MessageBoxWindow.Show(this, $"Failed to download icon from repo: {ex.Message}", "Error", MessageBoxButtons.Ok);
+            anyDownloaded = true;
         }
 
-        try
+        if (await UrlExistsAsync(bannerUrl))
         {
-            if (File.Exists(TempBannerPath)) { File.Delete(TempBannerPath); }
-            var bannerBytes = await Program.Client.GetByteArrayAsync(bannerUrl);
+            byte[] bannerBytes = await Program.Client.GetByteArrayAsync(bannerUrl);
             await File.WriteAllBytesAsync(TempBannerPath, bannerBytes);
-
-            using (var stream = File.OpenRead(TempBannerPath))
+            using (var stream = new MemoryStream(bannerBytes))
             {
                 BannerPreviewBox.Source = new Bitmap(stream);
             }
-
-            BannerSourceDirectory.Text = "bootTvTex.png downloaded from Cucholix's Repo";
+            BannerSourceDirectory.Text = "Downloaded from cucholix's repository";
             _flagBannerSpecified = true;
+            anyDownloaded = true;
         }
-        catch (Exception ex)
+
+        if (await UrlExistsAsync(drcUrl))
         {
-            await MessageBoxWindow.Show(this, $"Failed to download banner from repo: {ex.Message}", "Error", MessageBoxButtons.Ok);
+            byte[] drcBytes = await Program.Client.GetByteArrayAsync(drcUrl);
+            await File.WriteAllBytesAsync(TempDrcPath, drcBytes);
+            using (var stream = new MemoryStream(drcBytes))
+            {
+                DrcPreviewBox.Source = new Bitmap(stream);
+            }
+            DrcSourceDirectory.Text = "Downloaded from cucholix's repository";
+            anyDownloaded = true;
+        }
+
+        if (await UrlExistsAsync(logoUrl))
+        {
+            byte[] logoBytes = await Program.Client.GetByteArrayAsync(logoUrl);
+            await File.WriteAllBytesAsync(TempLogoPath, logoBytes);
+            using (var stream = new MemoryStream(logoBytes))
+            {
+                LogoPreviewBox.Source = new Bitmap(stream);
+            }
+            LogoSourceDirectory.Text = "Downloaded from cucholix's repository";
+            anyDownloaded = true;
+        }
+
+        if (await UrlExistsAsync(soundUrl))
+        {
+            byte[] soundBytes = await Program.Client.GetByteArrayAsync(soundUrl);
+            await File.WriteAllBytesAsync(TempSoundPath, soundBytes);
+            BootSoundDirectory.Text = "Downloaded from cucholix's repository";
+            anyDownloaded = true;
+        }
+
+        if (!anyDownloaded)
+        {
+            await MessageBoxWindow.Show(this, "Could not find any files matching the specified Game Title ID in cucholix's repository", "Error", MessageBoxButtons.Ok);
         }
     }
 
-    private async Task<bool> RemoteFileExistsAsync(string url)
+    private async Task<bool> UrlExistsAsync(string url)
     {
         try
         {
-            using (var request = new HttpRequestMessage(HttpMethod.Head, url))
-            using (var response = await Program.Client.SendAsync(request))
-            {
-                return response != null && response.StatusCode == System.Net.HttpStatusCode.OK;
-            }
+            using var request = new HttpRequestMessage(HttpMethod.Head, url);
+            using var response = await Program.Client.SendAsync(request);
+            return response != null && response.StatusCode == System.Net.HttpStatusCode.OK;
         }
         catch
         {
@@ -555,7 +632,7 @@ public partial class MainWindow : Window
         {
             Title = "Select 2nd GameCube Disc Image",
             AllowMultiple = false,
-            FileTypeFilter = new[] { new FilePickerFileType("GameCube Disc") { Patterns = new[] { "*.iso", "*.gcm" } } }
+            FileTypeFilter = [new FilePickerFileType("GameCube Disc") { Patterns = ["*.iso", "*.gcm"] }]
         });
 
         if (result != null && result.Count > 0)
@@ -563,24 +640,22 @@ public partial class MainWindow : Window
             var path = result[0].Path.LocalPath;
             try
             {
-                using (var fs = File.OpenRead(path))
-                {
-                    fs.Position = 0x18;
-                    byte[] typeBytes = new byte[8];
-                    fs.ReadExactly(typeBytes);
-                    long gc2GameType = BitConverter.ToInt64(typeBytes);
+                using var fs = File.OpenRead(path);
+                fs.Position = 0x18;
+                byte[] typeBytes = new byte[8];
+                fs.ReadExactly(typeBytes);
+                long gc2GameType = BitConverter.ToInt64(typeBytes);
 
-                    if (gc2GameType != 4440324665927270400)
-                    {
-                        await MessageBoxWindow.Show(this, "This is not a GameCube image. It will not be loaded.", "Error", MessageBoxButtons.Ok);
-                        GC2SourceDirectory.Text = "2nd GameCube Disc Image has not been specified";
-                        _flagGc2Specified = false;
-                    }
-                    else
-                    {
-                        GC2SourceDirectory.Text = path;
-                        _flagGc2Specified = true;
-                    }
+                if (gc2GameType != 4440324665927270400)
+                {
+                    await MessageBoxWindow.Show(this, "This is not a GameCube image. It will not be loaded.", "Error", MessageBoxButtons.Ok);
+                    GC2SourceDirectory.Text = "2nd GameCube Disc Image has not been specified";
+                    _flagGc2Specified = false;
+                }
+                else
+                {
+                    GC2SourceDirectory.Text = path;
+                    _flagGc2Specified = true;
                 }
             }
             catch (Exception ex)
@@ -601,7 +676,7 @@ public partial class MainWindow : Window
         {
             Title = "Select Boot Sound (WAV)",
             AllowMultiple = false,
-            FileTypeFilter = new[] { new FilePickerFileType("WAV Audio") { Patterns = new[] { "*.wav" } } }
+            FileTypeFilter = [new FilePickerFileType("WAV Audio") { Patterns = ["*.wav"] }]
         });
 
         if (result != null && result.Count > 0)
@@ -609,7 +684,7 @@ public partial class MainWindow : Window
             var path = result[0].Path.LocalPath;
             try
             {
-                using (var fs = File.OpenRead(path))
+                using var fs = File.OpenRead(path);
                 {
                     byte[] headerBytes = new byte[4];
                     fs.Position = 0x00;
@@ -655,11 +730,10 @@ public partial class MainWindow : Window
 
     private void OnMainTabsSelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (e.Source is TabControl)
+        if (e.Source is TabControl tabControl)
         {
-            var tabControl = sender as TabControl;
-            var selectedTab = tabControl?.SelectedItem as TabItem;
-            if (selectedTab != null && selectedTab.Header?.ToString() == "Build Title")
+            var selectedTab = tabControl.SelectedItem as TabItem;
+            if (selectedTab is { Header: not null } && selectedTab.Header.ToString() == "Build Title")
             {
                 // Update key text boxes from settings
                 WiiUCommonKey.Text = string.IsNullOrEmpty(Properties.Settings.Default.WiiUCommonKey)
@@ -808,16 +882,14 @@ public partial class MainWindow : Window
     {
         try
         {
-            using (var p = new Process())
-            {
-                p.StartInfo.FileName = "which";
-                p.StartInfo.Arguments = cmd;
-                p.StartInfo.UseShellExecute = false;
-                p.StartInfo.CreateNoWindow = true;
-                p.Start();
-                p.WaitForExit();
-                return p.ExitCode == 0;
-            }
+            using var p = new Process();
+            p.StartInfo.FileName = "which";
+            p.StartInfo.Arguments = cmd;
+            p.StartInfo.UseShellExecute = false;
+            p.StartInfo.CreateNoWindow = true;
+            p.Start();
+            p.WaitForExit();
+            return p.ExitCode == 0;
         }
         catch
         {
@@ -880,19 +952,19 @@ public partial class MainWindow : Window
             }
         }
 
-        ProcessStartInfo launcher = new ProcessStartInfo(targetExe);
-        launcher.Arguments = targetArgs;
-        launcher.UseShellExecute = false;
-        launcher.WorkingDirectory = Directory.GetCurrentDirectory();
+        ProcessStartInfo launcher = new(targetExe)
+        {
+            Arguments = targetArgs,
+            UseShellExecute = false,
+            WorkingDirectory = Directory.GetCurrentDirectory()
+        };
         if (hideProcess)
         {
             launcher.WindowStyle = ProcessWindowStyle.Hidden;
             launcher.CreateNoWindow = true;
         }
-        using (Process? process = Process.Start(launcher))
-        {
-            process?.WaitForExit();
-        }
+        using var process = Process.Start(launcher);
+        process?.WaitForExit();
     }
 
     private async void OnBuildClick(object sender, RoutedEventArgs e)
@@ -1062,12 +1134,23 @@ public partial class MainWindow : Window
             UpdateStatus(update.Message, update.Progress);
         });
 
-        var builder = new BuildEngine(options, progress);
+        _buildCts = new CancellationTokenSource();
+        if (_cancelBuildButton != null)
+        {
+            _cancelBuildButton.IsVisible = true;
+            _cancelBuildButton.IsEnabled = true;
+        }
+
+        var builder = new BuildEngine(options, progress, onLogMessage: AppendLogMessage);
 
         try
         {
-            finalOutputPath = await Task.Run(() => builder.RunAsync());
+            finalOutputPath = await Task.Run(() => builder.RunAsync(_buildCts.Token));
             success = true;
+        }
+        catch (OperationCanceledException)
+        {
+            errorMsg = "Build operation was cancelled by user.";
         }
         catch (Exception ex)
         {
@@ -1075,6 +1158,10 @@ public partial class MainWindow : Window
         }
         finally
         {
+            if (_cancelBuildButton != null)
+            {
+                _cancelBuildButton.IsVisible = false;
+            }
             // Save conversion log
             await builder.SaveLogAsync(selectedOutputPath);
             await builder.SaveLogAsync(TempRootPath);
@@ -1083,7 +1170,7 @@ public partial class MainWindow : Window
         // Update UI thread after complete
         MainTabs.IsEnabled = true;
         BuildProgress.Value = success ? 100 : 0;
-        BuildStatus.Text = success ? "Conversion complete!" : "Conversion failed.";
+        BuildStatus.Text = success ? "Conversion complete!" : (_buildCts?.IsCancellationRequested == true ? "Conversion cancelled." : "Conversion failed.");
 
         if (success)
         {
@@ -1102,9 +1189,85 @@ public partial class MainWindow : Window
                 }
             }
         }
+        else if (_buildCts?.IsCancellationRequested == true)
+        {
+            await MessageBoxWindow.Show(this, "The build operation was cancelled. Temporary files were cleaned up.", "Operation Cancelled", MessageBoxButtons.Ok);
+        }
         else
         {
             await MessageBoxWindow.Show(this, $"Conversion Failed!\n{errorMsg}\n\nA detailed log has been saved in the output directory (and temporary folder).", "Conversion Failed", MessageBoxButtons.Ok);
+        }
+    }
+
+    private void OnCancelBuildClick(object? sender, RoutedEventArgs e)
+    {
+        if (_buildCts != null && !_buildCts.IsCancellationRequested)
+        {
+            _buildCts.Cancel();
+            BuildStatus.Text = "Cancelling build...";
+            if (_cancelBuildButton != null)
+            {
+                _cancelBuildButton.IsEnabled = false;
+            }
+            AppendLogMessage("[USER] Build cancellation requested.");
+        }
+    }
+
+    private void AppendLogMessage(string message)
+    {
+        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        {
+            if (_logOutputBox != null)
+            {
+                _logOutputBox.Text = string.IsNullOrEmpty(_logOutputBox.Text)
+                    ? message
+                    : $"{_logOutputBox.Text}{Environment.NewLine}{message}";
+                _logOutputBox.CaretIndex = _logOutputBox.Text?.Length ?? 0;
+            }
+        });
+    }
+
+    private async void OnCopyLogsClick(object? sender, RoutedEventArgs e)
+    {
+        var topLevel = TopLevel.GetTopLevel(this);
+        var logText = _logOutputBox?.Text;
+        if (topLevel?.Clipboard != null && !string.IsNullOrEmpty(logText))
+        {
+            var dataTransfer = new DataTransfer();
+            dataTransfer.Add(DataTransferItem.CreateText(logText));
+            await topLevel.Clipboard.SetDataAsync(dataTransfer);
+            await MessageBoxWindow.Show(this, "Logs copied to clipboard.", "Logs Copied", MessageBoxButtons.Ok);
+        }
+    }
+
+    private void OnClearLogsClick(object? sender, RoutedEventArgs e)
+    {
+        if (_logOutputBox != null)
+        {
+            _logOutputBox.Text = string.Empty;
+        }
+    }
+
+    private async void OnOpenLogFolderClick(object? sender, RoutedEventArgs e)
+    {
+        try
+        {
+            string logFolder = !string.IsNullOrEmpty(Properties.Settings.Default.OutputPath) && Directory.Exists(Properties.Settings.Default.OutputPath)
+                ? Properties.Settings.Default.OutputPath
+                : TempRootPath;
+
+            if (Directory.Exists(logFolder))
+            {
+                Process.Start(new ProcessStartInfo(logFolder) { UseShellExecute = true });
+            }
+            else
+            {
+                await MessageBoxWindow.Show(this, $"Log folder '{logFolder}' does not exist.", "Notice", MessageBoxButtons.Ok);
+            }
+        }
+        catch (Exception ex)
+        {
+            await MessageBoxWindow.Show(this, $"Failed to open folder: {ex.Message}", "Error", MessageBoxButtons.Ok);
         }
     }
 
@@ -1144,11 +1307,9 @@ public partial class MainWindow : Window
 
     private static string GetMD5Checksum(string file)
     {
-        using (var stream = File.OpenRead(file))
-        {
-            byte[] checksum = MD5.HashData(stream);
-            return Convert.ToHexString(checksum);
-        }
+        using var stream = File.OpenRead(file);
+        byte[] checksum = MD5.HashData(stream);
+        return Convert.ToHexString(checksum);
     }
 
     private static string RemoveSpecialChars(string v)
@@ -1157,7 +1318,7 @@ public partial class MainWindow : Window
             return v;
 
         string s = RemoveDiacritics(v);
-        return new string(s.Where(c => c < 128).ToArray());
+        return new string([.. s.Where(c => c < 128)]);
     }
 
     private static string RemoveDiacritics(string text)

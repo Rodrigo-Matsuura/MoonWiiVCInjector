@@ -15,40 +15,42 @@ public class GameTdb
     {
         try
         {
-            using (var stream = CurrentAssembly.GetManifestResourceStream(ResourcePath))
+            using var stream = CurrentAssembly.GetManifestResourceStream(ResourcePath);
+            if (stream == null)
             {
-                if (stream == null) return;
-                using (var reader = new StreamReader(stream))
+                System.Diagnostics.Debug.WriteLine($"[GameTdb] Warning: Embedded resource '{ResourcePath}' not found.");
+                return;
+            }
+
+            using var reader = new StreamReader(stream, System.Text.Encoding.UTF8, detectEncodingFromByteOrderMarks: true, bufferSize: 65536);
+            string? line;
+            while ((line = reader.ReadLine()) != null)
+            {
+                ReadOnlySpan<char> span = line.AsSpan().Trim();
+                if (span.IsEmpty || span.StartsWith("TITLES =".AsSpan(), StringComparison.Ordinal))
+                    continue;
+
+                int idx = span.IndexOf(" = ".AsSpan(), StringComparison.Ordinal);
+                if (idx <= 0) continue;
+
+                string id = span.Slice(0, idx).ToString();
+                string name = span.Slice(idx + 3).ToString();
+
+                NameById[id] = name;
+
+                if (!IdsByName.TryGetValue(name, out var list))
                 {
-                    string? line;
-                    while ((line = reader.ReadLine()) != null)
-                    {
-                        if (line.StartsWith("TITLES =", StringComparison.Ordinal))
-                            continue;
-
-                        int idx = line.IndexOf(" = ", StringComparison.Ordinal);
-                        if (idx < 0) continue;
-
-                        string id = line.Substring(0, idx);
-                        string name = line.Substring(idx + 3);
-
-                        NameById[id] = name;
-
-                        if (!IdsByName.TryGetValue(name, out var list))
-                        {
-                            list = new List<string>();
-                            IdsByName[name] = list;
-                        }
-                        list.Add(id);
-
-                        SortedIds.Add(id);
-                    }
+                    list = new List<string>(1);
+                    IdsByName[name] = list;
                 }
+                list.Add(id);
+
+                SortedIds.Add(id);
             }
         }
-        catch
+        catch (Exception ex)
         {
-            // Fallback silencioso em caso de falha de carregamento
+            System.Diagnostics.Debug.WriteLine($"[GameTdb] Error loading database: {ex.Message}");
         }
     }
 
