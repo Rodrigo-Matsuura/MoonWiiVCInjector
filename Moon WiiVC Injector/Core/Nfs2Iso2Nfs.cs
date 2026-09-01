@@ -131,18 +131,27 @@ public class Nfs2Iso2Nfs(
     private int ReadBigEndianInt32(ReadOnlySpan<byte> span, int offset)
         => BinaryPrimitives.ReadInt32BigEndian(span.Slice(offset, 4));
 
-    /// <summary>Copies exactly <paramref name="count"/> bytes from <paramref name="source"/> to <paramref name="destination"/> using an 80 KB heap buffer.</summary>
+    /// <summary>Copies exactly <paramref name="count"/> bytes from <paramref name="source"/> to <paramref name="destination"/> using an ArrayPool buffer.</summary>
     private void CopyStream(Stream source, Stream destination, long count)
     {
         if (count <= 0) return;
-        byte[] buffer = new byte[81920]; // 80 KB
-        long remaining = count;
-        while (remaining > 0)
+        const int bufferSize = 128 * 1024;
+        byte[] buffer = System.Buffers.ArrayPool<byte>.Shared.Rent(bufferSize);
+        try
         {
-            int toRead = (int)Math.Min((long)buffer.Length, remaining);
-            source.ReadExactly(buffer, 0, toRead);
-            destination.Write(buffer, 0, toRead);
-            remaining -= toRead;
+            long remaining = count;
+            while (remaining > 0)
+            {
+                _cancellationToken.ThrowIfCancellationRequested();
+                int toRead = (int)Math.Min((long)bufferSize, remaining);
+                source.ReadExactly(buffer, 0, toRead);
+                destination.Write(buffer, 0, toRead);
+                remaining -= toRead;
+            }
+        }
+        finally
+        {
+            System.Buffers.ArrayPool<byte>.Shared.Return(buffer);
         }
     }
 
@@ -477,26 +486,33 @@ public class Nfs2Iso2Nfs(
         Log("");
         long size = nfs.Length;
         int i = 0;
-        byte[] buffer = new byte[128 * 1024]; // 128 KB copy buffer
-        while (size > 0)
+        byte[] buffer = System.Buffers.ArrayPool<byte>.Shared.Rent(128 * 1024);
+        try
         {
-            _cancellationToken.ThrowIfCancellationRequested();
-            string outputPath = Path.Combine(_baseDirectory, $"hif_{i:D6}.nfs");
-            Log("Building hif_" + i.ToString("D6") + ".nfs...");
-            using var nfsTemp = new FileStream(outputPath, FileMode.Create, FileAccess.Write, FileShare.None, 128 * 1024, FileOptions.SequentialScan);
-            long bytesToCopy = Math.Min(NFS_SIZE, size);
-            long copied = 0;
-            while (copied < bytesToCopy)
+            while (size > 0)
             {
                 _cancellationToken.ThrowIfCancellationRequested();
-                int toRead = (int)Math.Min(buffer.Length, bytesToCopy - copied);
-                int read = nfs.Read(buffer, 0, toRead);
-                if (read <= 0) break;
-                nfsTemp.Write(buffer, 0, read);
-                copied += read;
+                string outputPath = Path.Combine(_baseDirectory, $"hif_{i:D6}.nfs");
+                Log("Building hif_" + i.ToString("D6") + ".nfs...");
+                using var nfsTemp = new FileStream(outputPath, FileMode.Create, FileAccess.Write, FileShare.None, 128 * 1024, FileOptions.SequentialScan);
+                long bytesToCopy = Math.Min(NFS_SIZE, size);
+                long copied = 0;
+                while (copied < bytesToCopy)
+                {
+                    _cancellationToken.ThrowIfCancellationRequested();
+                    int toRead = (int)Math.Min(128 * 1024, bytesToCopy - copied);
+                    int read = nfs.Read(buffer, 0, toRead);
+                    if (read <= 0) break;
+                    nfsTemp.Write(buffer, 0, read);
+                    copied += read;
+                }
+                size -= bytesToCopy;
+                i++;
             }
-            size -= bytesToCopy;
-            i++;
+        }
+        finally
+        {
+            System.Buffers.ArrayPool<byte>.Shared.Return(buffer);
         }
     }
 
@@ -591,143 +607,158 @@ public class Nfs2Iso2Nfs(
 
         byte[] iv = new byte[0x10];
         byte[] ivTemp = new byte[0x10];
-        byte[] sector = new byte[SECTOR_SIZE];
+        byte[] sector = System.Buffers.ArrayPool<byte>.Shared.Rent(SECTOR_SIZE);
         int timer = 0;
         int mbCounter = 0;
 
-        for (int i = 0; i < partitionOffsets.Length; i++)
+        try
         {
-            _cancellationToken.ThrowIfCancellationRequested();
-            long skipBytes = partitionOffsets[i] - curPos;
-            CopyStream(reader, writer, skipBytes);
-            curPos += skipBytes;
-
-            // Ticket header
-            CopyStream(reader, writer, 0x1BF);
-
-            byte[] encTitleKey = new byte[0x10];
-            reader.ReadExactly(encTitleKey);
-            writer.Write(encTitleKey);
-
-            CopyStream(reader, writer, 0xD); // bytes until titleID
-
-            byte[] titleID = new byte[0x8];
-            reader.ReadExactly(titleID);
-            writer.Write(titleID);
-
-            // IV = titleID padded with zeros to 16 bytes
-            Array.Clear(iv);
-            titleID.AsSpan(0, 8).CopyTo(iv);
-
-            CopyStream(reader, writer, 0xC0); // bytes until end of ticket
-
-            byte[] partitionHeader = new byte[0x1FD5C];
-            reader.ReadExactly(partitionHeader);
-            long partitionSize = (long)4 * ReadBigEndianInt32(partitionHeader, 0x18);
-            Log("Partition size: 0x" + Convert.ToString(partitionSize, 16));
-            writer.Write(partitionHeader);
-
-            curPos += 0x20000;
-            curPos += partitionSize;
-
-            // Decrypt title key using Wii Common Key + title IV
-            byte[] titleKey = new byte[16];
-            using (var aesCommon = Aes.Create())
-            {
-                aesCommon.Key = WII_COMMON_KEY;
-                aesCommon.DecryptCbc(encTitleKey, iv, titleKey, PaddingMode.None);
-            }
-            Log("Write game partition " + i + "...");
-
-            using (var aesTitle = Aes.Create())
-            {
-                aesTitle.Key = titleKey;
-                while (partitionSize >= SECTOR_SIZE)
-                {
-                    _cancellationToken.ThrowIfCancellationRequested();
-                    if (timer == 8000)
-                    {
-                        timer = 0;
-                        mbCounter++;
-                        Log((mbCounter * 256) + " MB processed...");
-                    }
-                    timer++;
-
-                    int read1 = reader.Read(sector, 0, 0x400);
-                    if (read1 < 0x400) break;
-
-                    if (enc)
-                    {
-                        // Encrypt first sub-block (hashes) with zero IV
-                        Array.Clear(iv);
-                        aesTitle.EncryptCbc(sector.AsSpan(0, 0x400), iv, sector.AsSpan(0, 0x400), PaddingMode.None);
-                        writer.Write(sector, 0, 0x400);
-
-                        if (reader.Position >= reader.Length) break;
-
-                        // IV for second sub-block = bytes [0x3D0..0x3DF] of the encrypted first sub-block
-                        sector.AsSpan(0x3D0, 0x10).CopyTo(ivTemp);
-                        int read2 = reader.Read(sector, 0x400, SECTOR_SIZE - 0x400);
-                        if (read2 <= 0) break;
-
-                        aesTitle.EncryptCbc(sector.AsSpan(0x400, read2), ivTemp, sector.AsSpan(0x400, read2), PaddingMode.None);
-                        writer.Write(sector, 0x400, read2);
-                    }
-                    else
-                    {
-                        // IV for second sub-block = bytes [0x3D0..0x3DF] of the still-encrypted first sub-block
-                        sector.AsSpan(0x3D0, 0x10).CopyTo(ivTemp);
-
-                        // Decrypt first sub-block with zero IV
-                        Array.Clear(iv);
-                        aesTitle.DecryptCbc(sector.AsSpan(0, 0x400), iv, sector.AsSpan(0, 0x400), PaddingMode.None);
-                        writer.Write(sector, 0, 0x400);
-
-                        if (reader.Position >= reader.Length) break;
-
-                        int read2 = reader.Read(sector, 0x400, SECTOR_SIZE - 0x400);
-                        if (read2 <= 0) break;
-
-                        aesTitle.DecryptCbc(sector.AsSpan(0x400, read2), ivTemp, sector.AsSpan(0x400, read2), PaddingMode.None);
-                        writer.Write(sector, 0x400, read2);
-                    }
-
-                    partitionSize -= SECTOR_SIZE;
-                }
-            }
-
-            sizeInfo[1] = curPos - sizeInfo[0];
-            if (partitionSize != 0)
-                Log("WARNING: Last cluster was not complete. This may be a problem.");
-        }
-
-        if (enc)
-        {
-            Log("");
-            Log("Writing zeros...");
-            long rest = curPos > 0x118240000 ? 0x1FB4E0000 - curPos : 0x118240000 - curPos;
-            int zeroTimer = 0;
-            int zeroCounter = 0;
-            byte[] zeroBuffer = new byte[SECTOR_SIZE];
-            while (rest > 0)
+            for (int i = 0; i < partitionOffsets.Length; i++)
             {
                 _cancellationToken.ThrowIfCancellationRequested();
-                if (zeroTimer == 8000)
+                long skipBytes = partitionOffsets[i] - curPos;
+                CopyStream(reader, writer, skipBytes);
+                curPos += skipBytes;
+
+                // Ticket header
+                CopyStream(reader, writer, 0x1BF);
+
+                byte[] encTitleKey = new byte[0x10];
+                reader.ReadExactly(encTitleKey);
+                writer.Write(encTitleKey);
+
+                CopyStream(reader, writer, 0xD); // bytes until titleID
+
+                byte[] titleID = new byte[0x8];
+                reader.ReadExactly(titleID);
+                writer.Write(titleID);
+
+                // IV = titleID padded with zeros to 16 bytes
+                Array.Clear(iv);
+                titleID.AsSpan(0, 8).CopyTo(iv);
+
+                CopyStream(reader, writer, 0xC0); // bytes until end of ticket
+
+                byte[] partitionHeader = new byte[0x1FD5C];
+                reader.ReadExactly(partitionHeader);
+                long partitionSize = (long)4 * ReadBigEndianInt32(partitionHeader, 0x18);
+                Log("Partition size: 0x" + Convert.ToString(partitionSize, 16));
+                writer.Write(partitionHeader);
+
+                curPos += 0x20000;
+                curPos += partitionSize;
+
+                // Decrypt title key using Wii Common Key + title IV
+                byte[] titleKey = new byte[16];
+                using (var aesCommon = Aes.Create())
                 {
-                    zeroTimer = 0;
-                    zeroCounter++;
-                    Log((zeroCounter * 256) + " MB processed...");
+                    aesCommon.Key = WII_COMMON_KEY;
+                    aesCommon.DecryptCbc(encTitleKey, iv, titleKey, PaddingMode.None);
                 }
-                zeroTimer++;
-                int toWrite = rest > SECTOR_SIZE ? SECTOR_SIZE : (int)rest;
-                writer.Write(zeroBuffer, 0, toWrite);
-                rest -= SECTOR_SIZE;
+                Log("Write game partition " + i + "...");
+
+                using (var aesTitle = Aes.Create())
+                {
+                    aesTitle.Key = titleKey;
+                    while (partitionSize >= SECTOR_SIZE)
+                    {
+                        _cancellationToken.ThrowIfCancellationRequested();
+                        if (timer == 8000)
+                        {
+                            timer = 0;
+                            mbCounter++;
+                            Log((mbCounter * 256) + " MB processed...");
+                        }
+                        timer++;
+
+                        int read1 = reader.Read(sector, 0, 0x400);
+                        if (read1 < 0x400) break;
+
+                        if (enc)
+                        {
+                            // Encrypt first sub-block (hashes) with zero IV
+                            Array.Clear(iv);
+                            aesTitle.EncryptCbc(sector.AsSpan(0, 0x400), iv, sector.AsSpan(0, 0x400), PaddingMode.None);
+                            writer.Write(sector, 0, 0x400);
+
+                            if (reader.Position >= reader.Length) break;
+
+                            // IV for second sub-block = bytes [0x3D0..0x3DF] of the encrypted first sub-block
+                            sector.AsSpan(0x3D0, 0x10).CopyTo(ivTemp);
+                            int read2 = reader.Read(sector, 0x400, SECTOR_SIZE - 0x400);
+                            if (read2 <= 0) break;
+
+                            aesTitle.EncryptCbc(sector.AsSpan(0x400, read2), ivTemp, sector.AsSpan(0x400, read2), PaddingMode.None);
+                            writer.Write(sector, 0x400, read2);
+                        }
+                        else
+                        {
+                            // IV for second sub-block = bytes [0x3D0..0x3DF] of the still-encrypted first sub-block
+                            sector.AsSpan(0x3D0, 0x10).CopyTo(ivTemp);
+
+                            // Decrypt first sub-block with zero IV
+                            Array.Clear(iv);
+                            aesTitle.DecryptCbc(sector.AsSpan(0, 0x400), iv, sector.AsSpan(0, 0x400), PaddingMode.None);
+                            writer.Write(sector, 0, 0x400);
+
+                            if (reader.Position >= reader.Length) break;
+
+                            int read2 = reader.Read(sector, 0x400, SECTOR_SIZE - 0x400);
+                            if (read2 <= 0) break;
+
+                            aesTitle.DecryptCbc(sector.AsSpan(0x400, read2), ivTemp, sector.AsSpan(0x400, read2), PaddingMode.None);
+                            writer.Write(sector, 0x400, read2);
+                        }
+
+                        partitionSize -= SECTOR_SIZE;
+                    }
+                }
+
+                sizeInfo[1] = curPos - sizeInfo[0];
+                if (partitionSize != 0)
+                    Log("WARNING: Last cluster was not complete. This may be a problem.");
             }
-            return null;
+
+            if (enc)
+            {
+                Log("");
+                Log("Writing zeros...");
+                long rest = curPos > 0x118240000 ? 0x1FB4E0000 - curPos : 0x118240000 - curPos;
+                int zeroTimer = 0;
+                int zeroCounter = 0;
+                byte[] zeroBuffer = System.Buffers.ArrayPool<byte>.Shared.Rent(SECTOR_SIZE);
+                Array.Clear(zeroBuffer, 0, SECTOR_SIZE);
+                try
+                {
+                    while (rest > 0)
+                    {
+                        _cancellationToken.ThrowIfCancellationRequested();
+                        if (zeroTimer == 8000)
+                        {
+                            zeroTimer = 0;
+                            zeroCounter++;
+                            Log((zeroCounter * 256) + " MB processed...");
+                        }
+                        zeroTimer++;
+                        int toWrite = rest > SECTOR_SIZE ? SECTOR_SIZE : (int)rest;
+                        writer.Write(zeroBuffer, 0, toWrite);
+                        rest -= SECTOR_SIZE;
+                    }
+                }
+                finally
+                {
+                    System.Buffers.ArrayPool<byte>.Shared.Return(zeroBuffer);
+                }
+                return null;
+            }
+            else
+            {
+                return sizeInfo;
+            }
         }
-        else
+        finally
         {
-            return sizeInfo;
+            System.Buffers.ArrayPool<byte>.Shared.Return(sector);
         }
     }
 
@@ -743,34 +774,42 @@ public class Nfs2Iso2Nfs(
         int numberOfParts = ReadBigEndianInt32(header, 0x10);
         Log(numberOfParts + " parts found...");
 
-        // Pre-allocate reusable buffers — eliminates per-sector heap allocations
-        byte[] sectorBuffer = new byte[SECTOR_SIZE];
-        byte[] zeroSector = new byte[SECTOR_SIZE]; // stays zero for the lifetime of the call
+        byte[] sectorBuffer = System.Buffers.ArrayPool<byte>.Shared.Rent(SECTOR_SIZE);
+        byte[] zeroSector = System.Buffers.ArrayPool<byte>.Shared.Rent(SECTOR_SIZE);
+        Array.Clear(zeroSector, 0, SECTOR_SIZE);
 
-        long pos = 0;
-        for (int i = 0; i < numberOfParts; i++)
+        try
         {
-            _cancellationToken.ThrowIfCancellationRequested();
-            long start = (long)SECTOR_SIZE * ReadBigEndianInt32(header, 0x14 + i * 8);
-            long length = (long)SECTOR_SIZE * ReadBigEndianInt32(header, 0x18 + i * 8);
-
-            long zeroCount = start - pos;
-            Log("Writing zero segment " + i + " of size 0x" + Convert.ToString(zeroCount, 16));
-            for (long j = 0; j < zeroCount; j += SECTOR_SIZE)
+            long pos = 0;
+            for (int i = 0; i < numberOfParts; i++)
             {
                 _cancellationToken.ThrowIfCancellationRequested();
-                writer.Write(zeroSector);
-            }
+                long start = (long)SECTOR_SIZE * ReadBigEndianInt32(header, 0x14 + i * 8);
+                long length = (long)SECTOR_SIZE * ReadBigEndianInt32(header, 0x18 + i * 8);
 
-            Log("Writing data segment " + i + " of size 0x" + Convert.ToString(length, 16));
-            for (long j = 0; j < length; j += SECTOR_SIZE)
-            {
-                _cancellationToken.ThrowIfCancellationRequested();
-                reader.ReadExactly(sectorBuffer);
-                writer.Write(sectorBuffer);
-            }
+                long zeroCount = start - pos;
+                Log("Writing zero segment " + i + " of size 0x" + Convert.ToString(zeroCount, 16));
+                for (long j = 0; j < zeroCount; j += SECTOR_SIZE)
+                {
+                    _cancellationToken.ThrowIfCancellationRequested();
+                    writer.Write(zeroSector, 0, SECTOR_SIZE);
+                }
 
-            pos = start + length;
+                Log("Writing data segment " + i + " of size 0x" + Convert.ToString(length, 16));
+                for (long j = 0; j < length; j += SECTOR_SIZE)
+                {
+                    _cancellationToken.ThrowIfCancellationRequested();
+                    reader.ReadExactly(sectorBuffer, 0, SECTOR_SIZE);
+                    writer.Write(sectorBuffer, 0, SECTOR_SIZE);
+                }
+
+                pos = start + length;
+            }
+        }
+        finally
+        {
+            System.Buffers.ArrayPool<byte>.Shared.Return(sectorBuffer);
+            System.Buffers.ArrayPool<byte>.Shared.Return(zeroSector);
         }
     }
 
@@ -788,32 +827,37 @@ public class Nfs2Iso2Nfs(
         int numberOfParts = ReadBigEndianInt32(header, 0x10);
         Log("Packing " + numberOfParts + " parts...");
 
-        // Pre-allocate a reusable sector buffer — eliminates per-sector heap allocations
-        byte[] sectorBuffer = new byte[SECTOR_SIZE];
-        long pos = 0;
-
-        for (int i = 0; i < numberOfParts; i++)
+        byte[] sectorBuffer = System.Buffers.ArrayPool<byte>.Shared.Rent(SECTOR_SIZE);
+        try
         {
-            _cancellationToken.ThrowIfCancellationRequested();
-            long start = (long)SECTOR_SIZE * ReadBigEndianInt32(header, 0x14 + i * 8);
-            long length = (long)SECTOR_SIZE * ReadBigEndianInt32(header, 0x18 + i * 8);
+            long pos = 0;
 
-            long skipCount = start - pos;
-            Log("Delete zero segment " + i + " of size 0x" + Convert.ToString(skipCount, 16));
-            // Skip zero-filled segments without reading them into memory
-            reader.Seek(skipCount, SeekOrigin.Current);
-
-            Log("Writing data segment " + i + " of size 0x" + Convert.ToString(length, 16));
-            for (long j = 0; j < length; j += SECTOR_SIZE)
+            for (int i = 0; i < numberOfParts; i++)
             {
                 _cancellationToken.ThrowIfCancellationRequested();
-                reader.ReadExactly(sectorBuffer);
-                writer.Write(sectorBuffer);
-            }
+                long start = (long)SECTOR_SIZE * ReadBigEndianInt32(header, 0x14 + i * 8);
+                long length = (long)SECTOR_SIZE * ReadBigEndianInt32(header, 0x18 + i * 8);
 
-            pos = start + length;
+                long skipCount = start - pos;
+                Log("Delete zero segment " + i + " of size 0x" + Convert.ToString(skipCount, 16));
+                reader.Seek(skipCount, SeekOrigin.Current);
+
+                Log("Writing data segment " + i + " of size 0x" + Convert.ToString(length, 16));
+                for (long j = 0; j < length; j += SECTOR_SIZE)
+                {
+                    _cancellationToken.ThrowIfCancellationRequested();
+                    reader.ReadExactly(sectorBuffer, 0, SECTOR_SIZE);
+                    writer.Write(sectorBuffer, 0, SECTOR_SIZE);
+                }
+
+                pos = start + length;
+            }
+            return header;
         }
-        return header;
+        finally
+        {
+            System.Buffers.ArrayPool<byte>.Shared.Return(sectorBuffer);
+        }
     }
 
     public void EnDecryptNFS(string inFile, string outFile, byte[] key, byte[] iv, bool encrypt, byte[] header)

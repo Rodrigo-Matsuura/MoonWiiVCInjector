@@ -6,6 +6,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Moon_WiiVC_Injector.Services;
 
 namespace Moon_WiiVC_Injector;
 public class BuildOptions
@@ -68,7 +69,7 @@ public class BuildEngine(BuildOptions options, IProgress<(string Message, double
         string logLine = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {message}";
         _logLines.Add(logLine);
         _onLogMessage?.Invoke(logLine);
-        Debug.WriteLine(logLine);
+        AppLogger.Info(message);
     }
 
     public async Task SaveLogAsync(string outputPath)
@@ -85,7 +86,7 @@ public class BuildEngine(BuildOptions options, IProgress<(string Message, double
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"Failed to write log file: {ex.Message}");
+            AppLogger.Error($"Failed to write log file to {outputPath}", ex);
         }
     }
 

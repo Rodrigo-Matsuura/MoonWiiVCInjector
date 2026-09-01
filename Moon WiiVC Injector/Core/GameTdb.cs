@@ -1,15 +1,22 @@
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
 using System.Reflection;
+using Moon_WiiVC_Injector.Services;
 
 namespace Moon_WiiVC_Injector;
+
 public class GameTdb
 {
     private const string ResourcePath = "Moon_WiiVC_Injector.Resources.wiitdb.txt";
     private static readonly Assembly CurrentAssembly = Assembly.GetExecutingAssembly();
 
     // Caches estáticos em memória
-    private static readonly Dictionary<string, string> NameById = new Dictionary<string, string>(StringComparer.Ordinal);
-    private static readonly Dictionary<string, List<string>> IdsByName = new Dictionary<string, List<string>>(StringComparer.Ordinal);
-    private static readonly List<string> SortedIds = new List<string>();
+    private static readonly Dictionary<string, string> NameById = new(StringComparer.Ordinal);
+    private static readonly Dictionary<string, List<string>> IdsByName = new(StringComparer.Ordinal);
+    private static readonly List<string> SortedIds = [];
 
     static GameTdb()
     {
@@ -18,7 +25,7 @@ public class GameTdb
             using var stream = CurrentAssembly.GetManifestResourceStream(ResourcePath);
             if (stream == null)
             {
-                System.Diagnostics.Debug.WriteLine($"[GameTdb] Warning: Embedded resource '{ResourcePath}' not found.");
+                AppLogger.Warning($"[GameTdb] Embedded resource '{ResourcePath}' not found.");
                 return;
             }
 
@@ -47,10 +54,14 @@ public class GameTdb
 
                 SortedIds.Add(id);
             }
+
+            // Ensure the list is sorted for binary search
+            SortedIds.Sort(StringComparer.Ordinal);
+            AppLogger.DebugLog($"[GameTdb] Database loaded successfully with {SortedIds.Count} entries.");
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"[GameTdb] Error loading database: {ex.Message}");
+            AppLogger.Error("[GameTdb] Error loading database", ex);
         }
     }
 
@@ -62,8 +73,8 @@ public class GameTdb
 
     public static List<string> GetIds(string name)
     {
-        if (string.IsNullOrEmpty(name)) return new List<string>();
-        return IdsByName.TryGetValue(name, out var ids) ? new List<string>(ids) : new List<string>();
+        if (string.IsNullOrEmpty(name)) return [];
+        return IdsByName.TryGetValue(name, out var ids) ? new List<string>(ids) : [];
     }
 
     public static List<string> GetIdsStartingWith(string idStart)
@@ -71,19 +82,19 @@ public class GameTdb
         var ids = new List<string>();
         if (string.IsNullOrEmpty(idStart)) return ids;
 
-        var idStartSpan = idStart.AsSpan();
-
-        foreach (var id in SortedIds)
+        // O(log N) Binary Search to locate starting prefix
+        int index = SortedIds.BinarySearch(idStart, StringComparer.Ordinal);
+        if (index < 0)
         {
-            if (id.StartsWith(idStart, StringComparison.Ordinal))
-            {
-                ids.Add(id);
-            }
-            else if (id.Length >= idStart.Length && idStartSpan.CompareTo(id.AsSpan(0, idStart.Length), StringComparison.Ordinal) < 0)
-            {
-                break;
-            }
+            index = ~index;
         }
+
+        while (index < SortedIds.Count && SortedIds[index].StartsWith(idStart, StringComparison.Ordinal))
+        {
+            ids.Add(SortedIds[index]);
+            index++;
+        }
+
         return ids;
     }
 
@@ -95,11 +106,11 @@ public class GameTdb
             yield break;
         }
 
-        var tried = new HashSet<string>
+        var tried = new HashSet<string>(StringComparer.Ordinal)
         {
             initialId,
             initialId.ReplaceAt(3, 'E'),
-            initialId.ReplaceAt(3, 'P'),
+            initialId.ReplaceAt(3, 'P')
         };
 
         foreach (var id in tried)
@@ -119,9 +130,8 @@ public class GameTdb
             }
         }
 
-        // as last resort, try a match on only the 3 first characters of
-        // the key (e.g. for Obscure 2)
-        var moreIds = GetIdsStartingWith(initialId.Substring(0, 3))
+        // as last resort, try a match on only the 3 first characters of the key
+        var moreIds = GetIdsStartingWith(initialId[..3])
             .Where(id => !tried.Contains(id));
 
         foreach (var id in moreIds)
@@ -137,9 +147,13 @@ internal static class StringExtensions
     {
         if (input == null)
             throw new ArgumentNullException(nameof(input));
+        if (index < 0 || index >= input.Length)
+            throw new ArgumentOutOfRangeException(nameof(index));
 
-        char[] chars = input.ToCharArray();
-        chars[index] = newChar;
-        return new string(chars);
+        return string.Create(input.Length, (input, index, newChar), static (span, state) =>
+        {
+            state.input.AsSpan().CopyTo(span);
+            span[state.index] = state.newChar;
+        });
     }
 }

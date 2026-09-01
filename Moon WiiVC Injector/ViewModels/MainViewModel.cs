@@ -237,6 +237,8 @@ public partial class MainViewModel : ViewModelBase
     public MainViewModel(IDialogService dialogService)
     {
         _dialogService = dialogService;
+        AppLogger.SetListener(AppendLogMessage);
+        AppLogger.Info("Moon WiiVC Injector initialized.");
         _setupTask = SetupEnvironmentAsync();
         LoadStoredKeys();
     }
@@ -245,11 +247,12 @@ public partial class MainViewModel : ViewModelBase
     {
         await Task.Run(() =>
         {
+            AppLogger.DebugLog($"Setting up temporary environment in: {TempRootPath}");
             if (Directory.Exists(TempRootPath))
             {
-                try { Directory.Delete(TempRootPath, true); } catch { }
+                FileUtil.SafeDeleteDirectory(TempRootPath);
             }
-            try { Directory.CreateDirectory(TempRootPath); } catch { }
+            try { Directory.CreateDirectory(TempRootPath); } catch (Exception ex) { AppLogger.Error("Failed to create TempRootPath", ex); }
 
             try
             {
@@ -266,15 +269,22 @@ public partial class MainViewModel : ViewModelBase
                         File.SetUnixFileMode(c2wPath, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute | UnixFileMode.GroupRead | UnixFileMode.GroupExecute | UnixFileMode.OtherRead | UnixFileMode.OtherExecute);
                     }
                 }
+                AppLogger.DebugLog("Tool directory extracted and permissions verified.");
             }
-            catch { }
+            catch (Exception ex)
+            {
+                AppLogger.Error("Failed to extract tools from resources", ex);
+            }
 
             try
             {
                 Directory.CreateDirectory(TempSourcePath);
                 Directory.CreateDirectory(TempBuildPath);
             }
-            catch { }
+            catch (Exception ex)
+            {
+                AppLogger.Error("Failed to create Source/Build directories", ex);
+            }
         });
     }
 
