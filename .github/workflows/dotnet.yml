@@ -1,26 +1,25 @@
-name: .NET Framework Build
+name: .NET Build
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "NET-update" ]
   pull_request:
-    branches: [ "main" ]
+    branches: [ "main", "NET-update" ]
 
 jobs:
   build:
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
 
     steps:
     - uses: actions/checkout@v4
 
-    - name: Setup MSBuild
-      uses: microsoft/setup-msbuild@v2
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '9.0.x'
 
-    - name: Setup NuGet
-      uses: NuGet/setup-nuget@v2
+    - name: Restore dependencies
+      run: dotnet restore "Moon WiiVC Injector.sln"
 
-    - name: Restore NuGet Packages
-      run: nuget restore "TeconMoon's WiiVC Injector.sln"
-
-    - name: Build Solution
-      run: msbuild "TeconMoon's WiiVC Injector.sln" /p:Configuration=Release
+    - name: Build
+      run: dotnet build "Moon WiiVC Injector.sln" --no-restore --configuration Release

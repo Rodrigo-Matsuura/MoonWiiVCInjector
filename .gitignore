@@ -1,4 +1,15 @@
-TeconMoon's WiiVC Injector/bin/*
-TeconMoon's WiiVC Injector/obj/*
-.vs/*
+# C# Build Outputs
+[Bb]in/
+[Oo]bj/
+
+# Build and Publish Directories
+[Bb]uild/
+[Bb]uild-win/
+publish/
+
+# Packaging outputs
+*.zip
+
+# Visual Studio Cache
+.vs/
 /packages

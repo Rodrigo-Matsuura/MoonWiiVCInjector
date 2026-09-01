@@ -1,0 +1,223 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Moon_WiiVC_Injector.ViewModels"
+        x:Class="Moon_WiiVC_Injector.MainWindow"
+        x:DataType="vm:MainViewModel"
+        Title="Moon WiiVC Injector - [1.0.0]"
+        Width="680"
+        Height="620"
+        WindowStartupLocation="CenterScreen"
+        Background="#f0f0f0"
+        Foreground="Black"
+        DragDrop.AllowDrop="True">
+
+  <Grid RowDefinitions="Auto,*,Auto" Margin="10">
+    <!-- Top Area: Radio Buttons & SD Card Button -->
+    <Grid Grid.Row="0" RowDefinitions="Auto,Auto" ColumnDefinitions="*,Auto" Margin="0,0,0,10">
+      <StackPanel Grid.Row="0" Grid.Column="0" Orientation="Horizontal" Spacing="24" Margin="0,0,0,8">
+        <RadioButton Name="WiiRetail" Content="Wii Retail Injection" IsChecked="{Binding IsWiiRetail, Mode=TwoWay}" GroupName="Type"/>
+        <RadioButton Name="WiiHomebrew" Content="Wii Homebrew Injection" IsChecked="{Binding IsWiiHomebrew, Mode=TwoWay}" GroupName="Type"/>
+        <RadioButton Name="GCRetail" Content="GC Retail Injection" IsChecked="{Binding IsGCRetail, Mode=TwoWay}" GroupName="Type"/>
+      </StackPanel>
+      <StackPanel Grid.Row="1" Grid.Column="0" Orientation="Horizontal">
+        <RadioButton Name="WiiNAND" Content="vWii NAND Title Launcher" IsChecked="{Binding IsWiiNAND, Mode=TwoWay}" GroupName="Type"/>
+      </StackPanel>
+      <Button Grid.Row="1" Grid.Column="1" Name="SdCardMenuButton" Content="Nintendont SD Card Menu" Command="{Binding OpenSdCardMenuCommand}" Width="180" HorizontalContentAlignment="Center"/>
+    </Grid>
+
+    <!-- Tab Control -->
+    <TabControl Grid.Row="1" Name="MainTabs" IsEnabled="{Binding !IsBuilding}" BorderBrush="#adadad" BorderThickness="1" Padding="0">
+      
+      <!-- Tab 1: Required Source Files -->
+      <TabItem Header="Required Source Files">
+        <Grid ColumnDefinitions="160,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,*" Margin="10">
+          <!-- Game Select -->
+          <Button Grid.Row="0" Grid.Column="0" Name="GameSourceButton" Content="Game..." Command="{Binding SelectGameCommand}" IsEnabled="{Binding CanSelectGame}" Width="140" HorizontalContentAlignment="Center" Margin="0,0,0,6"/>
+          <TextBox Grid.Row="0" Grid.Column="1" Name="GameSourceDirectory" IsReadOnly="True" Text="{Binding GameSourceText}" VerticalAlignment="Center" Margin="0,0,0,6"/>
+
+          <!-- Icon Select -->
+          <Button Grid.Row="1" Grid.Column="0" Name="IconSourceButton" Content="Icon..." Command="{Binding SelectIconCommand}" Width="140" HorizontalContentAlignment="Center" Margin="0,0,0,6"/>
+          <TextBox Grid.Row="1" Grid.Column="1" Name="IconSourceDirectory" IsReadOnly="True" Text="{Binding IconSourceText}" VerticalAlignment="Center" Margin="0,0,0,6"/>
+
+          <!-- Banner Select -->
+          <Button Grid.Row="2" Grid.Column="0" Name="BannerSourceButton" Content="Banner..." Command="{Binding SelectBannerCommand}" Width="140" HorizontalContentAlignment="Center" Margin="0,0,0,10"/>
+          <TextBox Grid.Row="2" Grid.Column="1" Name="BannerSourceDirectory" IsReadOnly="True" Text="{Binding BannerSourceText}" VerticalAlignment="Center" Margin="0,0,0,10"/>
+
+          <!-- Internal Info & Generate Button -->
+          <StackPanel Grid.Row="3" Grid.Column="0" Spacing="14" VerticalAlignment="Center">
+            <TextBlock Name="IGNText" Text="Internal Game Name:"/>
+            <TextBlock Name="ITIDText" Text="Internal Game Title ID:"/>
+          </StackPanel>
+          <Grid Grid.Row="3" Grid.Column="1" ColumnDefinitions="*,130" RowDefinitions="Auto,Auto" Margin="0,0,0,10">
+            <TextBox Grid.Row="0" Grid.Column="0" Name="InternalGameName" IsReadOnly="True" Text="{Binding InternalGameNameDisplay}" Margin="0,0,6,4"/>
+            <TextBox Grid.Row="1" Grid.Column="0" Name="InternalGameID" IsReadOnly="True" Text="{Binding InternalGameIDDisplay}" Margin="0,0,6,0"/>
+            <Button Grid.Row="0" Grid.RowSpan="2" Grid.Column="1" Name="SettingsButton" Content="Settings" Command="{Binding OpenSettingsCommand}" Width="120" Height="50" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"/>
+          </Grid>
+
+          <!-- Previews & Repo Button -->
+          <Grid Grid.Row="4" Grid.ColumnSpan="2" ColumnDefinitions="160,*" Margin="0,6,0,0">
+            <!-- Left Side: Repo and Icon Preview -->
+            <StackPanel Grid.Column="0" Spacing="6" HorizontalAlignment="Left">
+              <Button Name="RepoDownload" Content="Download images from&#x0a;cucholix's repo" Command="{Binding DownloadRepoCommand}" IsEnabled="{Binding CanDownloadRepo}" Width="140" Height="40" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"/>
+              <TextBlock Text="Icon Preview (128x128)" Margin="0,4,0,2"/>
+              <Border Width="128" Height="128" BorderBrush="#adadad" BorderThickness="1" Background="White" HorizontalAlignment="Left">
+                <Image Name="IconPreviewBox" Source="{Binding IconPreview}" Width="128" Height="128"/>
+              </Border>
+            </StackPanel>
+            
+            <!-- Right Side: Banner Preview -->
+            <StackPanel Grid.Column="1" Spacing="4">
+              <TextBlock Text="Banner Preview (1280x720)"/>
+              <Border Height="176" BorderBrush="#adadad" BorderThickness="1" Background="White">
+                <Image Name="BannerPreviewBox" Source="{Binding BannerPreview}" Stretch="Uniform"/>
+              </Border>
+            </StackPanel>
+          </Grid>
+        </Grid>
+      </TabItem>
+
+      <!-- Tab 2: Optional Source Files -->
+      <TabItem Header="Optional Source Files">
+        <Grid ColumnDefinitions="160,*" RowDefinitions="Auto,Auto,Auto,Auto,*" Margin="10">
+          <Button Grid.Row="0" Grid.Column="0" Name="GC2SourceButton" Content="2nd GC Disc" Command="{Binding SelectGC2Command}" IsEnabled="{Binding IsGCSelected}" Width="140" HorizontalContentAlignment="Center" Margin="0,0,0,6"/>
+          <TextBox Grid.Row="0" Grid.Column="1" Name="GC2SourceDirectory" IsReadOnly="True" Text="{Binding GC2SourceText}" VerticalAlignment="Center" Margin="0,0,0,6"/>
+
+          <Button Grid.Row="1" Grid.Column="0" Name="BootSoundButton" Content="Boot Sound..." Command="{Binding SelectBootSoundCommand}" Width="140" HorizontalContentAlignment="Center" Margin="0,0,0,6"/>
+          <Grid Grid.Row="1" Grid.Column="1" ColumnDefinitions="*,Auto,Auto" Margin="0,0,0,6">
+            <TextBox Grid.Column="0" Name="BootSoundDirectory" IsReadOnly="True" Text="{Binding BootSoundText}" VerticalAlignment="Center"/>
+            <CheckBox Grid.Column="2" Name="ToggleBootSoundLoop" Content="Loop" IsChecked="{Binding ToggleBootSoundLoop}" Margin="8,0,0,0"/>
+          </Grid>
+
+          <Button Grid.Row="2" Grid.Column="0" Name="LogoSourceButton" Content="Boot Logo..." Command="{Binding SelectLogoCommand}" Width="140" HorizontalContentAlignment="Center" Margin="0,0,0,6"/>
+          <TextBox Grid.Row="2" Grid.Column="1" Name="LogoSourceDirectory" IsReadOnly="True" Text="{Binding LogoSourceText}" VerticalAlignment="Center" Margin="0,0,0,6"/>
+
+          <Button Grid.Row="3" Grid.Column="0" Name="DrcSourceButton" Content="GamePad Banner..." Command="{Binding SelectDrcCommand}" Width="140" HorizontalContentAlignment="Center" Margin="0,0,0,10"/>
+          <TextBox Grid.Row="3" Grid.Column="1" Name="DrcSourceDirectory" IsReadOnly="True" Text="{Binding DrcSourceText}" VerticalAlignment="Center" Margin="0,0,0,10"/>
+
+          <!-- Optional Previews -->
+          <Grid Grid.Row="4" Grid.ColumnSpan="2" ColumnDefinitions="180,*" Margin="0,10,0,0">
+            <StackPanel Grid.Column="0" Spacing="4">
+              <TextBlock Text="Boot Logo Preview (170x42)"/>
+              <Border Width="170" Height="42" BorderBrush="#adadad" BorderThickness="1" Background="White" HorizontalAlignment="Left">
+                <Image Name="LogoPreviewBox" Source="{Binding LogoPreview}" Stretch="Uniform"/>
+              </Border>
+            </StackPanel>
+            <StackPanel Grid.Column="1" Spacing="4">
+              <TextBlock Text="GamePad Banner Preview (854x480)"/>
+              <Border Height="140" BorderBrush="#adadad" BorderThickness="1" Background="White">
+                <Image Name="DrcPreviewBox" Source="{Binding DrcPreview}" Stretch="Uniform"/>
+              </Border>
+            </StackPanel>
+          </Grid>
+        </Grid>
+      </TabItem>
+
+      <!-- Tab 3: GamePad/Meta Options -->
+      <TabItem Header="GamePad/Meta Options">
+        <StackPanel Margin="10" Spacing="10">
+          <Border BorderBrush="#adadad" BorderThickness="1" Padding="10">
+            <StackPanel Spacing="6">
+              <TextBlock Text="GamePad Emulation Mode (Only applicable for Wii Retail Injections / vWii NAND Title Launcher)" FontWeight="SemiBold"/>
+              <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto,Auto">
+                <RadioButton Grid.Row="0" Grid.Column="0" Name="NoGamePadEmu" Content="No GamePad emulation, Wii Remotes only" IsChecked="{Binding NoGamePadEmu}" GroupName="GPEmu"/>
+                <RadioButton Grid.Row="0" Grid.Column="1" Name="ForceCC" Content="*Force Classic Controller Connected" IsChecked="{Binding ForceCC}" GroupName="GPEmu"/>
+                <RadioButton Grid.Row="1" Grid.Column="0" Name="CCEmu" Content="Classic Controller Emulation" IsChecked="{Binding CcEmu}" GroupName="GPEmu"/>
+                <RadioButton Grid.Row="1" Grid.Column="1" Name="ForceNoCC" Content="*Force No Classic Controller" IsChecked="{Binding ForceNoCC}" GroupName="GPEmu"/>
+                <RadioButton Grid.Row="2" Grid.Column="0" Name="HorWiiMote" Content="**Horizontal Wii Remote emulation" IsChecked="{Binding HorWiiMote}" GroupName="GPEmu"/>
+                <RadioButton Grid.Row="2" Grid.Column="1" Name="VerWiiMote" Content="**Vertical Wii Remote Emulation" IsChecked="{Binding VerWiiMote}" GroupName="GPEmu"/>
+              </Grid>
+            </StackPanel>
+          </Border>
+
+          <CheckBox Name="LRPatch" Content="Swap L &amp; R with ZL &amp; ZR" IsChecked="{Binding LrPatch}"/>
+
+          <StackPanel Spacing="4">
+            <TextBlock Text="Name to use for Packaged Title (ACCENT CHARACTERS NOT SUPPORTED)"/>
+            <TextBox Name="PackedTitleLine1" Text="{Binding PackedTitleLine1}"/>
+            <CheckBox Name="EnablePackedLine2" Content="Use Line 2" IsChecked="{Binding EnablePackedLine2}"/>
+            <TextBox Name="PackedTitleLine2" Text="{Binding PackedTitleLine2}" PlaceholderText="(Optional) Line 2"/>
+          </StackPanel>
+
+          <StackPanel Spacing="4">
+            <TextBlock Text="Pre-generated Title ID (Changing this is not recommended)"/>
+            <TextBox Name="PackedTitleIDLine" Text="{Binding PackedTitleIDLine}" Width="200" HorizontalAlignment="Left"/>
+          </StackPanel>
+        </StackPanel>
+      </TabItem>
+
+      <!-- Tab 4: Advanced -->
+      <TabItem Header="Advanced">
+        <StackPanel Margin="10" Spacing="10">
+          <TextBlock Text="Wii Retail Injection / vWii NAND Title Launcher Patches" FontWeight="SemiBold"/>
+          <CheckBox Name="Wiimmfi" Content="Patch game to use the Wiimmfi server for online play (Wii Retail only)" IsChecked="{Binding Wiimmfi}"/>
+          <CheckBox Name="WiiVMC" Content="Patch video mode with Wii-VMC (Wii Retail only, opens new window)" IsChecked="{Binding WiiVMC}"/>
+          <CheckBox Name="DisableGamePad" Content="Don't use GamePad as controller (Won't prompt for usage)" IsChecked="{Binding DisableGamePad}"/>
+          <CheckBox Name="DisableTrimming" Content="Don't trim game output (Wii Retail only)" IsChecked="{Binding DisableTrimming}"/>
+          <CheckBox Name="DisableNintendontAutoboot" Content="Disable Autoboot" IsChecked="{Binding DisableNintendontAutoboot}"/>
+          <CheckBox Name="C2WPatchFlag" Content="Enable cafe2wii patching (NOT RECOMMENDED)" IsChecked="{Binding C2WPatchFlag}"/>
+
+          <Border Name="AncastKeyBorder" BorderBrush="#adadad" BorderThickness="1" Padding="10" Margin="0,10,0,0" IsVisible="{Binding IsAncastKeyVisible}">
+            <StackPanel Spacing="6">
+              <TextBlock Text="Wii U Ancast Key" FontWeight="SemiBold"/>
+              <Grid ColumnDefinitions="*,Auto">
+                <TextBox Grid.Column="0" Name="AncastKey" Text="{Binding AncastKey}" IsReadOnly="{Binding IsAncastKeyReadOnly}" DoubleTapped="OnKeyTextBoxDoubleTapped"/>
+                <Button Grid.Column="1" Name="SaveAncastKeyButton" Content="Save Key" Command="{Binding SaveAncastKeyCommand}" IsEnabled="{Binding !IsAncastKeyValid}" Margin="4,0,0,0"/>
+              </Grid>
+            </StackPanel>
+          </Border>
+        </StackPanel>
+      </TabItem>
+
+      <!-- Tab 5: Build Title -->
+      <TabItem Header="Build Title">
+        <Grid ColumnDefinitions="*,*" Margin="10">
+          <StackPanel Grid.Column="0" Spacing="8">
+            <TextBlock Text="Requirements Checklist" FontWeight="SemiBold"/>
+            <CheckBox Name="SourceCheck" Classes="checklist" Content="Source files specified" IsChecked="{Binding SourceCheck}" IsHitTestVisible="False" Focusable="False"/>
+            <CheckBox Name="MetaCheck" Classes="checklist" Content="Metadata specified" IsChecked="{Binding MetaCheck}" IsHitTestVisible="False" Focusable="False"/>
+            <CheckBox Name="KeysCheck" Classes="checklist" Content="Common &amp; Title keys specified" IsChecked="{Binding KeysCheck}" IsHitTestVisible="False" Focusable="False"/>
+            <CheckBox Name="AdvanceCheck" Classes="checklist" Content="Advanced configuration done" IsChecked="{Binding AdvanceCheck}" IsHitTestVisible="False" Focusable="False"/>
+
+            <Border BorderBrush="#adadad" BorderThickness="1" Padding="10" Margin="0,10,0,0">
+              <StackPanel Spacing="6">
+                <TextBlock Text="Keys Configuration" FontWeight="SemiBold"/>
+                <TextBlock Text="Wii U Common Key:"/>
+                <Grid ColumnDefinitions="*,Auto">
+                  <TextBox Grid.Column="0" Name="WiiUCommonKey" Text="{Binding WiiUCommonKey}" IsReadOnly="{Binding IsCommonKeyReadOnly}" DoubleTapped="OnKeyTextBoxDoubleTapped"/>
+                  <Button Grid.Column="1" Name="SaveCommonKeyButton" Content="Save" Command="{Binding SaveCommonKeyCommand}" IsEnabled="{Binding !IsCommonKeyValid}" Margin="4,0,0,0"/>
+                </Grid>
+                <TextBlock Text="Rhythm Heaven Fever Title Key:"/>
+                <Grid ColumnDefinitions="*,Auto">
+                  <TextBox Grid.Column="0" Name="TitleKey" Text="{Binding TitleKey}" IsReadOnly="{Binding IsTitleKeyReadOnly}" DoubleTapped="OnKeyTextBoxDoubleTapped"/>
+                  <Button Grid.Column="1" Name="SaveTitleKeyButton" Content="Save" Command="{Binding SaveTitleKeyCommand}" IsEnabled="{Binding !IsTitleKeyValid}" Margin="4,0,0,0"/>
+                </Grid>
+              </StackPanel>
+            </Border>
+          </StackPanel>
+
+          <StackPanel Grid.Column="1" Margin="20,0,0,0" VerticalAlignment="Center" Spacing="12">
+            <Grid ColumnDefinitions="*,Auto">
+              <Button Grid.Column="0" Name="TheBigOneTM" Content="BUILD TITLE" Command="{Binding BuildCommand}" IsEnabled="{Binding CanBuild}" Height="50" FontSize="14" FontWeight="Bold" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"/>
+              <Button Grid.Column="1" Name="CancelBuildButton" Content="Cancel" Command="{Binding CancelBuildCommand}" IsVisible="{Binding CanCancel}" IsEnabled="{Binding CanCancel}" Height="50" Width="80" Margin="8,0,0,0" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"/>
+            </Grid>
+            <ProgressBar Name="BuildProgress" Value="{Binding BuildProgress}" Height="20" Minimum="0" Maximum="100" ShowProgressText="True"/>
+            <TextBlock Name="BuildStatus" Text="{Binding BuildStatus}" TextAlignment="Center" FontWeight="SemiBold"/>
+          </StackPanel>
+        </Grid>
+      </TabItem>
+
+      <!-- Tab 6: Build Logs -->
+      <TabItem Header="Build Logs">
+        <Grid RowDefinitions="*,Auto" Margin="10">
+          <TextBox Grid.Row="0" Name="LogOutputBox" Text="{Binding LogOutput}" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" FontFamily="Consolas, monospace" FontSize="11" Background="#1e1e1e" Foreground="#d4d4d4"/>
+          <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="8" Margin="0,8,0,0" HorizontalAlignment="Right">
+            <Button Name="CopyLogsButton" Content="Copy Logs" Command="{Binding CopyLogsCommand}" Width="100" HorizontalContentAlignment="Center"/>
+            <Button Name="ClearLogsButton" Content="Clear" Command="{Binding ClearLogsCommand}" Width="80" HorizontalContentAlignment="Center"/>
+            <Button Name="OpenLogFolderButton" Content="Open Log Folder" Command="{Binding OpenLogFolderCommand}" Width="130" HorizontalContentAlignment="Center"/>
+          </StackPanel>
+        </Grid>
+      </TabItem>
+      
+    </TabControl>
+  </Grid>
+</Window>

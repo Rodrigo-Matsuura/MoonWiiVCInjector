@@ -1,0 +1,89 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Moon_WiiVC_Injector.ViewModels"
+        x:Class="Moon_WiiVC_Injector.SdCardMenuAvalonia"
+        x:DataType="vm:SdCardViewModel"
+        Title="Nintendont SD Card Menu..."
+        Width="340" Height="580">
+  <ScrollViewer>
+    <StackPanel Margin="8" Spacing="8">
+      <ComboBox ItemsSource="{Binding Drives}" SelectedIndex="{Binding SelectedDriveIndex}" SelectedItem="{Binding SelectedDrive}" HorizontalAlignment="Stretch"/>
+      <TextBlock Text="Choose your SD Card" />
+      <StackPanel Orientation="Horizontal" Spacing="8">
+        <Button Content="Reload Drive List" Command="{Binding ReloadDrivesCommand}"/>
+        <TextBlock Text="Use this to format your SD Card" VerticalAlignment="Center" />
+      </StackPanel>
+      <TextBlock Text="{Binding ActionStatus}" TextAlignment="Center" />
+      <Button Content="Download Latest Nintendont from GitHub" Command="{Binding UpdateNintendontCommand}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
+
+      <Border BorderBrush="#adadad" BorderThickness="1" CornerRadius="4" Padding="8">
+        <StackPanel Spacing="8">
+          <TextBlock Text="Nintendont Configuration" FontWeight="Bold"/>
+          <WrapPanel>
+            <StackPanel Width="140">
+              <TextBlock Text="Memcard Blocks" HorizontalAlignment="Center" />
+              <ComboBox SelectedIndex="{Binding MemcardBlocksIndex}" HorizontalAlignment="Stretch">
+                <ComboBoxItem Content="59" />
+                <ComboBoxItem Content="123" />
+                <ComboBoxItem Content="251" />
+                <ComboBoxItem Content="507 (Unstable)" />
+                <ComboBoxItem Content="1019 (Unstable)" />
+                <ComboBoxItem Content="2043 (Unstable)" />
+              </ComboBox>
+            </StackPanel>
+
+            <StackPanel Width="140" Margin="12,0,0,0">
+              <TextBlock Text="Video Mode" HorizontalAlignment="Center" />
+              <ComboBox SelectedIndex="{Binding VideoForceModeIndex}" HorizontalAlignment="Stretch">
+                <ComboBoxItem Content="Auto" />
+                <ComboBoxItem Content="Force" />
+                <ComboBoxItem Content="Force (Deflicker)" />
+                <ComboBoxItem Content="None" />
+              </ComboBox>
+              <ComboBox SelectedIndex="{Binding VideoTypeModeIndex}" HorizontalAlignment="Stretch" Margin="0,4,0,0">
+                <ComboBoxItem Content="Auto" />
+                <ComboBoxItem Content="NTSC" />
+                <ComboBoxItem Content="MPAL" />
+                <ComboBoxItem Content="PAL50" />
+                <ComboBoxItem Content="PAL60" />
+              </ComboBox>
+              <TextBlock Text="Video Width" Margin="0,4,0,0"/>
+              <Slider Minimum="640" Maximum="720" SmallChange="2" Value="{Binding VideoWidth}" />
+              <TextBlock Text="{Binding VideoWidthText}" HorizontalAlignment="Center" />
+            </StackPanel>
+          </WrapPanel>
+
+          <TextBlock Text="Language" HorizontalAlignment="Center" />
+          <ComboBox SelectedIndex="{Binding LanguageIndex}" HorizontalAlignment="Stretch">
+            <ComboBoxItem Content="Automatic" />
+            <ComboBoxItem Content="English" />
+            <ComboBoxItem Content="German" />
+            <ComboBoxItem Content="French" />
+            <ComboBoxItem Content="Spanish" />
+            <ComboBoxItem Content="Italian" />
+            <ComboBoxItem Content="Dutch" />
+          </ComboBox>
+
+          <TextBlock Text="Options" FontWeight="SemiBold"/>
+          <ItemsControl ItemsSource="{Binding Options}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate DataType="vm:OptionItem">
+                <CheckBox Content="{Binding Name}" IsChecked="{Binding IsChecked, Mode=TwoWay}" Margin="0,2"/>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+
+          <TextBlock Text="Wii U Gamepad Slot" />
+          <ComboBox SelectedIndex="{Binding WiiUGamepadSlotIndex}" HorizontalAlignment="Stretch">
+            <ComboBoxItem Content="1" />
+            <ComboBoxItem Content="2" />
+            <ComboBoxItem Content="3" />
+            <ComboBoxItem Content="4" />
+          </ComboBox>
+
+          <Button Content="Generate Nintendont Config File (nincfg.bin)" Command="{Binding GenerateConfigCommand}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Margin="0,8,0,0"/>
+        </StackPanel>
+      </Border>
+    </StackPanel>
+  </ScrollViewer>
+</Window>
