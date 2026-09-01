@@ -639,10 +639,32 @@ public class BuildEngine(BuildOptions options, IProgress<(string Message, double
 
         Log($"Launching program: {exeFile} {arguments}");
 
-        if (Environment.OSVersion.Platform == PlatformID.Unix)
+        string fileName = Path.GetFileName(exeFile).ToLowerInvariant();
+        string jarFile = Path.ChangeExtension(exeFile, ".jar");
+        if (!File.Exists(jarFile))
         {
-            string fileName = Path.GetFileName(exeFile).ToLowerInvariant();
+            string localJar = Path.Combine(_options.TempToolsPath, "JAR", Path.ChangeExtension(Path.GetFileName(exeFile), ".jar"));
+            if (File.Exists(localJar))
+            {
+                jarFile = localJar;
+            }
+            else
+            {
+                string fallbackJar = Path.Combine(!string.IsNullOrWhiteSpace(workingDirectory) ? workingDirectory : _options.TempRootPath, Path.ChangeExtension(Path.GetFileName(exeFile), ".jar"));
+                if (File.Exists(fallbackJar))
+                {
+                    jarFile = fallbackJar;
+                }
+            }
+        }
 
+        if (File.Exists(jarFile))
+        {
+            targetExe = "java";
+            targetArgs = $"-jar \"{jarFile}\" {arguments}";
+        }
+        else if (Environment.OSVersion.Platform == PlatformID.Unix)
+        {
             if (fileName == "wit.exe" && IsCommandAvailable("wit"))
             {
                 targetExe = "wit";
@@ -670,41 +692,10 @@ public class BuildEngine(BuildOptions options, IProgress<(string Message, double
                     targetArgs = $"\"{exeFile}\" {arguments}";
                 }
             }
-            else
+            else if (exeFile.EndsWith(".exe") || exeFile.Contains("/TOOLDIR/"))
             {
-                string jarFile = Path.ChangeExtension(exeFile, ".jar");
-                if (!File.Exists(jarFile))
-                {
-                    string localJar = Path.Combine(_options.TempToolsPath, "JAR", Path.ChangeExtension(Path.GetFileName(exeFile), ".jar"));
-                    if (File.Exists(localJar))
-                    {
-                        jarFile = localJar;
-                    }
-                    else
-                    {
-                        string fallbackJar = Path.Combine(!string.IsNullOrWhiteSpace(workingDirectory) ? workingDirectory : _options.TempRootPath, Path.ChangeExtension(Path.GetFileName(exeFile), ".jar"));
-                        if (File.Exists(fallbackJar))
-                        {
-                            jarFile = fallbackJar;
-                        }
-                    }
-                }
-
-                if (File.Exists(jarFile))
-                {
-                    targetExe = "java";
-                    targetArgs = $"-jar \"{jarFile}\" {arguments}";
-                }
-                else if (exeFile.Contains("/JAR/") && fileName.EndsWith(".exe"))
-                {
-                    targetExe = "wine";
-                    targetArgs = $"\"{exeFile}\" {arguments}";
-                }
-                else if (exeFile.EndsWith(".exe") || exeFile.Contains("/TOOLDIR/"))
-                {
-                    targetExe = "wine";
-                    targetArgs = $"\"{exeFile}\" {arguments}";
-                }
+                targetExe = "wine";
+                targetArgs = $"\"{exeFile}\" {arguments}";
             }
         }
 

@@ -771,7 +771,7 @@ public partial class MainViewModel : ViewModelBase
 
         bool anyDownloaded = false;
 
-        async Task<bool> CheckUrlAsync(string url)
+        static async Task<bool> CheckUrlAsync(string url)
         {
             try
             {

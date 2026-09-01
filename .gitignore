@@ -5,6 +5,7 @@
 # Build and Publish Directories
 [Bb]uild/
 [Bb]uild-win/
+publish/
 
 # Packaging outputs
 *.zip
