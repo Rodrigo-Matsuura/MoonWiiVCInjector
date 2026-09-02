@@ -102,7 +102,8 @@ This project is built and maintained with **Vibe Coding**. Contributions, optimi
 
 Special thanks and full attribution to the authors and projects of the Wii, Wii U, and GameCube homebrew communities that made this injector possible:
 
-* **[TeconMoon](https://github.com/piratesephiroth/TeconmoonWiiVCInjector)**: Creator of the original *TeconMoon's WiiVC Injector*.
+* **[piratesephiroth](https://github.com/piratesephiroth/TeconmoonWiiVCInjector/commits?author=piratesephiroth)**: Maintainer of the enhanced upstream fork, contributing numerous bug fixes, stability improvements, and features.
+* **[TeconMoon](https://github.com/TeconMoon/teconmoon-wiivc-injector)**: Creator of the original *TeconMoon's WiiVC Injector*.
 * **[QuzarDC](https://github.com/piratesephiroth/TeconmoonWiiVCInjector/issues?q=is%3Apr+is%3Aopen+author%3AQuzarDC)**: Contributor of upstream improvements
 * **[V10lator](https://github.com/piratesephiroth/TeconmoonWiiVCInjector/issues?q=is:pr+is:open+author:V10lator)**: Contributor of upstream improvements
 * **[FIX94](https://github.com/FIX94)**:

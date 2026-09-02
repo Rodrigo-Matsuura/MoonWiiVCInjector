@@ -108,6 +108,8 @@ public class BuildEngine(BuildOptions options, IProgress<(string Message, double
 
         try
         {
+            ValidatePrerequisites();
+
             // For Wii games, NKit images must be converted to standard ISO for partition extraction & NFS packaging.
             // For GameCube games, Nintendont natively boots NKit compressed dumps directly from files/game.iso!
             if (_options.SystemType == "wii" && IsNkitFile(ogFilePath))
@@ -601,7 +603,7 @@ public class BuildEngine(BuildOptions options, IProgress<(string Message, double
             targetExe = "java";
             targetArgs = $"-jar \"{jarFile}\" {arguments}";
         }
-        else if (Environment.OSVersion.Platform == PlatformID.Unix)
+        else if (OperatingSystem.IsLinux() || OperatingSystem.IsMacOS() || OperatingSystem.IsFreeBSD())
         {
             if (fileName is "wit.exe" or "wit")
             {
@@ -620,7 +622,7 @@ public class BuildEngine(BuildOptions options, IProgress<(string Message, double
                     targetArgs = $"\"{exeFile}\" {arguments}";
                 }
             }
-            else if (exeFile.EndsWith(".exe") || exeFile.Contains("/TOOLDIR/"))
+            else if (exeFile.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) || exeFile.Contains("/TOOLDIR/"))
             {
                 targetExe = "wine";
                 targetArgs = $"\"{exeFile}\" {arguments}";
@@ -723,23 +725,66 @@ public class BuildEngine(BuildOptions options, IProgress<(string Message, double
         }
     }
 
-    private bool IsCommandAvailable(string cmd)
+    private void ValidatePrerequisites()
     {
-        try
+        // 1. Verify Java runtime for JNUSTool and NUSPacker
+        if (!IsCommandAvailable("java"))
         {
-            using var p = new Process();
-            p.StartInfo.FileName = "which";
-            p.StartInfo.Arguments = cmd;
-            p.StartInfo.UseShellExecute = false;
-            p.StartInfo.CreateNoWindow = true;
-            p.Start();
-            p.WaitForExit();
-            return p.ExitCode == 0;
+            throw new InvalidOperationException(
+                "Java runtime (JRE/JDK) was not found in your system PATH.\n\n" +
+                "Java is required by JNUSTool and NUSPacker to download base files and pack the Wii U WUP package.\n" +
+                (OperatingSystem.IsLinux()
+                    ? "Please install Java (e.g. 'sudo apt install default-jre' on Debian/Ubuntu or 'sudo pacman -S jre-openjdk' on Arch Linux)."
+                    : "Please install 64-bit Java from https://adoptium.net or https://java.com and ensure 'java' is added to your PATH."));
         }
-        catch
+
+        // 2. On Linux/Unix, verify WIT (Wiimms ISO Tools) or Wine availability for disc image operations
+        if (OperatingSystem.IsLinux() || OperatingSystem.IsMacOS() || OperatingSystem.IsFreeBSD())
         {
-            return false;
+            string localWit = Path.Combine(_options.TempToolsPath, "WIT", "wit");
+            bool hasWit = File.Exists(localWit) || IsCommandAvailable("wit");
+            bool hasWine = IsCommandAvailable("wine");
+
+            if (!hasWit && !hasWine)
+            {
+                throw new InvalidOperationException(
+                    "Neither 'wit' (Wiimms ISO Tools) nor 'wine' was found on your system.\n\n" +
+                    "To process Wii and GameCube disc images on Linux, please install 'wit':\n" +
+                    "  • Debian / Ubuntu: sudo apt install wit\n" +
+                    "  • Arch Linux: sudo pacman -S wit\n" +
+                    "  • Or install Wine: sudo apt install wine");
+            }
         }
+    }
+
+    private static bool IsCommandAvailable(string cmd)
+    {
+        if (File.Exists(cmd)) return true;
+
+        string? pathEnv = Environment.GetEnvironmentVariable("PATH");
+        if (string.IsNullOrEmpty(pathEnv)) return false;
+
+        string[] extensions = OperatingSystem.IsWindows()
+            ? [".exe", ".cmd", ".bat", ""]
+            : [""];
+
+        foreach (string pathDir in pathEnv.Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            foreach (string ext in extensions)
+            {
+                try
+                {
+                    string fullPath = Path.Combine(pathDir, cmd + ext);
+                    if (File.Exists(fullPath))
+                        return true;
+                }
+                catch
+                {
+                    // Ignore invalid path characters in PATH entries
+                }
+            }
+        }
+        return false;
     }
 
     private string GetLanguageSuffix(int index)
