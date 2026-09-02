@@ -6,9 +6,11 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Moon_WiiVC_Injector.Core;
 using Moon_WiiVC_Injector.Services;
 
 namespace Moon_WiiVC_Injector;
+
 public class BuildOptions
 {
     public string SystemType { get; set; } = "wii";
@@ -106,19 +108,12 @@ public class BuildEngine(BuildOptions options, IProgress<(string Message, double
 
         try
         {
-            if (IsNkitFile(ogFilePath))
+            // For Wii games, NKit images must be converted to standard ISO for partition extraction & NFS packaging.
+            // For GameCube games, Nintendont natively boots NKit compressed dumps directly from files/game.iso!
+            if (_options.SystemType == "wii" && IsNkitFile(ogFilePath))
             {
                 recoveredMainIso = await ConvertNkitToIsoAsync(ogFilePath, cancellationToken);
                 ogFilePath = recoveredMainIso;
-            }
-
-            if (_options.SystemType == "gcn" && _options.FlagGc2Specified && !string.IsNullOrEmpty(gc2Path))
-            {
-                if (IsNkitFile(gc2Path))
-                {
-                    recoveredGc2Iso = await ConvertNkitToIsoAsync(gc2Path, cancellationToken);
-                    gc2Path = recoveredGc2Iso;
-                }
             }
 
             // 1. Download base files with JNUSTool if not present
@@ -182,10 +177,9 @@ public class BuildEngine(BuildOptions options, IProgress<(string Message, double
                 "00050000101b0700 " + _options.TitleKey + " -file /meta/bootSound.btsnd"
             ];
 
-            UpdateStatus("Checking if the necessary files are present...", 10);
+            UpdateStatus("Checking if the necessary base files are present...", 3);
 
             string jarDir = Path.Combine(_options.TempToolsPath, "JAR");
-            string c2wDir = Path.Combine(_options.TempToolsPath, "C2W");
 
             // Create config for JNUSTool
             string jnusConfigPath = Path.Combine(jarDir, "config");
@@ -206,14 +200,15 @@ public class BuildEngine(BuildOptions options, IProgress<(string Message, double
                 }
 
                 // Download it
-                UpdateStatus("(One-Time Download) Downloading base files from Nintendo...", 12 + i * 2);
+                double dlProgress = 3.0 + (i * 6.0 / downloadedFiles.Length);
+                UpdateStatus($"(One-Time Download) Downloading base files ({i + 1}/{downloadedFiles.Length})...", dlProgress);
                 await LaunchProgramAsync("JNUSTool.exe", filesToDownload[i], true, cancellationToken, workingDirectory: jarDir);
                 hasDownloadedAnything = true;
             }
 
             if (hasDownloadedAnything)
             {
-                UpdateStatus("Saving files from Nintendo for future use...", 45);
+                UpdateStatus("Saving files from Nintendo for future use...", 9);
                 string jnusVake = Path.Combine(jarDir, "Rhythm Heaven Fever [VAKE01]");
                 string jnus4000 = Path.Combine(jarDir, "0005001010004000");
                 string jnus4001 = Path.Combine(jarDir, "0005001010004001");
@@ -254,7 +249,7 @@ public class BuildEngine(BuildOptions options, IProgress<(string Message, double
             FileUtil.SafeDeleteFile(jnusConfigPath);
 
             // Copy downloaded files to build directory
-            UpdateStatus("Copying base files to temporary build directory...", 48);
+            UpdateStatus("Copying base files to temporary build directory...", 10);
 
             FileUtil.SafeDeleteDirectory(_options.TempBuildPath);
             Directory.CreateDirectory(_options.TempBuildPath);
@@ -267,23 +262,12 @@ public class BuildEngine(BuildOptions options, IProgress<(string Message, double
             {
                 FileUtil.CopyDirectory(Path.Combine(_options.JNUSToolDownloads, "0005001010004000"), _options.TempBuildPath);
                 FileUtil.CopyDirectory(Path.Combine(_options.JNUSToolDownloads, "0005001010004001"), _options.TempBuildPath);
-                string[] ancastKeyCopy = [_options.AncastKey];
-                string starbuckKeyPath = Path.Combine(c2wDir, "starbuck_key.txt");
-                string c2wToolsImg = Path.Combine(c2wDir, "c2w.img");
-                string c2pToolsImg = Path.Combine(c2wDir, "c2p.img");
+                UpdateStatus("Applying cafe2wii (c2w) patch...", 12);
                 string c2wBuildImg = Path.Combine(_options.TempBuildPath, "code", "c2w.img");
-
-                await File.WriteAllLinesAsync(starbuckKeyPath, ancastKeyCopy);
-                File.Copy(c2wBuildImg, c2wToolsImg, true);
-                await LaunchProgramAsync("c2w_patcher.exe", "-nc", true, cancellationToken, workingDirectory: c2wDir);
-                FileUtil.SafeDeleteFile(c2wBuildImg);
-                File.Copy(c2pToolsImg, c2wBuildImg, true);
-                FileUtil.SafeDeleteFile(c2pToolsImg);
-                FileUtil.SafeDeleteFile(c2wToolsImg);
-                FileUtil.SafeDeleteFile(starbuckKeyPath);
+                C2wPatcher.PatchC2wImage(c2wBuildImg, _options.AncastKey);
             }
 
-            UpdateStatus("Generating app.xml and meta.xml...", 50);
+            UpdateStatus("Generating app.xml and meta.xml...", 14);
 
             // Generate app.xml and meta.xml
             string appXml = $"""
@@ -316,89 +300,31 @@ public class BuildEngine(BuildOptions options, IProgress<(string Message, double
                   <app_launch_type type="hexBinary" length="4">00000000</app_launch_type>
                   <invisible_flag type="hexBinary" length="4">00000000</invisible_flag>
                   <no_managed_flag type="hexBinary" length="4">00000000</no_managed_flag>
-                  <no_event_log type="hexBinary" length="4">00000002</no_event_log>
+                  <no_event_log type="hexBinary" length="4">00000000</no_event_log>
                   <no_icon_database type="hexBinary" length="4">00000000</no_icon_database>
-                  <launching_flag type="hexBinary" length="4">00000004</launching_flag>
-                  <install_flag type="hexBinary" length="4">00000000</install_flag>
-                  <closing_msg type="unsignedInt" length="4">0</closing_msg>
-                  <title_version type="unsignedInt" length="4">0</title_version>
-                  <title_id type="hexBinary" length="8">{_options.PackedTitleIDLine}</title_id>
-                  <group_id type="hexBinary" length="4">{_options.TitleIdHex}</group_id>
-                  <boss_id type="hexBinary" length="8">0000000000000000</boss_id>
-                  <os_version type="hexBinary" length="8">000500101000400A</os_version>
-                  <app_size type="hexBinary" length="8">0000000000000000</app_size>
-                  <common_save_size type="hexBinary" length="8">0000000000000000</common_save_size>
-                  <account_save_size type="hexBinary" length="8">0000000000000000</account_save_size>
-                  <common_boss_size type="hexBinary" length="8">0000000000000000</common_boss_size>
-                  <account_boss_size type="hexBinary" length="8">0000000000000000</account_boss_size>
-                  <save_no_rollback type="unsignedInt" length="4">0</save_no_rollback>
-                  <join_game_id type="hexBinary" length="4">00000000</join_game_id>
-                  <join_game_mode_mask type="hexBinary" length="8">0000000000000000</join_game_mode_mask>
-                  <bg_daemon_enable type="unsignedInt" length="4">0</bg_daemon_enable>
-                  <olv_accesskey type="unsignedInt" length="4">3921400692</olv_accesskey>
-                  <wood_tin type="unsignedInt" length="4">0</wood_tin>
-                  <e_manual type="unsignedInt" length="4">0</e_manual>
-                  <e_manual_version type="unsignedInt" length="4">0</e_manual_version>
-                  <region type="hexBinary" length="4">00000002</region>
-                  <pc_cero type="unsignedInt" length="4">128</pc_cero>
-                  <pc_esrb type="unsignedInt" length="4">6</pc_esrb>
-                  <pc_bbfc type="unsignedInt" length="4">192</pc_bbfc>
-                  <pc_usk type="unsignedInt" length="4">128</pc_usk>
-                  <pc_pegi_gen type="unsignedInt" length="4">128</pc_pegi_gen>
-                  <pc_pegi_fin type="unsignedInt" length="4">192</pc_pegi_fin>
-                  <pc_pegi_prt type="unsignedInt" length="4">128</pc_pegi_prt>
-                  <pc_pegi_bbfc type="unsignedInt" length="4">128</pc_pegi_bbfc>
-                  <pc_cob type="unsignedInt" length="4">128</pc_cob>
-                  <pc_grb type="unsignedInt" length="4">128</pc_grb>
-                  <pc_cgsrr type="unsignedInt" length="4">128</pc_cgsrr>
-                  <pc_oflc type="unsignedInt" length="4">128</pc_oflc>
-                  <pc_reserved0 type="unsignedInt" length="4">192</pc_reserved0>
-                  <pc_reserved1 type="unsignedInt" length="4">192</pc_reserved1>
-                  <pc_reserved2 type="unsignedInt" length="4">192</pc_reserved2>
-                  <pc_reserved3 type="unsignedInt" length="4">192</pc_reserved3>
-                  <ext_dev_nunchaku type="unsignedInt" length="4">0</ext_dev_nunchaku>
-                  <ext_dev_classic type="unsignedInt" length="4">0</ext_dev_classic>
-                  <ext_dev_urcc type="unsignedInt" length="4">0</ext_dev_urcc>
-                  <ext_dev_board type="unsignedInt" length="4">0</ext_dev_board>
-                  <ext_dev_usb_keyboard type="unsignedInt" length="4">0</ext_dev_usb_keyboard>
-                  <ext_dev_etc type="unsignedInt" length="4">0</ext_dev_etc>
-                  <ext_dev_etc_name type="string" length="512"></ext_dev_etc_name>
-                  <eula_version type="unsignedInt" length="4">0</eula_version>
-                  <drc_use type="unsignedInt" length="4">{_options.DrcUse}</drc_use>
-                  <network_use type="unsignedInt" length="4">0</network_use>
-                  <online_account_use type="unsignedInt" length="4">0</online_account_use>
-                  <direct_boot type="unsignedInt" length="4">0</direct_boot>
-                  <reserved_flag0 type="hexBinary" length="4">00010001</reserved_flag0>
-                  <reserved_flag1 type="hexBinary" length="4">00080023</reserved_flag1>
-                  <reserved_flag2 type="hexBinary" length="4">{_options.TitleIdHex}</reserved_flag2>
-                  <reserved_flag3 type="hexBinary" length="4">00000000</reserved_flag3>
-                  <reserved_flag4 type="hexBinary" length="4">00000000</reserved_flag4>
-                  <reserved_flag5 type="hexBinary" length="4">00000000</reserved_flag5>
-                  <reserved_flag6 type="hexBinary" length="4">00000003</reserved_flag6>
-                  <reserved_flag7 type="hexBinary" length="4">00000005</reserved_flag7>
+                  <launch_switch type="hexBinary" length="4">00000000</launch_switch>
+                  <add_on_unique_id0 type="hexBinary" length="4">00000000</add_on_unique_id0>
+                  <add_on_unique_id1 type="hexBinary" length="4">00000000</add_on_unique_id1>
+                  <add_on_unique_id2 type="hexBinary" length="4">00000000</add_on_unique_id2>
+                  <add_on_unique_id3 type="hexBinary" length="4">00000000</add_on_unique_id3>
+                  <add_on_unique_id4 type="hexBinary" length="4">00000000</add_on_unique_id4>
+                  <add_on_unique_id5 type="hexBinary" length="4">00000000</add_on_unique_id5>
+                  <add_on_unique_id6 type="hexBinary" length="4">00000000</add_on_unique_id6>
+                  <add_on_unique_id7 type="hexBinary" length="4">00000000</add_on_unique_id7>
                 """);
 
-            string longName = string.IsNullOrEmpty(line2Text) ? _options.PackedTitleLine1 : $"{_options.PackedTitleLine1}\n{line2Text}";
-            for (int i = 0; i < 11; i++) // for all languages
+            for (int i = 0; i <= 11; i++)
             {
-                metaXmlBuilder.AppendLine($"  <longname_{GetLanguageSuffix(i)} type=\"string\" length=\"512\">{longName}</longname_{GetLanguageSuffix(i)}>");
+                string suffix = GetLanguageSuffix(i);
+                metaXmlBuilder.AppendLine($"  <longname_{suffix} type=\"string\" length=\"512\">{System.Security.SecurityElement.Escape(_options.PackedTitleLine1)}</longname_{suffix}>");
+                metaXmlBuilder.AppendLine($"  <shortname_{suffix} type=\"string\" length=\"256\">{System.Security.SecurityElement.Escape(line2Text)}</shortname_{suffix}>");
+                metaXmlBuilder.AppendLine($"  <publisher_{suffix} type=\"string\" length=\"256\"></publisher_{suffix}>");
             }
-            for (int i = 0; i < 11; i++)
-            {
-                metaXmlBuilder.AppendLine($"  <shortname_{GetLanguageSuffix(i)} type=\"string\" length=\"512\">{_options.PackedTitleLine1}</shortname_{GetLanguageSuffix(i)}>");
-            }
-            for (int i = 0; i < 11; i++)
-            {
-                metaXmlBuilder.AppendLine($"  <publisher_{GetLanguageSuffix(i)} type=\"string\" length=\"256\"></publisher_{GetLanguageSuffix(i)}>");
-            }
-            for (int i = 0; i < 32; i++)
-            {
-                metaXmlBuilder.AppendLine($"  <add_on_unique_id{i} type=\"hexBinary\" length=\"4\">00000000</add_on_unique_id{i}>");
-            }
+
             metaXmlBuilder.AppendLine("</menu>");
             await File.WriteAllTextAsync(Path.Combine(_options.TempBuildPath, "meta", "meta.xml"), metaXmlBuilder.ToString());
 
-            UpdateStatus("Converting all image sources to expected TGA specification...", 52);
+            UpdateStatus("Converting all image sources to expected TGA specification...", 16);
 
             // Convert images to TGA using our native SkiaSharp reader/converter
             using (var bmp = SkiaSharp.SKBitmap.Decode(_options.TempIconPath))
@@ -429,27 +355,26 @@ public class BuildEngine(BuildOptions options, IProgress<(string Message, double
                 TgaReader.SaveAsTga(bmp, Path.Combine(_options.TempBuildPath, "meta", "bootLogoTex.tga"), 170, 42, 32);
             }
 
-            UpdateStatus("Processing game for NFS Conversion...", 55);
-
             // Convert sound if specified
             bool flagBootSoundSpecified = File.Exists(_options.SoundDir);
             if (flagBootSoundSpecified)
             {
-                UpdateStatus("Converting user-provided sound to btsnd format...", 60);
-                string tempSoundWav = Path.Combine(_options.TempSourcePath, "temp_sound.wav");
+                UpdateStatus("Converting user-provided sound to btsnd format...", 18);
                 string finalSoundBtsnd = Path.Combine(_options.TempBuildPath, "meta", "bootSound.btsnd");
+                FileUtil.SafeDeleteFile(finalSoundBtsnd);
 
-                // SOX to normalize/resample audio
-                await LaunchProgramAsync(Path.Combine(_options.TempToolsPath, "SOX", "sox.exe"), $"\"{_options.SoundDir}\" -b 16 \"{tempSoundWav}\" channels 2 rate 48k trim 0 6", true, cancellationToken);
-                if (File.Exists(finalSoundBtsnd)) File.Delete(finalSoundBtsnd);
-
-                // wav2btsnd to convert to btsnd
-                string loopString = _options.ToggleBootSoundLoop ? "" : " -noLoop";
-                await LaunchProgramAsync(Path.Combine(_options.TempToolsPath, "JAR", "wav2btsnd.exe"), $"-in \"{tempSoundWav}\" -out \"{finalSoundBtsnd}\"{loopString}", true, cancellationToken);
-                if (File.Exists(tempSoundWav)) File.Delete(tempSoundWav);
+                string ext = Path.GetExtension(_options.SoundDir).ToLowerInvariant();
+                if (ext == ".btsnd")
+                {
+                    File.Copy(_options.SoundDir, finalSoundBtsnd, true);
+                }
+                else
+                {
+                    Utilities.BtsndConverter.ConvertWavToBtsnd(_options.SoundDir, finalSoundBtsnd, _options.ToggleBootSoundLoop);
+                }
             }
 
-            UpdateStatus("Building game ISO image...", 65);
+            UpdateStatus("Building game ISO image...", 20);
             string gameIsoPath = Path.Combine(_options.TempSourcePath, "game.iso");
 
             if (_options.SystemType == "wii")
@@ -457,9 +382,9 @@ public class BuildEngine(BuildOptions options, IProgress<(string Message, double
                 string currentWiiGame = ogFilePath;
                 if (_options.FlagWbfs)
                 {
-                    UpdateStatus("Converting WBFS file to ISO format...", 66);
+                    UpdateStatus("Converting WBFS file to ISO format...", 22);
                     string convertedIso = Path.Combine(_options.TempSourcePath, "wbfsconvert.iso");
-                    await LaunchProgramAsync(Path.Combine(_options.TempToolsPath, "EXE", "wbfs_file.exe"), $"\"{ogFilePath}\" convert \"{convertedIso}\"", true, cancellationToken);
+                    await LaunchProgramAsync(Path.Combine(_options.TempToolsPath, "WIT", "wit.exe"), $"copy \"{ogFilePath}\" --DEST \"{convertedIso}\" --iso", true, cancellationToken);
                     currentWiiGame = convertedIso;
                 }
 
@@ -469,31 +394,25 @@ public class BuildEngine(BuildOptions options, IProgress<(string Message, double
                     string isoExtractDir = Path.Combine(_options.TempSourcePath, "ISOEXTRACT");
                     if (Directory.Exists(isoExtractDir)) Directory.Delete(isoExtractDir, true);
 
-                    UpdateStatus("Extracting game ISO partitions (this may take a minute)...", 68);
+                    UpdateStatus("Extracting game ISO partitions...", 25);
                     await LaunchProgramAsync(Path.Combine(_options.TempToolsPath, "WIT", "wit.exe"), $"extract \"{currentWiiGame}\" --DEST \"{isoExtractDir}\" --psel data,-update -ovv", true, cancellationToken);
 
                     bool forceCC = _options.NfsPatchFlag.Contains("-instantcc");
                     if (forceCC)
                     {
-                        UpdateStatus("Patching game main.dol for Classic Controller...", 70);
-                        await LaunchProgramAsync(Path.Combine(_options.TempToolsPath, "EXE", "GetExtTypePatcher.exe"), $"\"{Path.Combine(isoExtractDir, "sys", "main.dol")}\" -nc", true, cancellationToken);
-                    }
-
-                    // Wii VMC / Video mode changer (Not handled interactively on Linux, skipped/run natively if required)
-                    if (_options.WiiVMC)
-                    {
-                        UpdateStatus("Applying Video Mode patch...", 71);
-                        await LaunchProgramAsync(Path.Combine(_options.TempToolsPath, "EXE", "wii-vmc.exe"), $"\"{Path.Combine(isoExtractDir, "sys", "main.dol")}\"", true, cancellationToken);
+                        UpdateStatus("Patching game main.dol for Classic Controller...", 30);
+                        string mainDolPath = Path.Combine(isoExtractDir, "sys", "main.dol");
+                        DolPatcher.PatchClassicController(mainDolPath);
                     }
 
                     string wiimmfiOption = _options.Wiimmfi ? " --wiimmfi" : "";
-                    UpdateStatus("Rebuilding patched game ISO (this may take a minute)...", 72);
+                    UpdateStatus("Rebuilding patched game ISO...", 33);
                     await LaunchProgramAsync(Path.Combine(_options.TempToolsPath, "WIT", "wit.exe"), $"copy \"{isoExtractDir}\" --DEST \"{gameIsoPath}\" -ovv --links --iso{wiimmfiOption}", true, cancellationToken);
                     if (Directory.Exists(isoExtractDir)) Directory.Delete(isoExtractDir, true);
                 }
                 else
                 {
-                    UpdateStatus("Copying untrimmed game ISO...", 73);
+                    UpdateStatus("Copying untrimmed game ISO...", 33);
                     File.Copy(currentWiiGame, gameIsoPath, true);
                 }
 
@@ -504,10 +423,10 @@ public class BuildEngine(BuildOptions options, IProgress<(string Message, double
             {
                 string tempIsoBase = Path.Combine(_options.TempSourcePath, "TEMPISOBASE");
                 if (Directory.Exists(tempIsoBase)) Directory.Delete(tempIsoBase, true);
-                FileUtil.CopyDirectory(Path.Combine(_options.TempToolsPath, "BASE"), tempIsoBase);
+                Core.BaseIsoTemplate.CreateBaseDirectory(tempIsoBase);
                 File.Copy(ogFilePath, Path.Combine(tempIsoBase, "sys", "main.dol"), true);
 
-                UpdateStatus("Rebuilding Homebrew game ISO...", 70);
+                UpdateStatus("Rebuilding Homebrew game ISO...", 30);
                 await LaunchProgramAsync(Path.Combine(_options.TempToolsPath, "WIT", "wit.exe"), $"copy \"{tempIsoBase}\" --DEST \"{gameIsoPath}\" -ovv --links --iso", true, cancellationToken);
                 Directory.Delete(tempIsoBase, true);
             }
@@ -515,31 +434,27 @@ public class BuildEngine(BuildOptions options, IProgress<(string Message, double
             {
                 string tempIsoBase = Path.Combine(_options.TempSourcePath, "TEMPISOBASE");
                 if (Directory.Exists(tempIsoBase)) Directory.Delete(tempIsoBase, true);
-                FileUtil.CopyDirectory(Path.Combine(_options.TempToolsPath, "BASE"), tempIsoBase);
+                Core.BaseIsoTemplate.CreateBaseDirectory(tempIsoBase);
 
                 // Default forwarder or Nintendont boot dol selection
-                string mainDolSrc = Path.Combine(_options.TempToolsPath, "DOL", "nintendont_default_autobooter.dol");
-                if (_options.DisableNintendontAutoboot)
-                    mainDolSrc = Path.Combine(_options.TempToolsPath, "DOL", "nintendont_forwarder.dol");
+                Core.BaseIsoTemplate.CopyNintendontDol(Path.Combine(tempIsoBase, "sys", "main.dol"), _options.DisableNintendontAutoboot);
 
-                File.Copy(mainDolSrc, Path.Combine(tempIsoBase, "sys", "main.dol"), true);
-
-                UpdateStatus("Copying GameCube disc image...", 68);
+                UpdateStatus("Copying GameCube disc image...", 25);
                 File.Copy(ogFilePath, Path.Combine(tempIsoBase, "files", "game.iso"), true);
 
                 if (_options.FlagGc2Specified && !string.IsNullOrEmpty(gc2Path) && File.Exists(gc2Path))
                 {
-                    UpdateStatus("Copying GameCube Disc 2...", 69);
+                    UpdateStatus("Copying GameCube Disc 2...", 28);
                     File.Copy(gc2Path, Path.Combine(tempIsoBase, "files", "disc2.iso"), true);
                 }
 
-                UpdateStatus("Rebuilding GameCube game ISO...", 70);
+                UpdateStatus("Rebuilding GameCube game ISO...", 32);
                 await LaunchProgramAsync(Path.Combine(_options.TempToolsPath, "WIT", "wit.exe"), $"copy \"{tempIsoBase}\" --DEST \"{gameIsoPath}\" -ovv --links --iso", true, cancellationToken);
                 Directory.Delete(tempIsoBase, true);
             }
 
             // Extract ticket and TMD for encrypting content
-            UpdateStatus("Extracting game tickets and TMD information...", 75);
+            UpdateStatus("Extracting game tickets and TMD information...", 38);
             string tikTempDir = Path.Combine(_options.TempSourcePath, "TIKTEMP");
             if (Directory.Exists(tikTempDir)) Directory.Delete(tikTempDir, true);
             await LaunchProgramAsync(Path.Combine(_options.TempToolsPath, "WIT", "wit.exe"), $"extract \"{gameIsoPath}\" --psel data --psel -update --files +tmd.bin --files +ticket.bin --dest \"{tikTempDir}\" -vv1", true, cancellationToken);
@@ -548,8 +463,8 @@ public class BuildEngine(BuildOptions options, IProgress<(string Message, double
             File.Copy(Path.Combine(tikTempDir, "ticket.bin"), Path.Combine(_options.TempBuildPath, "code", "rvlt.tik"), true);
             Directory.Delete(tikTempDir, true);
 
-            // Convert ISO to NFS format
-            UpdateStatus("Converting game ISO to NFS content format...", 80);
+            // Convert ISO to NFS format (Smoothly mapped across 40% - 85%)
+            UpdateStatus("Converting game ISO to NFS content format...", 40);
 
             List<string> nfsArgs = ["-enc"];
             if (_options.SystemType == "dol" || _options.SystemType == "wiiware" || _options.SystemType == "gcn")
@@ -573,12 +488,18 @@ public class BuildEngine(BuildOptions options, IProgress<(string Message, double
 
             string contentDir = Path.Combine(_options.TempBuildPath, "content");
 
+            var nfsProgress = new Progress<(string Message, double Progress)>(update =>
+            {
+                double mapped = 40.0 + (Math.Clamp(update.Progress, 0.0, 1.0) * 45.0); // 40% to 85%
+                UpdateStatus(update.Message, mapped);
+            });
+
             // Convert in-process with real-time logging, cancellation and progress
             int nfsResult = Nfs2Iso2Nfs.ConvertNfs(
                 [.. nfsArgs],
                 baseDirectory: contentDir,
                 onLog: Log,
-                progress: _progress,
+                progress: nfsProgress,
                 cancellationToken: cancellationToken);
 
             if (nfsResult != 0)
@@ -588,13 +509,28 @@ public class BuildEngine(BuildOptions options, IProgress<(string Message, double
 
             FileUtil.SafeDeleteFile(gameIsoPath);
 
-            // Encrypt package with NUSPacker
-            UpdateStatus("Encrypting contents into installable WUP package...", 90);
+            // Encrypt package with NUSPacker (Mapped across 85% - 98%)
+            UpdateStatus("Encrypting contents into installable WUP package...", 85);
             string sanitizedGameName = SanitizeFilename(_options.PackedTitleLine1);
             finalOutputPath = Path.Combine(_options.SelectedOutputPath, sanitizedGameName + " WUP-N-" + _options.TitleIdText + "_" + _options.PackedTitleIDLine);
 
             string nusPackerExe = Path.Combine(_options.TempToolsPath, "JAR", "NUSPacker.exe");
-            await LaunchProgramAsync(nusPackerExe, $"-in BUILDDIR -out \"{finalOutputPath}\" -encryptKeyWith {_options.WiiUCommonKey}", true, cancellationToken, workingDirectory: _options.TempRootPath);
+            int nusChunkCount = 0;
+            await LaunchProgramAsync(
+                nusPackerExe,
+                $"-in BUILDDIR -out \"{finalOutputPath}\" -encryptKeyWith {_options.WiiUCommonKey}",
+                true,
+                cancellationToken,
+                workingDirectory: _options.TempRootPath,
+                onOutputLine: line =>
+                {
+                    if (line.Contains(".app", StringComparison.OrdinalIgnoreCase) || line.Contains("Packing", StringComparison.OrdinalIgnoreCase) || line.Contains("Processing", StringComparison.OrdinalIgnoreCase))
+                    {
+                        nusChunkCount++;
+                        double nusProgress = Math.Min(97.0, 85.0 + (nusChunkCount * 1.5));
+                        UpdateStatus($"Packing WUP package ({line.Trim()})...", nusProgress);
+                    }
+                });
 
             // Cleanup
             UpdateStatus("Cleaning up temporary directories...", 98);
@@ -605,6 +541,7 @@ public class BuildEngine(BuildOptions options, IProgress<(string Message, double
 
             if (Directory.Exists(finalOutputPath))
             {
+                UpdateStatus("Build completed successfully!", 100);
                 Log("Build completed successfully!");
                 return finalOutputPath;
             }
@@ -632,7 +569,8 @@ public class BuildEngine(BuildOptions options, IProgress<(string Message, double
         bool hideProcess = true,
         CancellationToken cancellationToken = default,
         int[]? allowedExitCodes = null,
-        string? workingDirectory = null)
+        string? workingDirectory = null,
+        Action<string>? onOutputLine = null)
     {
         string targetExe = exeFile;
         string targetArgs = arguments;
@@ -665,26 +603,16 @@ public class BuildEngine(BuildOptions options, IProgress<(string Message, double
         }
         else if (Environment.OSVersion.Platform == PlatformID.Unix)
         {
-            if (fileName == "wit.exe" && IsCommandAvailable("wit"))
+            if (fileName is "wit.exe" or "wit")
             {
-                targetExe = "wit";
-            }
-            else if (fileName == "sox.exe" && IsCommandAvailable("sox"))
-            {
-                targetExe = "sox";
-            }
-            else if (fileName == "c2w_patcher.exe")
-            {
-                string linuxBin = Path.Combine(Path.GetDirectoryName(exeFile) ?? "", "c2w_patcher");
-                if (File.Exists(linuxBin))
+                string localWit = Path.Combine(Path.GetDirectoryName(exeFile) ?? string.Empty, "wit");
+                if (File.Exists(localWit))
                 {
-                    targetExe = linuxBin;
-                    targetArgs = arguments;
+                    targetExe = localWit;
                 }
-                else if (IsCommandAvailable("c2w_patcher"))
+                else if (IsCommandAvailable("wit"))
                 {
-                    targetExe = "c2w_patcher";
-                    targetArgs = arguments;
+                    targetExe = "wit";
                 }
                 else
                 {
@@ -732,6 +660,7 @@ public class BuildEngine(BuildOptions options, IProgress<(string Message, double
                 if (e.Data != null)
                 {
                     stdOutBuilder.AppendLine(e.Data);
+                    onOutputLine?.Invoke(e.Data);
                 }
             };
             process.ErrorDataReceived += (s, e) =>
@@ -865,41 +794,59 @@ public class BuildEngine(BuildOptions options, IProgress<(string Message, double
 
     private async Task<string> ConvertNkitToIsoAsync(string nkitPath, CancellationToken cancellationToken)
     {
-        string nkitDir = Path.Combine(_options.TempToolsPath, "NKIT");
-        string processedDir = Path.Combine(nkitDir, "Processed");
+        UpdateStatus("Unscrubbing NKit game image...", 20);
 
-        FileUtil.SafeDeleteDirectory(processedDir);
-
-        UpdateStatus("Unscrubbing NKit game image...", 66);
-        string convertToIsoExe = Path.Combine(nkitDir, "ConvertToISO.exe");
-
-        await LaunchProgramAsync(convertToIsoExe, $"\"{nkitPath}\"", true, cancellationToken, [0, 2], workingDirectory: nkitDir);
-
-        string[] searchDirs =
-        [
-            Path.Combine(processedDir, "Temp"),
-            Path.Combine(processedDir, "Wii_MatchFail"),
-            Path.Combine(processedDir, "GameCube_MatchFail")
-        ];
-
-        foreach (var dir in searchDirs)
+        return await Task.Run(() =>
         {
-            if (Directory.Exists(dir))
+            var src = NKit.SourceFiles.OpenFile(nkitPath);
+            var converter = new NKit.Converter(src, true);
+
+            converter.LogMessage += (s, e) =>
             {
-                var files = Directory.GetFiles(dir, "*.*");
+                if (!string.IsNullOrWhiteSpace(e.Message))
+                {
+                    Log($"[NKit] {e.Message}");
+                }
+            };
+
+            converter.LogProgress += (s, e) =>
+            {
+                double prg = 20.0 + (Math.Clamp(e.Progress, 0.0, 1.0) * 15.0);
+                UpdateStatus($"[NKit] {e.StartMessage ?? "Unscrubbing"} ({(int)(e.Progress * 100)}%)...", prg);
+            };
+
+            NKit.OutputResults results = converter.ConvertToIso();
+
+            if (!string.IsNullOrEmpty(results.ErrorMessage))
+            {
+                throw new InvalidOperationException($"NKit conversion failed: {results.ErrorMessage}");
+            }
+
+            if (!string.IsNullOrEmpty(results.OutputFileName) && File.Exists(results.OutputFileName))
+            {
+                string destFile = Path.Combine(_options.TempSourcePath, "nkit_recovered_" + Guid.NewGuid().ToString("N") + ".iso");
+                File.Move(results.OutputFileName, destFile);
+                Log($"Successfully recovered NKit file {nkitPath} to {destFile}");
+                return destFile;
+            }
+
+            // Fallback search in Processed directory if output path is default
+            string defaultOutDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Processed");
+            if (Directory.Exists(defaultOutDir))
+            {
+                var files = Directory.GetFiles(defaultOutDir, "*.*", SearchOption.AllDirectories);
                 if (files.Length > 0)
                 {
                     string sourceFile = files[0];
                     string destFile = Path.Combine(_options.TempSourcePath, "nkit_recovered_" + Guid.NewGuid().ToString("N") + ".iso");
                     File.Move(sourceFile, destFile);
                     Log($"Successfully recovered NKit file {nkitPath} to {destFile}");
-
-                    FileUtil.SafeDeleteDirectory(processedDir);
+                    FileUtil.SafeDeleteDirectory(defaultOutDir);
                     return destFile;
                 }
             }
-        }
 
-        throw new FileNotFoundException("Failed to locate converted ISO/TMP file in NKit processed directories.");
+            throw new FileNotFoundException("Failed to locate converted ISO file after NKit processing.");
+        }, cancellationToken);
     }
 }

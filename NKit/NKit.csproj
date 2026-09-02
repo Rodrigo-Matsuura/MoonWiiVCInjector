@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>NKit</RootNamespace>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <NoWarn>$(NoWarn);CS0168;CS0219;CS0414;CS0618;CS0649;CS8981;NU1902;CA2022;IDE0130</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="SharpCompress" Version="0.38.0" />
+  </ItemGroup>
+</Project>

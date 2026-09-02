@@ -1,6 +1,7 @@
 using SkiaSharp;
 
 namespace Moon_WiiVC_Injector;
+
 public static class TgaReader
 {
     public static SKBitmap LoadTga(string filePath)

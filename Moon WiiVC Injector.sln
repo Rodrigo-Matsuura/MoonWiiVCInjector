@@ -1,19 +1,46 @@
+﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 17
 VisualStudioVersion = 17.0.31912.275
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Moon WiiVC Injector", "Moon WiiVC Injector\Moon WiiVC Injector.csproj", "{8228DC31-4869-4C1C-8AED-D7ED37ECF3B9}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NKit", "NKit\NKit.csproj", "{04CC2309-7431-46B4-821E-C634099FD533}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
+		Debug|x64 = Debug|x64
+		Debug|x86 = Debug|x86
 		Release|Any CPU = Release|Any CPU
+		Release|x64 = Release|x64
+		Release|x86 = Release|x86
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
 		{8228DC31-4869-4C1C-8AED-D7ED37ECF3B9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{8228DC31-4869-4C1C-8AED-D7ED37ECF3B9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8228DC31-4869-4C1C-8AED-D7ED37ECF3B9}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{8228DC31-4869-4C1C-8AED-D7ED37ECF3B9}.Debug|x64.Build.0 = Debug|Any CPU
+		{8228DC31-4869-4C1C-8AED-D7ED37ECF3B9}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{8228DC31-4869-4C1C-8AED-D7ED37ECF3B9}.Debug|x86.Build.0 = Debug|Any CPU
 		{8228DC31-4869-4C1C-8AED-D7ED37ECF3B9}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{8228DC31-4869-4C1C-8AED-D7ED37ECF3B9}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8228DC31-4869-4C1C-8AED-D7ED37ECF3B9}.Release|x64.ActiveCfg = Release|Any CPU
+		{8228DC31-4869-4C1C-8AED-D7ED37ECF3B9}.Release|x64.Build.0 = Release|Any CPU
+		{8228DC31-4869-4C1C-8AED-D7ED37ECF3B9}.Release|x86.ActiveCfg = Release|Any CPU
+		{8228DC31-4869-4C1C-8AED-D7ED37ECF3B9}.Release|x86.Build.0 = Release|Any CPU
+		{04CC2309-7431-46B4-821E-C634099FD533}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{04CC2309-7431-46B4-821E-C634099FD533}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{04CC2309-7431-46B4-821E-C634099FD533}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{04CC2309-7431-46B4-821E-C634099FD533}.Debug|x64.Build.0 = Debug|Any CPU
+		{04CC2309-7431-46B4-821E-C634099FD533}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{04CC2309-7431-46B4-821E-C634099FD533}.Debug|x86.Build.0 = Debug|Any CPU
+		{04CC2309-7431-46B4-821E-C634099FD533}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{04CC2309-7431-46B4-821E-C634099FD533}.Release|Any CPU.Build.0 = Release|Any CPU
+		{04CC2309-7431-46B4-821E-C634099FD533}.Release|x64.ActiveCfg = Release|Any CPU
+		{04CC2309-7431-46B4-821E-C634099FD533}.Release|x64.Build.0 = Release|Any CPU
+		{04CC2309-7431-46B4-821E-C634099FD533}.Release|x86.ActiveCfg = Release|Any CPU
+		{04CC2309-7431-46B4-821E-C634099FD533}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

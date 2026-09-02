@@ -27,45 +27,6 @@ public static class FileUtil
         }
     }
 
-    public static async Task CopyDirectoryAsync(string sourceDir, string destinationDir, CancellationToken cancellationToken = default)
-    {
-        var dir = new DirectoryInfo(sourceDir);
-        if (!dir.Exists) return;
-
-        Directory.CreateDirectory(destinationDir);
-
-        const int bufferSize = 128 * 1024; // 128 KB buffer
-        byte[] buffer = ArrayPool<byte>.Shared.Rent(bufferSize);
-
-        try
-        {
-            foreach (FileInfo file in dir.GetFiles())
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                string destFile = Path.Combine(destinationDir, file.Name);
-
-                await using var sourceStream = new FileStream(file.FullName, FileMode.Open, FileAccess.Read, FileShare.Read, bufferSize, FileOptions.Asynchronous | FileOptions.SequentialScan);
-                await using var destStream = new FileStream(destFile, FileMode.Create, FileAccess.Write, FileShare.None, bufferSize, FileOptions.Asynchronous);
-
-                int bytesRead;
-                while ((bytesRead = await sourceStream.ReadAsync(buffer.AsMemory(0, bufferSize), cancellationToken)) > 0)
-                {
-                    await destStream.WriteAsync(buffer.AsMemory(0, bytesRead), cancellationToken);
-                }
-            }
-        }
-        finally
-        {
-            ArrayPool<byte>.Shared.Return(buffer);
-        }
-
-        foreach (DirectoryInfo subDir in dir.GetDirectories())
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            await CopyDirectoryAsync(subDir.FullName, Path.Combine(destinationDir, subDir.Name), cancellationToken);
-        }
-    }
-
     public static void SafeDeleteDirectory(string path)
     {
         try

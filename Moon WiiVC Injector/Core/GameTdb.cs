@@ -40,8 +40,8 @@ public class GameTdb
                 int idx = span.IndexOf(" = ".AsSpan(), StringComparison.Ordinal);
                 if (idx <= 0) continue;
 
-                string id = span.Slice(0, idx).ToString();
-                string name = span.Slice(idx + 3).ToString();
+                string id = span[..idx].ToString();
+                string name = span[(idx + 3)..].ToString();
 
                 NameById[id] = name;
 
@@ -74,7 +74,7 @@ public class GameTdb
     public static List<string> GetIds(string name)
     {
         if (string.IsNullOrEmpty(name)) return [];
-        return IdsByName.TryGetValue(name, out var ids) ? new List<string>(ids) : [];
+        return IdsByName.TryGetValue(name, out var ids) ? [.. ids] : [];
     }
 
     public static List<string> GetIdsStartingWith(string idStart)
@@ -98,7 +98,7 @@ public class GameTdb
         return ids;
     }
 
-    internal static IEnumerable<string> GetAlternativeIds(string initialId)
+    public static IEnumerable<string> GetAlternativeIds(string initialId)
     {
         if (string.IsNullOrEmpty(initialId) || initialId.Length < 4)
         {

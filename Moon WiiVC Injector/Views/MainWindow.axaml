@@ -58,7 +58,7 @@
           <Grid Grid.Row="4" Grid.ColumnSpan="2" ColumnDefinitions="160,*" Margin="0,6,0,0">
             <!-- Left Side: Repo and Icon Preview -->
             <StackPanel Grid.Column="0" Spacing="6" HorizontalAlignment="Left">
-              <Button Name="RepoDownload" Content="Download images from&#x0a;cucholix's repo" Command="{Binding DownloadRepoCommand}" IsEnabled="{Binding CanDownloadRepo}" Width="140" Height="40" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"/>
+              <Button Name="RepoDownload" Content="{Binding RepoDownloadButtonText}" Command="{Binding DownloadRepoCommand}" IsEnabled="{Binding CanRetryDownloadRepo}" Width="140" Height="40" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"/>
               <TextBlock Text="Icon Preview (128x128)" Margin="0,4,0,2"/>
               <Border Width="128" Height="128" BorderBrush="#adadad" BorderThickness="1" Background="White" HorizontalAlignment="Left">
                 <Image Name="IconPreviewBox" Source="{Binding IconPreview}" Width="128" Height="128"/>

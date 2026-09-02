@@ -30,6 +30,9 @@
     <PackageReference Include="SkiaSharp" Version="3.119.4" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\NKit\NKit.csproj" />
+  </ItemGroup>
+  <ItemGroup>
     <None Update="Resources\TOOLDIR.zip">
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
     </None>
@@ -54,5 +57,7 @@
     <EmbeddedResource Include="Resources\wiitdb.txt">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </EmbeddedResource>
+    <EmbeddedResource Include="Resources\Base\**\*" />
+    <EmbeddedResource Include="Resources\Dol\**\*" />
   </ItemGroup>
 </Project>

@@ -3,6 +3,7 @@ using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
 
 namespace Moon_WiiVC_Injector;
+
 public partial class PromptWindow : Window
 {
     public string Result { get; private set; } = string.Empty;

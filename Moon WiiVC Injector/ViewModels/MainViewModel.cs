@@ -228,10 +228,30 @@ public partial class MainViewModel : ViewModelBase
     [ObservableProperty]
     private string _logOutput = string.Empty;
 
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanRetryDownloadRepo))]
+    [NotifyPropertyChangedFor(nameof(RepoDownloadButtonText))]
+    private bool _isRepoDownloading;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanRetryDownloadRepo))]
+    [NotifyPropertyChangedFor(nameof(RepoDownloadButtonText))]
+    private bool _repoDownloadFailed;
+
     // UI Capability bindings
     public bool CanSelectGame => !IsWiiNAND;
     public bool IsGCSelected => IsGCRetail;
     public bool CanDownloadRepo => IsWiiRetail || IsGCRetail || IsWiiNAND;
+    public bool CanRetryDownloadRepo => (IsWiiRetail || IsGCRetail || IsWiiNAND) && _flagGameSpecified && (RepoDownloadFailed || !_flagIconSpecified || !_flagBannerSpecified) && !IsRepoDownloading;
+    public string RepoDownloadButtonText
+    {
+        get
+        {
+            if (IsRepoDownloading) return "Downloading...";
+            if (RepoDownloadFailed || !_flagIconSpecified || !_flagBannerSpecified) return "Retry Download";
+            return "Assets Loaded";
+        }
+    }
     public bool IsAncastKeyVisible => C2WPatchFlag;
 
     public MainViewModel(IDialogService dialogService)
@@ -261,15 +281,25 @@ public partial class MainViewModel : ViewModelBase
                 ZipFile.ExtractToDirectory(toolZipPath, TempRootPath);
                 File.Delete(toolZipPath);
 
-                if (!OperatingSystem.IsWindows())
+                if (OperatingSystem.IsLinux() || OperatingSystem.IsMacOS() || OperatingSystem.IsFreeBSD())
                 {
-                    string c2wPath = Path.Combine(TempToolsPath, "C2W", "c2w_patcher");
-                    if (File.Exists(c2wPath))
+                    string witLinuxPath = Path.Combine(TempToolsPath, "WIT", "wit");
+                    if (File.Exists(witLinuxPath))
                     {
-                        File.SetUnixFileMode(c2wPath, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute | UnixFileMode.GroupRead | UnixFileMode.GroupExecute | UnixFileMode.OtherRead | UnixFileMode.OtherExecute);
+                        try
+                        {
+                            File.SetUnixFileMode(witLinuxPath, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute |
+                                                               UnixFileMode.GroupRead | UnixFileMode.GroupExecute |
+                                                               UnixFileMode.OtherRead | UnixFileMode.OtherExecute);
+                        }
+                        catch
+                        {
+                            try { Process.Start("chmod", $"+x \"{witLinuxPath}\"")?.WaitForExit(); } catch { }
+                        }
                     }
                 }
-                AppLogger.DebugLog("Tool directory extracted and permissions verified.");
+
+                AppLogger.DebugLog("Tool directory extracted.");
             }
             catch (Exception ex)
             {
@@ -368,6 +398,8 @@ public partial class MainViewModel : ViewModelBase
         OnPropertyChanged(nameof(CanSelectGame));
         OnPropertyChanged(nameof(IsGCSelected));
         OnPropertyChanged(nameof(CanDownloadRepo));
+        OnPropertyChanged(nameof(CanRetryDownloadRepo));
+        OnPropertyChanged(nameof(RepoDownloadButtonText));
     }
 
     private void ResetGameSelection()
@@ -378,6 +410,8 @@ public partial class MainViewModel : ViewModelBase
         _titleIdHex = string.Empty;
         _gameType = 0;
         _cucholixRepoId = string.Empty;
+        RepoDownloadFailed = false;
+        IsRepoDownloading = false;
 
         GameSourceText = "Game file has not been specified";
         InternalGameNameDisplay = string.Empty;
@@ -422,6 +456,7 @@ public partial class MainViewModel : ViewModelBase
             PackedTitleLine1 = RemoveSpecialChars(GameTdb.GetName(_cucholixRepoId) ?? string.Empty);
             InternalGameNameDisplay = PackedTitleLine1;
             InternalGameIDDisplay = inputId;
+            _ = FetchRepoAssetsAsync(silent: true);
         }
         else
         {
@@ -572,6 +607,11 @@ public partial class MainViewModel : ViewModelBase
                 InternalGameIDDisplay = $"{_titleIdText} / {_titleIdHex}";
                 PackedTitleIDLine = $"00050002{_titleIdHex}";
             }
+
+            UpdateChecklist();
+
+            // Auto-fetch assets from repo in the background
+            _ = FetchRepoAssetsAsync(silent: true);
         }
         catch (Exception ex)
         {
@@ -754,90 +794,196 @@ public partial class MainViewModel : ViewModelBase
     }
 
     [RelayCommand]
-    public async Task DownloadRepoAsync()
+    public async Task DownloadRepoAsync() => await FetchRepoAssetsAsync(silent: false);
+
+    public async Task FetchRepoAssetsAsync(bool silent = false)
     {
         if (string.IsNullOrEmpty(_cucholixRepoId))
         {
-            await _dialogService.ShowMessageAsync("Could not identify game to download repository files for", "Error", MessageBoxButtons.Ok);
+            if (!silent)
+            {
+                await _dialogService.ShowMessageAsync("Could not identify game to download repository files for", "Error", MessageBoxButtons.Ok);
+            }
             return;
         }
 
-        string baseUrl = "https://raw.githubusercontent.com/cucholix/wii-u-virtual-console-autoboot-icons/master/";
-        string iconUrl = $"{baseUrl}iconTex/{_cucholixRepoId}.png";
-        string bannerUrl = $"{baseUrl}bootTvTex/{_cucholixRepoId}.png";
-        string drcUrl = $"{baseUrl}bootDrcTex/{_cucholixRepoId}.png";
-        string logoUrl = $"{baseUrl}bootLogoTex/{_cucholixRepoId}.png";
-        string soundUrl = $"{baseUrl}bootSound/{_cucholixRepoId}.btsnd";
+        string rawBaseUrl = "https://raw.githubusercontent.com/cucholix/wiivc-bis/master";
 
-        bool anyDownloaded = false;
+        string[] platforms = _systemType switch
+        {
+            "wii" => ["wii", "wiiware"],
+            "gcn" => ["gcn"],
+            _ => ["wii", "gcn", "wiiware"]
+        };
 
-        static async Task<bool> CheckUrlAsync(string url)
+        // Collect candidate IDs to probe (e.g. SF8P01, SF8E01, SF8J01, SF8E, SF8P, etc.)
+        List<string> candidateIds = [];
+        foreach (var id in GameTdb.GetAlternativeIds(_cucholixRepoId))
+        {
+            if (!candidateIds.Contains(id)) candidateIds.Add(id);
+            if (id.Length > 4)
+            {
+                string id4 = id[..4];
+                if (!candidateIds.Contains(id4)) candidateIds.Add(id4);
+            }
+        }
+
+        bool downloadedIcon = false;
+        bool downloadedBanner = false;
+        bool downloadedDrc = false;
+        bool downloadedLogo = false;
+        bool downloadedSound = false;
+
+        static async Task<byte[]?> DownloadIfAvailableAsync(string url)
         {
             try
             {
-                using var request = new HttpRequestMessage(HttpMethod.Head, url);
-                using var response = await Program.Client.SendAsync(request);
-                return response != null && response.StatusCode == System.Net.HttpStatusCode.OK;
+                using var response = await Program.Client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead);
+                if (response.IsSuccessStatusCode)
+                {
+                    return await response.Content.ReadAsByteArrayAsync();
+                }
             }
-            catch { return false; }
+            catch { }
+            return null;
         }
 
-        if (await CheckUrlAsync(iconUrl))
+        IsRepoDownloading = true;
+        try
         {
-            byte[] bytes = await Program.Client.GetByteArrayAsync(iconUrl);
-            await File.WriteAllBytesAsync(TempIconPath, bytes);
-            using var ms = new MemoryStream(bytes);
-            IconPreview = new Bitmap(ms);
-            IconSourceText = "Downloaded from cucholix's repository";
-            _flagIconSpecified = true;
-            anyDownloaded = true;
-        }
+            // 1. Search for game-specific assets across platforms and candidate IDs
+            foreach (var platform in platforms)
+            {
+                foreach (var id in candidateIds)
+                {
+                    string gameBaseUrl = $"{rawBaseUrl}/{platform}/image/{id}";
 
-        if (await CheckUrlAsync(bannerUrl))
+                    if (!downloadedIcon)
+                    {
+                        byte[]? iconBytes = await DownloadIfAvailableAsync($"{gameBaseUrl}/iconTex.png");
+                        if (iconBytes != null)
+                        {
+                            await File.WriteAllBytesAsync(TempIconPath, iconBytes);
+                            using var ms = new MemoryStream(iconBytes);
+                            IconPreview = new Bitmap(ms);
+                            IconSourceText = $"Downloaded from cucholix ({id})";
+                            _flagIconSpecified = true;
+                            downloadedIcon = true;
+                            AppLogger.DebugLog($"[AutoDownload] Icon downloaded for {id}");
+                        }
+                    }
+
+                    if (!downloadedBanner)
+                    {
+                        byte[]? bannerBytes = await DownloadIfAvailableAsync($"{gameBaseUrl}/bootTvTex.png");
+                        if (bannerBytes != null)
+                        {
+                            await File.WriteAllBytesAsync(TempBannerPath, bannerBytes);
+                            using var ms = new MemoryStream(bannerBytes);
+                            BannerPreview = new Bitmap(ms);
+                            BannerSourceText = $"Downloaded from cucholix ({id})";
+                            _flagBannerSpecified = true;
+                            downloadedBanner = true;
+                            AppLogger.DebugLog($"[AutoDownload] TV Banner downloaded for {id}");
+                        }
+                    }
+
+                    if (!downloadedDrc)
+                    {
+                        byte[]? drcBytes = await DownloadIfAvailableAsync($"{gameBaseUrl}/bootDrcTex.png");
+                        if (drcBytes != null)
+                        {
+                            await File.WriteAllBytesAsync(TempDrcPath, drcBytes);
+                            using var ms = new MemoryStream(drcBytes);
+                            DrcPreview = new Bitmap(ms);
+                            DrcSourceText = $"Downloaded from cucholix ({id})";
+                            downloadedDrc = true;
+                            AppLogger.DebugLog($"[AutoDownload] GamePad Banner downloaded for {id}");
+                        }
+                    }
+
+                    if (!downloadedLogo)
+                    {
+                        byte[]? logoBytes = await DownloadIfAvailableAsync($"{gameBaseUrl}/bootLogoTex.png");
+                        if (logoBytes != null)
+                        {
+                            await File.WriteAllBytesAsync(TempLogoPath, logoBytes);
+                            using var ms = new MemoryStream(logoBytes);
+                            LogoPreview = new Bitmap(ms);
+                            LogoSourceText = $"Downloaded from cucholix ({id})";
+                            downloadedLogo = true;
+                            AppLogger.DebugLog($"[AutoDownload] Logo downloaded for {id}");
+                        }
+                    }
+
+                    if (!downloadedSound)
+                    {
+                        byte[]? soundBytes = await DownloadIfAvailableAsync($"{gameBaseUrl}/bootSound.btsnd")
+                                          ?? await DownloadIfAvailableAsync($"{gameBaseUrl}/bootSound.wav");
+                        if (soundBytes != null)
+                        {
+                            await File.WriteAllBytesAsync(TempSoundPath, soundBytes);
+                            BootSoundText = $"Downloaded from cucholix ({id})";
+                            downloadedSound = true;
+                            AppLogger.DebugLog($"[AutoDownload] Boot Sound downloaded for {id}");
+                        }
+                    }
+
+                    if (downloadedIcon && downloadedBanner)
+                    {
+                        break;
+                    }
+                }
+
+                if (downloadedIcon && downloadedBanner)
+                {
+                    break;
+                }
+            }
+
+            // 2. Fallback for platform default bootSound (e.g. GameCube or platform jingle)
+            if (!downloadedSound)
+            {
+                foreach (var platform in platforms)
+                {
+                    byte[]? soundBytes = await DownloadIfAvailableAsync($"{rawBaseUrl}/{platform}/sound/bootSound.btsnd")
+                                      ?? await DownloadIfAvailableAsync($"{rawBaseUrl}/{platform}/sound/gcnboot/bootSound.wav");
+                    if (soundBytes != null)
+                    {
+                        await File.WriteAllBytesAsync(TempSoundPath, soundBytes);
+                        BootSoundText = $"Downloaded default from cucholix ({platform})";
+                        downloadedSound = true;
+                        AppLogger.DebugLog($"[AutoDownload] Default boot sound downloaded for {platform}");
+                        break;
+                    }
+                }
+            }
+
+            bool anyDownloaded = downloadedIcon || downloadedBanner || downloadedDrc || downloadedLogo || downloadedSound;
+            RepoDownloadFailed = !downloadedIcon || !downloadedBanner;
+
+            if (!anyDownloaded && !silent)
+            {
+                await _dialogService.ShowMessageAsync(
+                    $"Could not find any files matching '{_cucholixRepoId}' (or regional alternatives) in cucholix's repository.",
+                    "Error",
+                    MessageBoxButtons.Ok);
+            }
+        }
+        catch (Exception ex)
         {
-            byte[] bytes = await Program.Client.GetByteArrayAsync(bannerUrl);
-            await File.WriteAllBytesAsync(TempBannerPath, bytes);
-            using var ms = new MemoryStream(bytes);
-            BannerPreview = new Bitmap(ms);
-            BannerSourceText = "Downloaded from cucholix's repository";
-            _flagBannerSpecified = true;
-            anyDownloaded = true;
+            RepoDownloadFailed = true;
+            AppLogger.Error("[AutoDownload] Error downloading assets from repository", ex);
+            if (!silent)
+            {
+                await _dialogService.ShowMessageAsync($"Failed to download from repository: {ex.Message}", "Error", MessageBoxButtons.Ok);
+            }
         }
-
-        if (await CheckUrlAsync(drcUrl))
+        finally
         {
-            byte[] bytes = await Program.Client.GetByteArrayAsync(drcUrl);
-            await File.WriteAllBytesAsync(TempDrcPath, bytes);
-            using var ms = new MemoryStream(bytes);
-            DrcPreview = new Bitmap(ms);
-            DrcSourceText = "Downloaded from cucholix's repository";
-            anyDownloaded = true;
+            IsRepoDownloading = false;
+            UpdateChecklist();
         }
-
-        if (await CheckUrlAsync(logoUrl))
-        {
-            byte[] bytes = await Program.Client.GetByteArrayAsync(logoUrl);
-            await File.WriteAllBytesAsync(TempLogoPath, bytes);
-            using var ms = new MemoryStream(bytes);
-            LogoPreview = new Bitmap(ms);
-            LogoSourceText = "Downloaded from cucholix's repository";
-            anyDownloaded = true;
-        }
-
-        if (await CheckUrlAsync(soundUrl))
-        {
-            byte[] bytes = await Program.Client.GetByteArrayAsync(soundUrl);
-            await File.WriteAllBytesAsync(TempSoundPath, bytes);
-            BootSoundText = "Downloaded from cucholix's repository";
-            anyDownloaded = true;
-        }
-
-        if (!anyDownloaded)
-        {
-            await _dialogService.ShowMessageAsync("Could not find any files matching the specified Game Title ID in cucholix's repository", "Error", MessageBoxButtons.Ok);
-        }
-
-        UpdateChecklist();
     }
 
     [RelayCommand]

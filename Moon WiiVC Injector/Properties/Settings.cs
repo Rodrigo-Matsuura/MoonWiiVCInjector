@@ -1,6 +1,7 @@
 using System.Text.Json;
 
 namespace Moon_WiiVC_Injector.Properties;
+
 internal sealed class Settings
 {
     private static readonly string SettingsFolder = Path.Combine(
@@ -10,7 +11,7 @@ internal sealed class Settings
     private static readonly string SettingsPath = Path.Combine(SettingsFolder, "settings.json");
 
     private static Settings? _defaultInstance;
-    private static readonly object LockObj = new object();
+    private static readonly Lock LockObj = new();
 
     public static Settings Default
     {
@@ -20,10 +21,7 @@ internal sealed class Settings
             {
                 lock (LockObj)
                 {
-                    if (_defaultInstance == null)
-                    {
-                        _defaultInstance = Load();
-                    }
+                    _defaultInstance ??= Load();
                 }
             }
             return _defaultInstance;
@@ -31,7 +29,6 @@ internal sealed class Settings
     }
 
     public string OutputPath { get; set; } = string.Empty;
-    public string GameFilePath { get; set; } = string.Empty;
     public string OutputPathFixed { get; set; } = string.Empty;
     public string WiiUCommonKey { get; set; } = string.Empty;
     public string TitleKey { get; set; } = string.Empty;

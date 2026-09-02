@@ -1,6 +1,7 @@
 using Avalonia;
 
 namespace Moon_WiiVC_Injector;
+
 static class Program
 {
     public static readonly HttpClient Client = new HttpClient();

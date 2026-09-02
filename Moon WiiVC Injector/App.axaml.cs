@@ -3,6 +3,7 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 
 namespace Moon_WiiVC_Injector;
+
 public partial class App : Application
 {
     public override void Initialize()

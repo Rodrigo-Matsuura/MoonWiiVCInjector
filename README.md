@@ -98,6 +98,29 @@ This project is built and maintained with **Vibe Coding**. Contributions, optimi
 
 ---
 
+## 🏆 Credits & Acknowledgements
+
+Special thanks and full attribution to the authors and projects of the Wii, Wii U, and GameCube homebrew communities that made this injector possible:
+
+* **[TeconMoon](https://github.com/piratesephiroth/TeconmoonWiiVCInjector)**: Creator of the original *TeconMoon's WiiVC Injector*.
+* **[QuzarDC](https://github.com/piratesephiroth/TeconmoonWiiVCInjector/issues?q=is%3Apr+is%3Aopen+author%3AQuzarDC)**: Contributor of upstream improvements
+* **[V10lator](https://github.com/piratesephiroth/TeconmoonWiiVCInjector/issues?q=is:pr+is:open+author:V10lator)**: Contributor of upstream improvements
+* **[FIX94](https://github.com/FIX94)**:
+  * **[NFS2ISO2NFS](https://github.com/FIX94/NFS2ISO2NFS)**: Wii U NFS partition extraction and ISO manipulation.
+  * **[GetExtTypePatcher](https://github.com/FIX94/GetExtTypePatcher)**: PowerPC Classic Controller patcher for `main.dol` (native C# port in `DolPatcher.cs`).
+  * **[c2w_patcher](https://github.com/FIX94/c2w_patcher)**: Cafe2Wii Ancast image patcher for vWii (native C# port in `C2wPatcher.cs`).
+  * **[Nintendont](https://github.com/FIX94/Nintendont)**: GameCube autoboot and forwarder DOL loaders.
+* **[Tim Ogus (timogus)](https://bitbucket.org/timogus/wav2btsnd)**: Creator of `wav2btsnd` (native C# lossless audio port in `BtsndConverter.cs`).
+* **[Nanook](https://github.com/Nanook/NKit)**: Creator of `NKit` (Nintendo GameCube and Wii disc image compression/recovery tool).
+* **[Wiimms (wiimm)](https://wit.wiimm.de/)**: Creator of `WIT` (Wiimms ISO Tools) for Wii/GC disc and partition handling.
+* **[Maschell](https://github.com/Maschell)**:
+  * **[JNUSTool](https://github.com/Maschell/JNUSTool)**: Nintendo NUS download client.
+  * **[NUSPacker](https://github.com/Maschell/NUSPacker)**: Wii U WUP package encryption and generation.
+* **[Waninkoko](https://github.com/waninkoko)**: Creator of `wii-vmc` (Wii Video Mode Changer).
+* **[GameTDB / WiiTDB](https://www.gametdb.com/)**: Comprehensive video game metadata database for Wii and GameCube titles.
+
+---
+
 ## 📄 License
 
 This project is licensed under the **GNU General Public License v3.0 (GPLv3)**. See the [LICENSE](LICENSE) file for details.
