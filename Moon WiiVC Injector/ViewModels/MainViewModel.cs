@@ -239,6 +239,7 @@ public partial class MainViewModel : ViewModelBase
     private bool _repoDownloadFailed;
 
     // UI Capability bindings
+    public string WindowTitle => $"Moon WiiVC Injector - [{GetType().Assembly.GetName().Version?.ToString(3) ?? "1.1.0"}]";
     public bool CanSelectGame => !IsWiiNAND;
     public bool IsGCSelected => IsGCRetail;
     public bool CanDownloadRepo => IsWiiRetail || IsGCRetail || IsWiiNAND;
