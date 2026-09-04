@@ -87,7 +87,7 @@ internal class WiiFillerSectionItem : BaseSection
         {
             _junk.Position = discOffset;
             _junkData = new byte[Data.Length];
-            _junk.Read(_junkData, 0, (int)base.Size);
+            _junk.ReadExactly(_junkData, 0, (int)base.Size);
             Array.Clear(_junkData, 0, 28);
             base.Data = _useBuff ? data : _junkData;
         }
@@ -97,7 +97,7 @@ internal class WiiFillerSectionItem : BaseSection
     {
         base.DiscOffset = discOffset;
         base.Size = size;
-        _junk?.Read(_junkData, 0, (int)base.Size);
+        _junk?.ReadExactly(_junkData, 0, (int)base.Size);
         base.Data = _useBuff ? data : _junkData;
     }
 
@@ -144,7 +144,7 @@ internal class WiiFillerSection : IWiiDiscSection
 
             int len = (int)Math.Min(_buff.Length, Size);
             if (readImg)
-                _stream.Read(_buff, 0, len);
+                _stream.ReadExactly(_buff, 0, len);
             else
             {
                 if (hdr.Partitions.Any(a => a.DiscOffset > DiscOffset))
@@ -162,7 +162,7 @@ internal class WiiFillerSection : IWiiDiscSection
             {
                 len = (int)Math.Min(_buff.Length, (DiscOffset + Size) - (last.DiscOffset + last.Size));
                 if (readImg)
-                    _stream.Read(_buff, 0, len);
+                    _stream.ReadExactly(_buff, 0, len);
                 if (ffScrubbedUpdate)
                     Array.Clear(_buff, 0, len);
                 es.Populate(_buff, last.DiscOffset + last.Size, len);

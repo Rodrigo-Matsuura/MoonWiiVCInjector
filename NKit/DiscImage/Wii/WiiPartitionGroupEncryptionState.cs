@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -12,9 +12,9 @@ namespace NKit;
 /// </summary>
 internal class WiiPartitionGroupEncryptionState
 {
-    private class block
+    private class Block
     {
-        public block(int index, PartitionHashTable h1Table, PartitionHashTable h2Table, byte[] key)
+        public Block(int index, PartitionHashTable h1Table, PartitionHashTable h2Table, byte[] key)
         {
             this.Index = index;
             this.Offset = index * 0x8000;
@@ -47,7 +47,7 @@ internal class WiiPartitionGroupEncryptionState
         }
     }
 
-    private byte[] _h3Table;
+    private readonly byte[] _h3Table;
     private byte[] _h3Value;
     private bool _isValid;
     private int _groupIdx;
@@ -56,11 +56,11 @@ internal class WiiPartitionGroupEncryptionState
     private bool _hasEnc; //true if encrypted data is set on populate and decrypted data has not been modified
     private bool _hasDec; //true if decrypted data is set or we have decrypted the encrypted data
     private bool _hasHashes; //false if not refreshed
-    private int _maxSize;
+    private readonly int _maxSize;
     private bool _isDirty; //we have decrypted data and it has been modified
     private bool _forcedHashes;
     private bool _hashedRecalulated;
-    private block[] _blocks;
+    private readonly Block[] _blocks;
     private int _size;
     private int _usedBlocks;
     public byte[] _unusedBlankHash;
@@ -73,16 +73,16 @@ internal class WiiPartitionGroupEncryptionState
             throw new HandledException("Max group size is not a multiple of 0x8000");
         _h3Table = h3Table;
         _maxSize = maxSize;
-        _blocks = new block[maxSize / 0x8000];
+        _blocks = new Block[maxSize / 0x8000];
 
         PartitionHashTable h1 = null;
-        PartitionHashTable h2 = new PartitionHashTable(8);
+        PartitionHashTable h2 = new(8);
 
         for (int i = 0; i < _blocks.Length; i++)
         {
             if (i % 8 == 0)  //share the h2 hash table across 8 blocks
                 h1 = new PartitionHashTable(8); //8 lots of 8 blocks = 64 blocks
-            _blocks[i] = new block(i, h1, h2, key);
+            _blocks[i] = new Block(i, h1, h2, key);
         }
 
         _unusedBlankHash = _blocks[0].Sha1.ComputeHash(new byte[0x400]);
@@ -100,8 +100,8 @@ internal class WiiPartitionGroupEncryptionState
         _size = s;
         if (s != _maxSize) // || true) //force clone for testing
         {
-            _enc = _enc ?? new byte[_maxSize];
-            _dec = _dec ?? new byte[_maxSize];
+            _enc ??= new byte[_maxSize];
+            _dec ??= new byte[_maxSize];
             Array.Copy(data, isEnc ? _enc : _dec, Math.Min(s, _maxSize));
             if (s < _maxSize)
                 Array.Clear(isEnc ? _enc : _dec, s, _maxSize - s);
@@ -109,12 +109,12 @@ internal class WiiPartitionGroupEncryptionState
         else if (isEnc)
         {
             _enc = data;
-            _dec = _dec ?? new byte[_maxSize];
+            _dec ??= new byte[_maxSize];
         }
         else
         {
             _dec = data;
-            _enc = _enc ?? new byte[_maxSize];
+            _enc ??= new byte[_maxSize];
         }
 
         _hasDec = !(_hasEnc = isEnc); //dec array isDirty if isEnc
@@ -137,12 +137,12 @@ internal class WiiPartitionGroupEncryptionState
             Parallel.ForEach(_blocks, b =>
             {
                 b.Aes.IV = new byte[16];
-                using (ICryptoTransform cryptor = b.Aes.CreateDecryptor())
-                    cryptor.TransformBlock(_dec, b.Offset, 0x400, _dec, b.Offset);
+                using ICryptoTransform cryptor = b.Aes.CreateDecryptor();
+                cryptor.TransformBlock(_dec, b.Offset, 0x400, _dec, b.Offset);
             });
         }
         else if (isEnc)
-            Parallel.ForEach(_blocks, b => setScrubbedBlockInfo(b));
+            Parallel.ForEach(_blocks, b => SetScrubbedBlockInfo(b));
 
     }
 
@@ -150,8 +150,8 @@ internal class WiiPartitionGroupEncryptionState
     /// Prepares the group and encrypts it if required. Can be expensive if changes are made to the decrypted data
     /// </summary>
     [DebuggerBrowsable(DebuggerBrowsableState.Never)] //if visual studio executes this while debuging it can calculate headers at bad times and reset the dirty flags incorrectly
-    public byte[] Encrypted { get { return ensureEncrypted(); } }
-    public byte[] Decrypted { get { return ensureDecrypted(); } }
+    public byte[] Encrypted { get { return EnsureEncrypted(); } }
+    public byte[] Decrypted { get { return EnsureDecrypted(); } }
     public int UsedBlocks { get { return _usedBlocks; } }
     public int UsedSize { get { return _size; } }
     public int BlockOffset(int blockIndex) { return _blocks[blockIndex].Offset; }
@@ -182,15 +182,15 @@ internal class WiiPartitionGroupEncryptionState
 
     internal bool FastHashIsValid()
     {
-        ensureDecrypted();
-        ensureHashCache();
-        block b1 = _blocks.First();
+        EnsureDecrypted();
+        EnsureHashCache();
+        Block b1 = _blocks.First();
 
         bool anyInvalid = _blocks.AsParallel().Any(b =>
         {
             if (b.IsUsed)
             {
-                if (b.IsScrubbed || !blockIsValid(b))
+                if (b.IsScrubbed || !BlockIsValid(b))
                     return true;
 
                 //ensure the blank areas are blank - some customs fail this - Mario Kart Black
@@ -207,13 +207,13 @@ internal class WiiPartitionGroupEncryptionState
 
             }
             else
-                hashCacheH0BlockCalc(b); //set the unused hashes so that the H1+H2 match the H3
+                HashCacheH0BlockCalc(b); //set the unused hashes so that the H1+H2 match the H3
             return false;
         });
 
         if (anyInvalid) //|| !hashCacheH1H2GroupCalc() || !_isValid) //hashCacheH1H2GroupCalc sets _isValid to a new result
             return false;
-        hashCacheH1H2GroupCalc();
+        HashCacheH1H2GroupCalc();
         if (!_isValid)
             return false;
         return true;
@@ -221,10 +221,10 @@ internal class WiiPartitionGroupEncryptionState
 
     public int ScrubbedBlocks { get { return _blocks.Count(a => a.IsScrubbed); } }
 
-    private void recalculateHashes()
+    private void RecalculateHashes()
     {
-        hashCacheH0GroupCalc();
-        hashCacheH1H2GroupCalc();
+        HashCacheH0GroupCalc();
+        HashCacheH1H2GroupCalc();
         _isDirty = false;
         _hashedRecalulated = true;
         _forcedHashes = false;
@@ -232,7 +232,7 @@ internal class WiiPartitionGroupEncryptionState
 
     public void ForceHashes(byte[] hashes)
     {
-        ensureDecrypted();
+        EnsureDecrypted();
         for (int i = 0; i < _usedBlocks; i++)
         {
             if (hashes != null) //null if applied already
@@ -252,10 +252,10 @@ internal class WiiPartitionGroupEncryptionState
     public bool IsValid(bool hashRecalculateIfDirty)
     {
         bool dirty = _isDirty;
-        ensureDecrypted();
-        ensureHashCache();
+        EnsureDecrypted();
+        EnsureHashCache();
         if (hashRecalculateIfDirty && dirty)
-            recalculateHashes();
+            RecalculateHashes();
         return _isValid;
     }
 
@@ -264,13 +264,13 @@ internal class WiiPartitionGroupEncryptionState
     /// </summary>
     public bool BlockIsValid(int blockIndex)
     {
-        return blockIsValid(_blocks[blockIndex]);
+        return BlockIsValid(_blocks[blockIndex]);
     }
 
-    private bool blockIsValid(block b)
+    private bool BlockIsValid(Block b)
     {
-        ensureDecrypted();
-        ensureHashCache();
+        EnsureDecrypted();
+        EnsureHashCache();
         for (int i = 1; i < 32; i++)
         {
             if (!b.H0Table.Equals(i - 1, b.Sha1.ComputeHash(_dec, b.Offset + (i * 0x400), 0x400)))
@@ -284,27 +284,27 @@ internal class WiiPartitionGroupEncryptionState
         return _blocks[blockIndex].IsScrubbed;
     }
 
-    private void ensureHashCache()
+    private void EnsureHashCache()
     {
         if (!_hasHashes)
         {
-            hashCacheH0H1GroupPopulate();
-            hashCacheH2Populate();
+            HashCacheH0H1GroupPopulate();
+            HashCacheH2Populate();
             _hasHashes = true;
             _isDirty = false;
         }
     }
 
-    private byte[] ensureEncrypted()
+    private byte[] EnsureEncrypted()
     {
         if (!_hasEnc) //if false we must have decrypted data
         {
-            ensureHashCache(); //calc hashes if dirty
+            EnsureHashCache(); //calc hashes if dirty
             Parallel.ForEach(_blocks, b =>
             {
                 if (_hashedRecalulated)
-                    commitHashCache(b);
-                encrypt(b);
+                    CommitHashCache(b);
+                Encrypt(b);
             });
             _isDirty = false;
             _hasEnc = true;
@@ -312,23 +312,23 @@ internal class WiiPartitionGroupEncryptionState
         return _enc;
     }
 
-    private byte[] ensureDecrypted()
+    private byte[] EnsureDecrypted()
     {
         if (_hasEnc && !_hasDec) //_hasEnc only true when the data is not Populated as so and not dirty
         {
             Parallel.ForEach(_blocks, b =>
             {
-                decrypt(b); //decrypt
-                hashCacheH0H1BlockPopulate(b);
+                Decrypt(b); //decrypt
+                HashCacheH0H1BlockPopulate(b);
             });
-            hashCacheH2Populate();
+            HashCacheH2Populate();
             _hasHashes = true;
             _hasDec = true;
         }
         return _dec;
     }
 
-    private void encrypt(block b)
+    private void Encrypt(Block b)
     {
         byte[] iv = new byte[16];
 
@@ -350,7 +350,7 @@ internal class WiiPartitionGroupEncryptionState
         b.IsDirty = false;
     }
 
-    private void decrypt(block b)
+    private void Decrypt(Block b)
     {
         byte[] iv = new byte[16];
 
@@ -369,14 +369,14 @@ internal class WiiPartitionGroupEncryptionState
         b.IsDirty = false;
     }
 
-    private bool hashCacheH0H1GroupPopulate()
+    private bool HashCacheH0H1GroupPopulate()
     {
         bool eq = true;
-        Parallel.ForEach(_blocks, b => hashCacheH0H1BlockPopulate(b));
+        Parallel.ForEach(_blocks, b => HashCacheH0H1BlockPopulate(b));
         return eq;
     }
 
-    private void hashCacheH0H1BlockPopulate(block b)
+    private void HashCacheH0H1BlockPopulate(Block b)
     {
         if (!b.IsUsed) //set the h1 table
             b.H0Table.Reset(new byte[0x26c], 0); //0 to 0x26c
@@ -386,7 +386,7 @@ internal class WiiPartitionGroupEncryptionState
         if (b.Index % 8 == 0) //get the h2 table from the first block in the 8 block group
             b.H1Table.Reset(_dec, b.Offset + 0x280); //0x280 to 0x320
     }
-    private void hashCacheH2Populate()
+    private void HashCacheH2Populate()
     {
         _blocks[0].H2Table.Reset(_dec, 0x340); //set to all blocks
         _h3Value = _blocks[0].Sha1.ComputeHash(_blocks[0].H2Table.Bytes);
@@ -394,18 +394,18 @@ internal class WiiPartitionGroupEncryptionState
     }
 
 
-    private bool hashCacheH0GroupCalc()
+    private bool HashCacheH0GroupCalc()
     {
         bool eq = true;
         Parallel.ForEach(_blocks, b =>
         {
-            if (!hashCacheH0BlockCalc(b))
+            if (!HashCacheH0BlockCalc(b))
                 eq = false;
         });
         return eq;
     }
 
-    private bool hashCacheH0BlockCalc(block b)
+    private bool HashCacheH0BlockCalc(Block b)
     {
         bool eq = true;
         for (int i = 1; i < 32; i++)
@@ -417,7 +417,7 @@ internal class WiiPartitionGroupEncryptionState
         return eq; //true if same = no change
     }
 
-    private bool hashCacheH1H2GroupCalc()
+    private bool HashCacheH1H2GroupCalc()
     {
         bool eq = true;
         Parallel.For(0, 8, j =>
@@ -438,7 +438,7 @@ internal class WiiPartitionGroupEncryptionState
         return eq;
     }
 
-    private void commitHashCache(block b)
+    private void CommitHashCache(Block b)
     {
         b.H0Table.CopyAll(_dec, b.Offset); //31 20 byte hashes
         Array.Clear(_dec, b.Offset + 0x26c, 0x280 - 0x26c); //0x26c 31 20 byte hashes
@@ -448,7 +448,7 @@ internal class WiiPartitionGroupEncryptionState
         Array.Clear(_dec, b.Offset + 0x340 + 0xA0, 0x400 - (0x340 + 0xA0));
     }
 
-    private void setScrubbedBlockInfo(block b)
+    private void SetScrubbedBlockInfo(Block b)
     {
         if (_hasEnc)
         {

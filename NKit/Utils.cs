@@ -1,4 +1,5 @@
 using System;
+using System.Buffers;
 using System.Diagnostics;
 using System.IO;
 using System.Text;
@@ -70,38 +71,46 @@ public static class ExtensionMethods
     public static long Copy(this Stream source, Stream target, long amount) //, Action<long, long> progress)
     {
         int len = 0x200000; //arbitrary
-        byte[] buffer = new byte[len];
-        byte[] buffer2 = new byte[len]; //double buffered
-        byte[] tmp;
-        int read = 0;
-        int read2 = 0;
-        long total = amount;
-        long prg = 0;
-        Task t = null;
-        while (prg < total)
+        byte[] buffer = ArrayPool<byte>.Shared.Rent(len);
+        byte[] buffer2 = ArrayPool<byte>.Shared.Rent(len); //double buffered
+        try
         {
-            read2 = 0;
-            prg += read;
-            if (prg < total)
+            byte[] tmp;
+            int read = 0;
+            int read2 = 0;
+            long total = amount;
+            long prg = 0;
+            Task t = null;
+            while (prg < total)
             {
-                t = Task.Run(() => read2 = source.Read(buffer2, 0, (int)Math.Min((long)len, total - prg)));
-                t.ConfigureAwait(false);
+                read2 = 0;
+                prg += read;
+                if (prg < total)
+                {
+                    t = Task.Run(() => read2 = source.Read(buffer2, 0, (int)Math.Min((long)len, total - prg)));
+                    t.ConfigureAwait(false);
+                }
+                else
+                    t = null;
+                target.Write(buffer, 0, read);
+                if (t != null && !t.IsCompleted)
+                    t.Wait();
+
+                tmp = buffer2;
+                buffer2 = buffer;
+                buffer = tmp;
+                if (read == 0 && read2 == 0)
+                    throw new Exception("Could not read from stream");
+                read = read2;
             }
-            else
-                t = null;
-            target.Write(buffer, 0, read);
-            if (t != null && !t.IsCompleted)
-                t.Wait();
 
-            tmp = buffer2;
-            buffer2 = buffer;
-            buffer = tmp;
-            if (read == 0 && read2 == 0)
-                throw new Exception("Could not read from stream");
-            read = read2;
+            return prg;
         }
-
-        return prg;
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(buffer);
+            ArrayPool<byte>.Shared.Return(buffer2);
+        }
     }
 
 }

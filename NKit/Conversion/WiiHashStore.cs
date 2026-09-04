@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -11,7 +11,7 @@ namespace NKit;
 internal class WiiHashStore
 {
     private MemorySection _flags;
-    private MemoryStream _hashes;
+    private readonly MemoryStream _hashes;
     private long _partitionSize;
 
     public WiiHashStore()
@@ -20,11 +20,11 @@ internal class WiiHashStore
 
     public WiiHashStore(long partitionDataSize)
     {
-        _flags = new MemorySection(new byte[intsCount(partitionDataSize) * 4]);
+        _flags = new MemorySection(new byte[IntsCount(partitionDataSize) * 4]);
         _hashes = new MemoryStream();
     }
 
-    private int intsCount(long partitionDataSize)
+    private int IntsCount(long partitionDataSize)
     {
         long size = partitionDataSize / 0x7c00 * 0x8000;
         _partitionSize = size;
@@ -67,11 +67,11 @@ internal class WiiHashStore
         {
             if (IsPreserved(o))
             {
-                long[] keys = hashes.Keys.ToArray();
+                long[] keys = [.. hashes.Keys];
                 int blocks = (int)Math.Min(WiiPartitionSection.GroupSize, _partitionSize - o) / 0x8000; //read partial groups (< 64 blocks)
                 long offset;
                 if ((offset = keys.FirstOrDefault(a => a == partitionDiscOffset + o)) != 0)
-                    stream.Read(hashes[partitionDiscOffset + o].Data, 0, blocks * 0x400); //needs to be encrypted and CRCd
+                    stream.ReadExactly(hashes[partitionDiscOffset + o].Data, 0, blocks * 0x400); //needs to be encrypted and CRCd
                 else
                     stream.Copy(Stream.Null, blocks * 0x400);
                 read += blocks * 0x400;
@@ -82,7 +82,7 @@ internal class WiiHashStore
 
     public void WriteFlagsData(long partitionDataSize, Stream readStream)
     {
-        _flags = MemorySection.Read(readStream, intsCount(partitionDataSize) * 4);
+        _flags = MemorySection.Read(readStream, IntsCount(partitionDataSize) * 4);
     }
 
     public byte[] FlagsToByteArray()

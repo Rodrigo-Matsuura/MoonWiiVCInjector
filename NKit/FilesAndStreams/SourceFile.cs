@@ -1,4 +1,4 @@
-﻿using SharpCompress.Archives;
+using SharpCompress.Archives;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -76,7 +76,7 @@ public class SourceFile
             try
             {
                 fs = this.OpenStream();
-                NStream nStream = new NStream(new StreamForward(fs, null));
+                NStream nStream = new(new StreamForward(fs, null));
                 nStream.Initialize(readAsDisc);
                 return nStream;
             }
@@ -94,7 +94,7 @@ public class SourceFile
                 try
                 {
                     arcType = ((this.AllFiles.Length == 0) ? "" : "multipart ") + "archive";
-                    archive = ArchiveFactory.Open(this.FilePath); //handles multipart archives
+                    archive = ArchiveFactory.OpenArchive(this.FilePath); //handles multipart archives
                 }
                 catch (Exception ex)
                 {
@@ -107,7 +107,7 @@ public class SourceFile
                 {
                     arcType = "split archive";
                     fs = this.OpenStream();
-                    archive = ArchiveFactory.Open(fs); //handles multipart archives
+                    archive = ArchiveFactory.OpenArchive(fs); //handles multipart archives
                 }
                 catch (Exception ex)
                 {
@@ -136,7 +136,7 @@ public class SourceFile
 
                 if (ent != null)
                 {
-                    NStream nStream = new NStream(new StreamForward((long)ent.Size, ent.OpenEntryStream(), archive));
+                    NStream nStream = new(new StreamForward((long)ent.Size, ent.OpenEntryStream(), archive));
                     nStream.Initialize(true);
                     return nStream;
                 }

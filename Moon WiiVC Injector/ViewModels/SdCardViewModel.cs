@@ -379,13 +379,13 @@ public partial class SdCardViewModel : ViewModelBase
         {
             if (SelectedDrive.Length >= 3 && SelectedDrive[1] == ':' && (SelectedDrive[2] == '\\' || SelectedDrive[2] == '/'))
             {
-                return SelectedDrive.Substring(0, 3);
+                return SelectedDrive[..3];
             }
             return SelectedDrive;
         }
 
-        int parenIdx = SelectedDrive.IndexOf(" (");
-        string path = parenIdx > 0 ? SelectedDrive.Substring(0, parenIdx).Trim() : SelectedDrive.Trim();
+        int parenIdx = SelectedDrive.IndexOf(" (", StringComparison.Ordinal);
+        string path = parenIdx > 0 ? SelectedDrive[..parenIdx].Trim() : SelectedDrive.Trim();
         return Directory.Exists(path) ? path : null;
     }
 }

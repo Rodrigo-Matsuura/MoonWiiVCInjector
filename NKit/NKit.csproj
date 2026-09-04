@@ -6,10 +6,14 @@
     <LangVersion>13.0</LangVersion>
     <RootNamespace>NKit</RootNamespace>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
-    <NoWarn>$(NoWarn);CS0168;CS0219;CS0414;CS0618;CS0649;CS8981;NU1902;CA2022;IDE0130</NoWarn>
+    <Version>1.3.0</Version>
+    <AssemblyVersion>1.3.0.0</AssemblyVersion>
+    <FileVersion>1.3.0.0</FileVersion>
+    <Description>Nintendo Kit</Description>
+    <Copyright>Copyright © Nanook 2019</Copyright>
+    <NoWarn>$(NoWarn);IDE0130</NoWarn>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="SharpCompress" Version="0.38.0" />
+    <PackageReference Include="SharpCompress" Version="0.50.4" />
   </ItemGroup>
 </Project>

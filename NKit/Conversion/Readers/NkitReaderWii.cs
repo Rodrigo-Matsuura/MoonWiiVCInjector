@@ -137,7 +137,7 @@ internal class NkitReaderWii : IReader
                                 int blocks = (int)Math.Min(64L, remaining / 0x7c00);
                                 for (int b = 0; b < blocks; b++)
                                 {
-                                    prtStream.Read(ph.Data, (b * 0x8000) + 0x400, 0x7c00); //load aligned with no hashes
+                                    prtStream.ReadExactly(ph.Data, (b * 0x8000) + 0x400, 0x7c00); //load aligned with no hashes
 
                                     if (remaining == long.MaxValue) //first loop
                                     {
@@ -610,7 +610,7 @@ internal class NkitReaderWii : IReader
         if (size == 0xFFFFFFFC) //for wii only. not a thing for GC
         {
             srcPos += 4;
-            inStream.Read(ms.Data, 0, 4);
+            inStream.ReadExactly(ms.Data, 0, 4);
             size = 0xFFFFFFFCL + (long)ms.ReadUInt32B(0); //cater for files > 0xFFFFFFFF
         }
         gapLength.Value = size;
@@ -625,7 +625,7 @@ internal class NkitReaderWii : IReader
         {
             nullsPos = Math.Min(nullsPos - dstPos, 0);
             nulls = (size & 0xFC) >> 2;
-            inStream.Read(ms.Data, 0, 4);
+            inStream.ReadExactly(ms.Data, 0, 4);
             srcPos += 4;
             junkFileLen = ms.ReadUInt32B(0);
             fileLength = junkFileLen;
@@ -640,7 +640,7 @@ internal class NkitReaderWii : IReader
             else
             {
                 //read gap
-                inStream.Read(ms.Data, 0, 4);
+                inStream.ReadExactly(ms.Data, 0, 4);
                 srcPos += 4;
                 size = ms.ReadUInt32B(0);
                 gt = (GapType)(size & 0b11);
@@ -677,7 +677,7 @@ internal class NkitReaderWii : IReader
 
             while (prg > 0)
             {
-                inStream.Read(ms.Data, 0, 4);
+                inStream.ReadExactly(ms.Data, 0, 4);
                 srcPos += 4;
                 long bytes;
                 long blk = ms.ReadUInt32B(0);

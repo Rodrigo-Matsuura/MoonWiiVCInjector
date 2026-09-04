@@ -33,13 +33,13 @@ internal class WiiPartitionSection : IWiiDiscSection
 
         // calc the header
         byte[] partHdrTmp = new byte[0x400]; // read enough to get all the details we need
-        _stream.Read(partHdrTmp, 0, partHdrTmp.Length); // need to read this to get header length
+        _stream.ReadExactly(partHdrTmp, 0, partHdrTmp.Length); // need to read this to get header length
         byte[] partHdrLen = new byte[4];
         Array.Copy(partHdrTmp, 0x2b8, partHdrLen, 0, 4); // location of partition header length
         long hdrLen = BigEndian(BitConverter.ToUInt32(partHdrLen, 0)) * 4;
         byte[] partHdr = new byte[hdrLen];
         Array.Copy(partHdrTmp, partHdr, partHdrTmp.Length);
-        _stream.Read(partHdr, partHdrTmp.Length, partHdr.Length - partHdrTmp.Length);
+        _stream.ReadExactly(partHdr, partHdrTmp.Length, partHdr.Length - partHdrTmp.Length);
 
         Header = new WiiPartitionHeaderSection(_discHdr, readPartitionStream, discOffset, partHdr, partHdr.Length);
         if (Header.IsRvtH)
@@ -60,7 +60,7 @@ internal class WiiPartitionSection : IWiiDiscSection
         foreach (var x in isoDecUnscub)
         {
             _stream.JunkStream.Position = _stream.OffsetToData(x.Key);
-            _stream.JunkStream.Read(ps.Decrypted, x.Key, x.Value);
+            _stream.JunkStream.ReadExactly(ps.Decrypted, x.Key, x.Value);
         }
         _firstSection = ps;
     }
@@ -86,14 +86,14 @@ internal class WiiPartitionSection : IWiiDiscSection
                     long seekDiscOffset = Header.DiscOffset + Header.Size + _seek;
                     _stream.Seek(seekDiscOffset, SeekOrigin.Begin);
                     size = (int)Math.Min((Header.DiscOffset + Header.Size + Header.PartitionSize) - seekDiscOffset, (long)data.Length);
-                    _stream.Read(data, 0, size);
+                    _stream.ReadExactly(data, 0, size);
                     sec = (int)(_seek / GroupSize);
                     ps.Populate(sec, data, Header.DiscOffset + Header.Size + _seek, size);
                 }
                 else
                 {
                     size = (int)Math.Min((Header.DiscOffset + Header.Size + Header.PartitionSize) - (last.DiscOffset + last.Size), (long)data.Length);
-                    _stream.Read(data, 0, size);
+                    _stream.ReadExactly(data, 0, size);
                     ps.Populate(++sec, data, last.DiscOffset + last.Size, size);
                     ParseFst(ps);
                 }

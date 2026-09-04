@@ -1,4 +1,4 @@
-﻿using SharpCompress.Compressors.Deflate;
+using SharpCompress.Compressors.Deflate;
 using SharpCompress.Compressors.LZMA;
 using System;
 using System.Collections.Generic;
@@ -83,7 +83,7 @@ public class NStream : Stream
 
     public long ImageSize { get { return _imageSize; } } //Same as above, if nkit it refers to the converted size
 
-    public long RecoverySize { get { return lenCalc(_imageSize); } } //same as above, but in the case of truncated isos, it's the full recovered size
+    public long RecoverySize { get { return LenCalc(_imageSize); } } //same as above, but in the case of truncated isos, it's the full recovered size
 
     public long SourceSize { get { return _stream.Length; } } //size of the source file on the disc in which ever format
 
@@ -102,13 +102,13 @@ public class NStream : Stream
     internal NStream(Stream stream)
     {
         this.JunkGeneration = true;
-        _currentBlock = new byte[0];
+        _currentBlock = [];
         _stream = stream;
         _isWbfs = false;
         _isGamecube = false;
         _isNkit = false;
         _isIsoDec = false;
-        _clusterTable = new List<uint>();
+        _clusterTable = [];
         _position = 0;
         _complete = false;
         _IsoDecMultiply = 0x100; //wii default
@@ -119,7 +119,7 @@ public class NStream : Stream
         if (_id != null)
             return _headerRead;
 
-        List<long> IsoDecParts = new List<long>();
+        List<long> IsoDecParts = [];
         _headerRead = readHeader;
         try
         {
@@ -127,14 +127,14 @@ public class NStream : Stream
             {
                 _currentBlockIndex = -1;
 
-                _id = read(4);
+                _id = Read(4);
                 string id = Encoding.ASCII.GetString(_id);
 
                 if (id == "WBFS")
                 {
-                    uint hdSecSize = this.readUInt32B(); //n_hd_sec
-                    long pos = (uint)(1 << this.read8()) + 0x100;
-                    _clusterSize = 1 << this.read8();
+                    uint hdSecSize = this.ReadUInt32B(); //n_hd_sec
+                    long pos = (uint)(1 << this.Read8()) + 0x100;
+                    _clusterSize = 1 << this.Read8();
                     int clusters = (int)(FullSizeWii5 / _clusterSize) * 2;
 
                     //if ((hdSecSize * _clusterSize) / 0x1000L != _stream.Length) //WBFS header check
@@ -163,32 +163,32 @@ public class NStream : Stream
                         _clusterTable.Add(pointer);
                     }
                     _streamDataStart = _stream.Position;
-                    _imageSize = _readLength = lenCalc(Math.Max(maxPointer + (blank * _clusterSize), _imageSize));
+                    _imageSize = _readLength = LenCalc(Math.Max(maxPointer + (blank * _clusterSize), _imageSize));
                     _isWbfs = _isWii = true; //must set after above code has ran
-                    setDiscHeader(false, null);
+                    SetDiscHeader(false, null);
                 }
                 else if ((id == "WII5" || id == "WII9") && !_isGamecube) //IsoDec :(
                 {
                     int sectorSize = id == "WII5" ? 0x1182800 : 0x1FB5000;
-                    string discId = this.readString(4);
-                    byte[] md5 = this.read(16);
-                    int partitions = (int)this.readUInt32L();
+                    string discId = this.ReadString(4);
+                    byte[] md5 = this.Read(16);
+                    int partitions = (int)this.ReadUInt32L();
                     for (int i = 0; i < partitions; i++)
                     {
                         var part = new //throw away
                         {
-                            DataOffset = (long)((ulong)this.readUInt32L() << 2),
-                            DataSize = (long)((ulong)this.readUInt32L() << 2),
-                            PartitionOffset = (long)((ulong)this.readUInt32L() << 2),
-                            PartitionEndOffset = (long)((ulong)this.readUInt32L() << 2),
-                            PartitionKey = this.read(16)
+                            DataOffset = (long)((ulong)this.ReadUInt32L() << 2),
+                            DataSize = (long)((ulong)this.ReadUInt32L() << 2),
+                            PartitionOffset = (long)((ulong)this.ReadUInt32L() << 2),
+                            PartitionEndOffset = (long)((ulong)this.ReadUInt32L() << 2),
+                            PartitionKey = this.Read(16)
                         };
                         IsoDecParts.Add(part.PartitionOffset);
                     }
                     ;
 
                     _clusterSize = 0x400; //1k
-                    _clusterTable = new List<uint>();
+                    _clusterTable = [];
                     int c = (sectorSize - (28 + (partitions * 32))) / 4;
                     MemorySection ms = MemorySection.Read(_stream, 4 * c);
                     for (int i = 0; i < c; i++)
@@ -196,13 +196,13 @@ public class NStream : Stream
                     _imageSize = _readLength = (id == "WII5" ? FullSizeWii5 : FullSizeWii9);
                     _isIsoDec = _isWii = true;
                     _streamDataStart = _stream.Position;
-                    setDiscHeader(false, IsoDecParts.ToArray());
+                    SetDiscHeader(false, [.. IsoDecParts]);
                 }
                 else if (id == "GCML") //GC IsoDec
                 {
-                    string discId = this.readString(4);
-                    byte[] md5 = this.read(16);
-                    _clusterTable = new List<uint>();
+                    string discId = this.ReadString(4);
+                    byte[] md5 = this.Read(16);
+                    _clusterTable = [];
                     _clusterSize = 0x800; //2k
                     int c = (0x2B8800 - 24) / 4;
                     MemorySection ms = MemorySection.Read(_stream, 4 * c);
@@ -212,7 +212,7 @@ public class NStream : Stream
                     _IsoDecMultiply = 0x1L; //none
                     _imageSize = _readLength = FullSizeGameCube;
                     _isIsoDec = _isGamecube = true;
-                    setDiscHeader(false, null);
+                    SetDiscHeader(false, null);
                 }
                 else if (BitConverter.ToString(_id) == "01-C0-0B-B1") //GCZ - C001B10B as big endian
                 {
@@ -227,8 +227,8 @@ public class NStream : Stream
                     MemorySection pnt = MemorySection.Read(_stream, blocks * 8);
                     MemorySection hsh = MemorySection.Read(_stream, blocks * 4);
                     ulong dataOffset = (ulong)(pnt.Size + hsh.Size + 0x20);
-                    _clusterTable = new List<uint>();
-                    _clusterTableCompressed = new List<uint>();
+                    _clusterTable = [];
+                    _clusterTableCompressed = [];
 
                     for (int i = 0; i < blocks; i++)
                     {
@@ -243,7 +243,7 @@ public class NStream : Stream
                     MemorySection xx = MemorySection.Read(this, 4);
                     _id = xx.Read(0, 4);
 
-                    setDiscHeader(true, null);
+                    SetDiscHeader(true, null);
 
                 }
                 else
@@ -251,7 +251,7 @@ public class NStream : Stream
                     _streamDataStart = 0;
                     _isIso = true;
                     _imageSize = _readLength = _stream.Length;
-                    setDiscHeader(true, null); //true sets length too
+                    SetDiscHeader(true, null); //true sets length too
                     _clusterSize = _isWii ? 0x400 : 0x800;
                 }
                 this.ResetJunk();
@@ -291,7 +291,7 @@ public class NStream : Stream
         this.JunkStream = new JunkStream(id, discNo, length);
     }
 
-    private void setDiscHeader(bool autodetect, long[] isoDecParts)
+    private void SetDiscHeader(bool autodetect, long[] isoDecParts)
     {
         if (autodetect)
         {
@@ -299,7 +299,7 @@ public class NStream : Stream
             //read the next part of the header
             byte[] x = new byte[0x20];
             _id.CopyTo(x, 0);
-            this.Read(x, 4, 0x20 - 4);
+            this.ReadExactly(x, 4, 0x20 - 4);
 
             _isWii = x[0x18] == 0x5d && x[0x19] == 0x1c && x[0x1a] == 0x9e && x[0x1b] == 0xa3;
             _isGamecube = x[0x1c] == 0xc2 && x[0x1d] == 0x33 && x[0x1e] == 0x9f && x[0x1f] == 0x3d;
@@ -309,7 +309,7 @@ public class NStream : Stream
 
             byte[] h = new byte[_isWii ? _HeaderSizeWii : _HeaderSizeGc];
             x.CopyTo(h, 0);
-            this.Read(h, x.Length, h.Length - x.Length);
+            this.ReadExactly(h, x.Length, h.Length - x.Length);
             this.DiscHeader = new MemorySection(h);
 
         }
@@ -328,7 +328,7 @@ public class NStream : Stream
         _position = this.DiscHeader.Size;
     }
 
-    private long lenCalc(long l)
+    private long LenCalc(long l)
     {
         if (_isGamecube)
             return FullSizeGameCube; //GC ISO
@@ -352,7 +352,6 @@ public class NStream : Stream
         {
             int clusterIdx = (int)(position / _clusterSize);
             int inClusterOffset = (int)(_position % _clusterSize);
-            uint clusterWbfsIdx = _clusterTable[clusterIdx];
 
             while (_clusterTable[clusterIdx] == 0)
                 clusterIdx++;
@@ -409,14 +408,15 @@ public class NStream : Stream
                         if (_clusterTableCompressed[i] == 1)
                         {
                             _zstream = new ZlibStream(_stream, SharpCompress.Compressors.CompressionMode.Decompress);
-                            if (_stream is StreamForward)
-                                ((StreamForward)_stream).ForceGczReadBugFix = clusterSize;
+                            if (_stream is StreamForward sf)
+                                sf.ForceGczReadBugFix = clusterSize;
                             rd = _zstream.Read(_currentBlock, 0, (int)Math.Min(_clusterSize, _readLength - _position)); //BUG - ALREADS READS 0x4000 to baseStream // Math.Min(_clusterSize, (int)(_realImageLength - _stream.Position)));
                         }
                         else
                             rd = _stream.Read(_currentBlock, 0, (int)Math.Min(_clusterSize, _readLength - _position));
 
-                        ((StreamForward)_stream).ForceGczReadBugFix = 0;
+                        if (_stream is StreamForward sf2)
+                            sf2.ForceGczReadBugFix = 0;
 
                         _currentBlockIndex = i;
                     }
@@ -448,7 +448,7 @@ public class NStream : Stream
                         long pos = (long)(clusterWbfsIdx * (long)_clusterSize) + (long)inClusterOffset;
                         if (_stream.Position < pos)
                             _stream.Seek(pos, SeekOrigin.Begin);
-                        _stream.Read(buffer, offset, clusterCopySize);
+                        _stream.ReadExactly(buffer, offset, clusterCopySize);
                     }
                     clusterIdx++;
                     offset += clusterCopySize;
@@ -474,7 +474,7 @@ public class NStream : Stream
                             if (deferedJunk == null)
                             {
                                 this.JunkStream.Position = _junkBaseOffset == 0 ? _position : this.OffsetToData(_position - _junkBaseOffset);
-                                this.JunkStream.Read(buffer, offset, len);
+                                this.JunkStream.ReadExactly(buffer, offset, len);
                             }
                             else
                                 deferedJunk(offset, len);
@@ -491,7 +491,7 @@ public class NStream : Stream
                                 _stream.Copy(ByteStream.Zeros, (int)Math.Min(0x2000000L, pos - _stream.Position));
                             firstSeek = false;
                         }
-                        _stream.Read(buffer, offset, len);
+                        _stream.ReadExactly(buffer, offset, len);
                     }
 
                     size -= len;
@@ -552,10 +552,7 @@ public class NStream : Stream
         get { return _stream.CanSeek; }
     }
 
-    public override bool CanWrite
-    {
-        get { return _isWbfs || _isIsoDec ? false : _stream.CanWrite; }
-    }
+    public override bool CanWrite => !_isWbfs && !_isIsoDec && _stream.CanWrite;
 
     public override void Flush()
     {
@@ -565,7 +562,7 @@ public class NStream : Stream
 
     public override void SetLength(long value)
     {
-        _imageSize = lenCalc(value); //used for wbfs when detected as single layer but is dual layer
+        _imageSize = LenCalc(value); //used for wbfs when detected as single layer but is dual layer
     }
 
     public override void Write(byte[] buffer, int offset, int count)
@@ -596,8 +593,7 @@ public class NStream : Stream
         Complete();
         try
         {
-            if (_stream != null)
-                _stream.Close();
+            _stream?.Close();
             _stream = null;
         }
         catch { }
@@ -605,13 +601,13 @@ public class NStream : Stream
     }
 
     //a few private methods to help parse format headers
-    private byte read8() { return this.read(1)[0]; }
-    private ushort readUInt16B() { return bigEndian(BitConverter.ToUInt16(this.read(2), 0)); }
-    private uint readUInt32L() { return littleEndian(BitConverter.ToUInt32(this.read(4), 0)); }
-    private uint readUInt32B() { return bigEndian(BitConverter.ToUInt32(this.read(4), 0)); }
-    public string readString(int length) { return Encoding.ASCII.GetString(this.read(length)); }
+    private byte Read8() { return this.Read(1)[0]; }
+    private ushort ReadUInt16B() { return BigEndian(BitConverter.ToUInt16(this.Read(2), 0)); }
+    private uint ReadUInt32L() { return LittleEndian(BitConverter.ToUInt32(this.Read(4), 0)); }
+    private uint ReadUInt32B() { return BigEndian(BitConverter.ToUInt32(this.Read(4), 0)); }
+    public string ReadString(int length) { return Encoding.ASCII.GetString(this.Read(length)); }
 
-    private uint bigEndian(uint x)
+    private uint BigEndian(uint x)
     {
         if (!BitConverter.IsLittleEndian) //don't swap on big endian CPUs
             return x;
@@ -619,7 +615,7 @@ public class NStream : Stream
         return ((x & 0xFF00FF00) >> 8) | ((x & 0x00FF00FF) << 8);
     }
 
-    private uint littleEndian(uint x)
+    private uint LittleEndian(uint x)
     {
         if (BitConverter.IsLittleEndian) //don't swap on big endian CPUs
             return x;
@@ -627,12 +623,12 @@ public class NStream : Stream
         return ((x & 0xFF00FF00) >> 8) | ((x & 0x00FF00FF) << 8);
     }
 
-    private ushort bigEndian(ushort x) { return !BitConverter.IsLittleEndian ? x : (ushort)((x >> 8) | (x << 8)); }
+    private ushort BigEndian(ushort x) { return !BitConverter.IsLittleEndian ? x : (ushort)((x >> 8) | (x << 8)); }
 
-    private byte[] read(int amount)
+    private byte[] Read(int amount)
     {
         byte[] buffer = new byte[amount];
-        _stream.Read(buffer, 0, amount);
+        _stream.ReadExactly(buffer, 0, amount);
         return buffer;
     }
 

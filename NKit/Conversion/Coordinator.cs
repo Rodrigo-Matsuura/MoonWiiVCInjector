@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -16,11 +16,11 @@ internal class Coordinator
     public event EventHandler<StartedEventArgs> Started;
     public event EventHandler<CompletedEventArgs> Completed;
 
-    private enum stateEnum { Error, Unset, ReaderCheckPoint1PreWrite, WriterCheckPoint1WriteReady, WriterCheckPoint2Complete, ReaderCheckPoint2Complete, WriterCheckPoint3ApplyPatches, Complete };
+    private enum StateEnum { Error, Unset, ReaderCheckPoint1PreWrite, WriterCheckPoint1WriteReady, WriterCheckPoint2Complete, ReaderCheckPoint2Complete, WriterCheckPoint3ApplyPatches, Complete };
 
     private string _aliasJunkId;
-    private stateEnum _state;
-    private object _stateLock;
+    private StateEnum _state;
+    private readonly Lock _stateLock = new();
     private NCrc _crcs;
     private long _processSize;
     private byte[] _header;
@@ -33,10 +33,10 @@ internal class Coordinator
     private byte[] _md5;
     private byte[] _sha1;
 
-    private bool _readerVerifyCrc;
-    private bool _writerVerifyCrc;
-    private bool _readerValidationCrc;
-    private bool _writerValidationCrc;
+    private readonly bool _readerVerifyCrc;
+    private readonly bool _writerVerifyCrc;
+    private readonly bool _readerValidationCrc;
+    private readonly bool _writerValidationCrc;
     private HandledException _readerException;
     private HandledException _writerException;
     private bool _writerFirst;
@@ -54,8 +54,7 @@ internal class Coordinator
         _processSize = processSize;
         _crcs = null;
         _validationCrc = validationCrc;
-        _state = stateEnum.Unset;
-        _stateLock = new object();
+        _state = StateEnum.Unset;
         _readerVerifyCrc = reader.RequireVerifyCrc;
         _readerValidationCrc = reader.RequireValidationCrc;
         _writerVerifyCrc = writer.RequireVerifyCrc;
@@ -67,8 +66,8 @@ internal class Coordinator
 
     public HandledException SetReaderException(Exception ex, string message, params string[] args)
     {
-        if (ex is HandledException)
-            return this.SetReaderException((HandledException)ex);
+        if (ex is HandledException handled)
+            return this.SetReaderException(handled);
         return this.SetReaderException(new HandledException(ex, message, args));
     }
 
@@ -76,17 +75,16 @@ internal class Coordinator
     {
         lock (_stateLock)
         {
-            if (_readerException == null)
-                _readerException = ex;
-            _state = stateEnum.Error;
+            _readerException ??= ex;
+            _state = StateEnum.Error;
         }
         return _readerException;
     }
 
     public HandledException SetWriterException(Exception ex, string message, params string[] args)
     {
-        if (ex is HandledException)
-            return this.SetWriterException((HandledException)ex);
+        if (ex is HandledException handled)
+            return this.SetWriterException(handled);
         return this.SetWriterException(new HandledException(ex, message, args));
     }
     public HandledException SetWriterException(HandledException ex)
@@ -98,7 +96,7 @@ internal class Coordinator
                 _writerFirst = _readerException == null;
                 _writerException = ex;
             }
-            _state = stateEnum.Error;
+            _state = StateEnum.Error;
         }
         return _writerException;
     }
@@ -109,22 +107,21 @@ internal class Coordinator
         _aliasJunkId = aliasJunkId;
         if (_readerValidationCrc)
             _validationCrc = nkitSourceCrc;
-        progress(stateEnum.Unset, stateEnum.ReaderCheckPoint1PreWrite);
-        progress(stateEnum.WriterCheckPoint1WriteReady, stateEnum.WriterCheckPoint1WriteReady);
-        if (this.Started != null)
-            this.Started(this, new StartedEventArgs(_processSize, aliasJunkId));
+        Progress(StateEnum.Unset, StateEnum.ReaderCheckPoint1PreWrite);
+        Progress(StateEnum.WriterCheckPoint1WriteReady, StateEnum.WriterCheckPoint1WriteReady);
+        this.Started?.Invoke(this, new StartedEventArgs(_processSize, aliasJunkId));
     }
 
     public void WriterCheckPoint1WriteReady(out string aliasJunkId)
     {
-        progress(stateEnum.ReaderCheckPoint1PreWrite, stateEnum.WriterCheckPoint1WriteReady);
+        Progress(StateEnum.ReaderCheckPoint1PreWrite, StateEnum.WriterCheckPoint1WriteReady);
         aliasJunkId = _aliasJunkId;
     }
 
     public void WriterCheckPoint2Complete(out NCrc crcsPatches, out uint validationCrc, byte[] header, long outputSize)
     {
-        progress(stateEnum.WriterCheckPoint1WriteReady, stateEnum.WriterCheckPoint2Complete);
-        progress(stateEnum.ReaderCheckPoint2Complete, stateEnum.ReaderCheckPoint2Complete);
+        Progress(StateEnum.WriterCheckPoint1WriteReady, StateEnum.WriterCheckPoint2Complete);
+        Progress(StateEnum.ReaderCheckPoint2Complete, StateEnum.ReaderCheckPoint2Complete);
         validationCrc = _validationCrc; //let the 
         crcsPatches = _crcs;
 
@@ -154,7 +151,7 @@ internal class Coordinator
         if (isRecoverable)
             _isRecoverable = true;
 
-        progress(stateEnum.WriterCheckPoint2Complete, stateEnum.ReaderCheckPoint2Complete);
+        Progress(StateEnum.WriterCheckPoint2Complete, StateEnum.ReaderCheckPoint2Complete);
     }
     public void WriterCheckPoint3ApplyPatches(NCrc crcsPatches, bool isRecoverable, uint validationCrc, ChecksumsResult checksums, bool verifyIsWrite, string resultMessage)
     {
@@ -168,7 +165,7 @@ internal class Coordinator
         //apply the patches  get the final crcs
         this.WriterCrcs = crcsPatches;
 
-        progress(stateEnum.ReaderCheckPoint2Complete, stateEnum.Complete);
+        Progress(StateEnum.ReaderCheckPoint2Complete, StateEnum.Complete);
         if (_resultMessage != null && resultMessage != null)
             _resultMessage = string.Format("{0} / {1}", _resultMessage, resultMessage);
         else if (resultMessage != null)
@@ -188,16 +185,13 @@ internal class Coordinator
 
     public void ReaderCheckPoint3Complete()
     {
-        progress(stateEnum.Complete, stateEnum.Complete);
-        if (this.Completed != null)
-        {
-            this.Completed(this, new CompletedEventArgs(this.Patches?.FullCrc(true) ?? 0, this.Patches?.FullCrc(false) ?? 0, _processSize, _header, _resultMessage, _validationCrc, _verifiedCrc, _verifyIsWrite, _isRecoverable, _md5, _sha1));
-        }
+        Progress(StateEnum.Complete, StateEnum.Complete);
+        this.Completed?.Invoke(this, new CompletedEventArgs(this.Patches?.FullCrc(true) ?? 0, this.Patches?.FullCrc(false) ?? 0, _processSize, _header, _resultMessage, _validationCrc, _verifiedCrc, _verifyIsWrite, _isRecoverable, _md5, _sha1));
     }
 
-    private void progress(stateEnum testState, stateEnum setState)
+    private void Progress(StateEnum testState, StateEnum setState)
     {
-        stateEnum s;
+        StateEnum s;
         lock (_stateLock)
         {
             s = _state;
@@ -222,7 +216,7 @@ internal class Coordinator
         while (_state != testState)
         {
             Thread.Sleep(250); //lazy wait, it's not time critical
-            if (_state == stateEnum.Error)
+            if (_state == StateEnum.Error)
                 throw new Exception("Exception reported to ProcessCoordinator - Exceptioning out");
         }
 
@@ -236,44 +230,24 @@ internal class Coordinator
     }
 }
 
-public class StartedEventArgs : EventArgs
+public class StartedEventArgs(long readerLength, string aliasJunkId) : EventArgs
 {
-    public StartedEventArgs(long readerLength, string aliasJunkId)
-    {
-        ReaderLength = readerLength;
-        AliasJunkId = aliasJunkId;
-    }
-    public long ReaderLength { get; }
-    public string AliasJunkId { get; }
+    public long ReaderLength { get; } = readerLength;
+    public string AliasJunkId { get; } = aliasJunkId;
 }
 
-public class CompletedEventArgs : EventArgs
+public class CompletedEventArgs(uint patchedCrc, uint unpatchedCrc, long outputSize, byte[] header, string resultMessage, uint validationCrc, uint verifyCrc, bool verifyIsWrite, bool isRecoverable, byte[] md5, byte[] sha1) : EventArgs
 {
-    public CompletedEventArgs(uint patchedCrc, uint unpatchedCrc, long outputSize, byte[] header, string resultMessage, uint validationCrc, uint verifyCrc, bool verifyIsWrite, bool isRecoverable, byte[] md5, byte[] sha1)
-    {
-        PatchedCrc = patchedCrc;
-        UnpatchedCrc = unpatchedCrc;
-        OutputSize = outputSize;
-        Header = header;
-        ResultMessage = resultMessage;
-        ValidationCrc = validationCrc;
-        VerifyCrc = verifyCrc;
-        VerifyIsWrite = verifyIsWrite;
-        IsRecoverable = isRecoverable;
-        Md5 = md5;
-        Sha1 = sha1;
-    }
-
-    public uint PatchedCrc { get; }
-    public uint UnpatchedCrc { get; }
-    public long OutputSize { get; }
+    public uint PatchedCrc { get; } = patchedCrc;
+    public uint UnpatchedCrc { get; } = unpatchedCrc;
+    public long OutputSize { get; } = outputSize;
     public uint NkitSourceCrc { get; }
-    public byte[] Header { get; }
-    public string ResultMessage { get; }
-    public uint ValidationCrc { get; }
-    public uint VerifyCrc { get; }
-    public bool VerifyIsWrite { get; }
-    public bool IsRecoverable { get; }
-    public byte[] Md5 { get; }
-    public byte[] Sha1 { get; }
+    public byte[] Header { get; } = header;
+    public string ResultMessage { get; } = resultMessage;
+    public uint ValidationCrc { get; } = validationCrc;
+    public uint VerifyCrc { get; } = verifyCrc;
+    public bool VerifyIsWrite { get; } = verifyIsWrite;
+    public bool IsRecoverable { get; } = isRecoverable;
+    public byte[] Md5 { get; } = md5;
+    public byte[] Sha1 { get; } = sha1;
 }

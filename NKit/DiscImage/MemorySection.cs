@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -7,25 +7,21 @@ using System.Threading.Tasks;
 
 namespace NKit;
 
-internal class MemorySection : BaseSection
+internal class MemorySection(byte[] data) : BaseSection(null, 0, data, data.Length)
 {
-
-    public MemorySection(byte[] data) : base(null, 0, data, data.Length)
-    {
-    }
 
     public static MemorySection Read(Stream stream, long offset, long size)
     {
         if (stream.Position != offset)
             stream.Position = offset;
         byte[] b = new byte[size];
-        stream.Read(b, 0, b.Length);
+        stream.ReadExactly(b, 0, b.Length);
         return new MemorySection(b);
     }
     public static MemorySection Read(Stream stream, long size)
     {
         byte[] b = new byte[size];
-        stream.Read(b, 0, b.Length);
+        stream.ReadExactly(b, 0, b.Length);
         return new MemorySection(b);
     }
     public static MemorySection Copy(byte[] data, long size)

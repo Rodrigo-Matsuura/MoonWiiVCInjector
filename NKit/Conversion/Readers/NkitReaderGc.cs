@@ -178,7 +178,7 @@ internal class NkitReaderGc : IReader
         if (size == 0xFFFFFFFC) //for wii only. not a thing for GC
         {
             srcPos += 4;
-            inStream.Read(ms.Data, 0, 4);
+            inStream.ReadExactly(ms.Data, 0, 4);
             size = 0xFFFFFFFCL + (long)ms.ReadUInt32B(0); //cater for files > 0xFFFFFFFF
         }
 
@@ -190,7 +190,7 @@ internal class NkitReaderGc : IReader
         {
             nullsPos = Math.Min(nullsPos - dstPos, 0);
             nulls = (size & 0xFC) >> 2;
-            inStream.Read(ms.Data, 0, 4);
+            inStream.ReadExactly(ms.Data, 0, 4);
             srcPos += 4;
             junkFileLen = ms.ReadUInt32B(0);
             file.FstFile.Length = junkFileLen;
@@ -205,7 +205,7 @@ internal class NkitReaderGc : IReader
             else
             {
                 //read gap
-                inStream.Read(ms.Data, 0, 4);
+                inStream.ReadExactly(ms.Data, 0, 4);
                 srcPos += 4;
                 size = ms.ReadUInt32B(0);
                 gt = (GapType)(size & 0b11);
@@ -240,7 +240,7 @@ internal class NkitReaderGc : IReader
 
             while (prg > 0)
             {
-                inStream.Read(ms.Data, 0, 4);
+                inStream.ReadExactly(ms.Data, 0, 4);
                 srcPos += 4;
                 long bytes;
                 long blk = ms.ReadUInt32B(0);
