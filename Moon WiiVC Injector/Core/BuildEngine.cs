@@ -329,31 +329,29 @@ public class BuildEngine(BuildOptions options, IProgress<(string Message, double
             UpdateStatus("Converting all image sources to expected TGA specification...", 16);
 
             // Convert images to TGA using our native SkiaSharp reader/converter
-            using (var bmp = SkiaSharp.SKBitmap.Decode(_options.TempIconPath))
+            using (var bmp = SkiaSharp.SKBitmap.Decode(_options.TempIconPath)
+                ?? throw new InvalidOperationException($"Failed to decode icon image from '{_options.TempIconPath}'. The file may be corrupt or an unsupported format."))
             {
                 TgaReader.SaveAsTga(bmp, Path.Combine(_options.TempBuildPath, "meta", "iconTex.tga"), 128, 128, 32);
             }
-            using (var bmp = SkiaSharp.SKBitmap.Decode(_options.TempBannerPath))
+
+            using (var bmp = SkiaSharp.SKBitmap.Decode(_options.TempBannerPath)
+                ?? throw new InvalidOperationException($"Failed to decode TV banner image from '{_options.TempBannerPath}'. The file may be corrupt or an unsupported format."))
             {
                 TgaReader.SaveAsTga(bmp, Path.Combine(_options.TempBuildPath, "meta", "bootTvTex.tga"), 1280, 720, 24);
             }
 
-            bool flagDrcSpecified = File.Exists(_options.DrcDir);
-            if (!flagDrcSpecified)
+            string drcSourcePath = File.Exists(_options.DrcDir) ? _options.TempDrcPath : _options.TempBannerPath;
+            using (var bmp = SkiaSharp.SKBitmap.Decode(drcSourcePath)
+                ?? throw new InvalidOperationException($"Failed to decode GamePad DRC banner image from '{drcSourcePath}'."))
             {
-                using var bmp = SkiaSharp.SKBitmap.Decode(_options.TempBannerPath);
-                TgaReader.SaveAsTga(bmp, Path.Combine(_options.TempBuildPath, "meta", "bootDrcTex.tga"), 854, 480, 24);
-            }
-            else
-            {
-                using var bmp = SkiaSharp.SKBitmap.Decode(_options.TempDrcPath);
                 TgaReader.SaveAsTga(bmp, Path.Combine(_options.TempBuildPath, "meta", "bootDrcTex.tga"), 854, 480, 24);
             }
 
-            bool flagLogoSpecified = File.Exists(_options.LogoDir);
-            if (flagLogoSpecified)
+            if (File.Exists(_options.LogoDir))
             {
-                using var bmp = SkiaSharp.SKBitmap.Decode(_options.TempLogoPath);
+                using var bmp = SkiaSharp.SKBitmap.Decode(_options.TempLogoPath)
+                    ?? throw new InvalidOperationException($"Failed to decode boot logo image from '{_options.TempLogoPath}'.");
                 TgaReader.SaveAsTga(bmp, Path.Combine(_options.TempBuildPath, "meta", "bootLogoTex.tga"), 170, 42, 32);
             }
 
@@ -605,9 +603,10 @@ public class BuildEngine(BuildOptions options, IProgress<(string Message, double
         }
         else if (OperatingSystem.IsLinux() || OperatingSystem.IsMacOS() || OperatingSystem.IsFreeBSD())
         {
-            if (fileName is "wit.exe" or "wit")
+            if (fileName is "wit.exe" or "wit" or "wit-mac")
             {
-                string localWit = Path.Combine(Path.GetDirectoryName(exeFile) ?? string.Empty, "wit");
+                string localWitName = OperatingSystem.IsMacOS() ? "wit-mac" : "wit";
+                string localWit = Path.Combine(Path.GetDirectoryName(exeFile) ?? string.Empty, localWitName);
                 if (File.Exists(localWit))
                 {
                     targetExe = localWit;
@@ -644,6 +643,12 @@ public class BuildEngine(BuildOptions options, IProgress<(string Message, double
             RedirectStandardError = true,
             CreateNoWindow = hideProcess
         };
+
+        if (OperatingSystem.IsLinux() || OperatingSystem.IsMacOS() || OperatingSystem.IsFreeBSD())
+        {
+            launcher.EnvironmentVariables["LANG"] = "C.UTF-8";
+            launcher.EnvironmentVariables["LC_ALL"] = "C.UTF-8";
+        }
 
         if (hideProcess)
         {
@@ -735,13 +740,16 @@ public class BuildEngine(BuildOptions options, IProgress<(string Message, double
                 "Java is required by JNUSTool and NUSPacker to download base files and pack the Wii U WUP package.\n" +
                 (OperatingSystem.IsLinux()
                     ? "Please install Java (e.g. 'sudo apt install default-jre' on Debian/Ubuntu or 'sudo pacman -S jre-openjdk' on Arch Linux)."
+                    : OperatingSystem.IsMacOS()
+                    ? "Please install Java (e.g. 'brew install openjdk' via Homebrew or from https://adoptium.net)."
                     : "Please install 64-bit Java from https://adoptium.net or https://java.com and ensure 'java' is added to your PATH."));
         }
 
-        // 2. On Linux/Unix, verify WIT (Wiimms ISO Tools) or Wine availability for disc image operations
+        // 2. On Linux/Unix/macOS, verify WIT (Wiimms ISO Tools) or Wine availability for disc image operations
         if (OperatingSystem.IsLinux() || OperatingSystem.IsMacOS() || OperatingSystem.IsFreeBSD())
         {
-            string localWit = Path.Combine(_options.TempToolsPath, "WIT", "wit");
+            string localWitName = OperatingSystem.IsMacOS() ? "wit-mac" : "wit";
+            string localWit = Path.Combine(_options.TempToolsPath, "WIT", localWitName);
             bool hasWit = File.Exists(localWit) || IsCommandAvailable("wit");
             bool hasWine = IsCommandAvailable("wine");
 
@@ -749,10 +757,12 @@ public class BuildEngine(BuildOptions options, IProgress<(string Message, double
             {
                 throw new InvalidOperationException(
                     "Neither 'wit' (Wiimms ISO Tools) nor 'wine' was found on your system.\n\n" +
-                    "To process Wii and GameCube disc images on Linux, please install 'wit':\n" +
-                    "  • Debian / Ubuntu: sudo apt install wit\n" +
-                    "  • Arch Linux: sudo pacman -S wit\n" +
-                    "  • Or install Wine: sudo apt install wine");
+                    (OperatingSystem.IsMacOS()
+                        ? "To process Wii and GameCube disc images on macOS, please install 'wit' via Homebrew:\n  • brew install wit"
+                        : "To process Wii and GameCube disc images on Linux, please install 'wit':\n" +
+                          "  • Debian / Ubuntu: sudo apt install wit\n" +
+                          "  • Arch Linux: sudo pacman -S wit\n" +
+                          "  • Or install Wine: sudo apt install wine"));
             }
         }
     }
@@ -762,13 +772,23 @@ public class BuildEngine(BuildOptions options, IProgress<(string Message, double
         if (File.Exists(cmd)) return true;
 
         string? pathEnv = Environment.GetEnvironmentVariable("PATH");
-        if (string.IsNullOrEmpty(pathEnv)) return false;
+        var searchDirs = new List<string>();
+        if (!string.IsNullOrEmpty(pathEnv))
+        {
+            searchDirs.AddRange(pathEnv.Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
+        }
+
+        if (OperatingSystem.IsMacOS())
+        {
+            if (!searchDirs.Contains("/opt/homebrew/bin")) searchDirs.Add("/opt/homebrew/bin");
+            if (!searchDirs.Contains("/usr/local/bin")) searchDirs.Add("/usr/local/bin");
+        }
 
         string[] extensions = OperatingSystem.IsWindows()
             ? [".exe", ".cmd", ".bat", ""]
             : [""];
 
-        foreach (string pathDir in pathEnv.Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        foreach (string pathDir in searchDirs)
         {
             foreach (string ext in extensions)
             {

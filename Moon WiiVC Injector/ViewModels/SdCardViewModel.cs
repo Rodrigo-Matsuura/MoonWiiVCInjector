@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.IO.Compression;
@@ -10,54 +11,114 @@ using Moon_WiiVC_Injector.Services;
 
 namespace Moon_WiiVC_Injector.ViewModels;
 
-public partial class OptionItem(string name, bool isChecked = false) : ObservableObject
+public class OptionItem(string name, bool isChecked = false) : ObservableObject
 {
-    [ObservableProperty]
-    private string _name = name;
+    public string Name { get; } = name;
 
-    [ObservableProperty]
     private bool _isChecked = isChecked;
+    public bool IsChecked
+    {
+        get => _isChecked;
+        set => SetProperty(ref _isChecked, value);
+    }
 }
 
 public partial class SdCardViewModel : ViewModelBase
 {
+    // ==========================================
+    // 1. Services & Dependencies
+    // ==========================================
     private readonly IDialogService _dialogService;
 
-    [ObservableProperty]
+    // ==========================================
+    // 2. Observable Properties (UI State)
+    // ==========================================
     private ObservableCollection<string> _drives = [];
+    public ObservableCollection<string> Drives
+    {
+        get => _drives;
+        set => SetProperty(ref _drives, value);
+    }
 
-    [ObservableProperty]
     private string? _selectedDrive;
+    public string? SelectedDrive
+    {
+        get => _selectedDrive;
+        set => SetProperty(ref _selectedDrive, value);
+    }
 
-    [ObservableProperty]
     private int _selectedDriveIndex = -1;
+    public int SelectedDriveIndex
+    {
+        get => _selectedDriveIndex;
+        set => SetProperty(ref _selectedDriveIndex, value);
+    }
 
-    [ObservableProperty]
     private int _memcardBlocksIndex = 0;
+    public int MemcardBlocksIndex
+    {
+        get => _memcardBlocksIndex;
+        set => SetProperty(ref _memcardBlocksIndex, value);
+    }
 
-    [ObservableProperty]
     private int _videoForceModeIndex = 0;
+    public int VideoForceModeIndex
+    {
+        get => _videoForceModeIndex;
+        set => SetProperty(ref _videoForceModeIndex, value);
+    }
 
-    [ObservableProperty]
     private int _videoTypeModeIndex = 0;
+    public int VideoTypeModeIndex
+    {
+        get => _videoTypeModeIndex;
+        set => SetProperty(ref _videoTypeModeIndex, value);
+    }
 
-    [ObservableProperty]
     private int _languageIndex = 0;
+    public int LanguageIndex
+    {
+        get => _languageIndex;
+        set => SetProperty(ref _languageIndex, value);
+    }
 
-    [ObservableProperty]
     private int _wiiUGamepadSlotIndex = 0;
+    public int WiiUGamepadSlotIndex
+    {
+        get => _wiiUGamepadSlotIndex;
+        set => SetProperty(ref _wiiUGamepadSlotIndex, value);
+    }
 
-    [ObservableProperty]
     private double _videoWidth = 652;
+    public double VideoWidth
+    {
+        get => _videoWidth;
+        set
+        {
+            if (SetProperty(ref _videoWidth, value))
+            {
+                OnPropertyChanged(nameof(VideoWidthText));
+            }
+        }
+    }
 
-    [ObservableProperty]
     private string _actionStatus = string.Empty;
+    public string ActionStatus
+    {
+        get => _actionStatus;
+        set => SetProperty(ref _actionStatus, value);
+    }
 
-    [ObservableProperty]
-    private ObservableCollection<OptionItem> _options = [];
+    public ObservableCollection<OptionItem> Options { get; } = [];
 
+    // ==========================================
+    // 3. Computed Properties (Get-only)
+    // ==========================================
     public string VideoWidthText => ((int)VideoWidth).ToString();
 
+    // ==========================================
+    // 4. Constructor
+    // ==========================================
     public SdCardViewModel(IDialogService dialogService)
     {
         _dialogService = dialogService;
@@ -65,37 +126,39 @@ public partial class SdCardViewModel : ViewModelBase
         ReloadDrives();
     }
 
-    private void InitializeOptions()
-    {
-        string[] opts =
-        [
-            "Memcard Emulation", "Cheats", "Cheat Path", "Unlock Read Speed", "Wiimote CC Rumble",
-            "TRI Arcade Mode", "BBA Emulation", "Auto Video Width", "Patch PAL50", "Force Widescreen",
-            "Force Progressive", "Skip IPL", "OSReport", "Log"
-        ];
-
-        Options.Clear();
-        for (int i = 0; i < opts.Length; i++)
-        {
-            bool isChecked = (i == 0 || i == 7); // Default Memcard Emulation & Auto Video Width
-            Options.Add(new OptionItem(opts[i], isChecked));
-        }
-    }
-
-    partial void OnVideoWidthChanged(double value)
-    {
-        OnPropertyChanged(nameof(VideoWidthText));
-    }
-
+    // ==========================================
+    // 5. Commands (UI Actions)
+    // ==========================================
     [RelayCommand]
     public void ReloadDrives()
     {
         try
         {
-            var driveList = DriveInfo.GetDrives()
-                .Where(d => d.IsReady && d.DriveType == DriveType.Removable)
-                .Select(d => $"{d.Name} ({d.VolumeLabel})")
-                .ToList();
+            var driveList = new List<string>();
+
+            if (OperatingSystem.IsMacOS())
+            {
+                if (Directory.Exists("/Volumes"))
+                {
+                    foreach (string dir in Directory.GetDirectories("/Volumes"))
+                    {
+                        string name = Path.GetFileName(dir);
+                        if (!string.Equals(name, "Macintosh HD", StringComparison.OrdinalIgnoreCase))
+                        {
+                            driveList.Add(dir);
+                        }
+                    }
+                }
+            }
+            else
+            {
+                var drives = DriveInfo.GetDrives()
+                    .Where(d => d.IsReady && (d.DriveType == DriveType.Removable ||
+                                (OperatingSystem.IsLinux() && (d.RootDirectory.FullName.StartsWith("/media") || d.RootDirectory.FullName.StartsWith("/run/media")))))
+                    .Select(d => string.IsNullOrWhiteSpace(d.VolumeLabel) ? d.Name : $"{d.Name} ({d.VolumeLabel})")
+                    .ToList();
+                driveList.AddRange(drives);
+            }
 
             Drives = new ObservableCollection<string>(driveList);
             if (Drives.Count > 0)
@@ -113,15 +176,6 @@ public partial class SdCardViewModel : ViewModelBase
         {
             System.Diagnostics.Debug.WriteLine($"[SdCardViewModel] Failed to reload drives: {ex.Message}");
         }
-    }
-
-    private string? GetSelectedDriveLetter()
-    {
-        if (!string.IsNullOrEmpty(SelectedDrive) && SelectedDrive.Length >= 3)
-        {
-            return SelectedDrive.Substring(0, 3);
-        }
-        return null;
     }
 
     [RelayCommand]
@@ -295,5 +349,43 @@ public partial class SdCardViewModel : ViewModelBase
         {
             await _dialogService.ShowMessageAsync($"Failed to save config: {ex.Message}", "Error", MessageBoxButtons.Ok);
         }
+    }
+
+    // ==========================================
+    // 6. Private Helper Methods
+    // ==========================================
+    private void InitializeOptions()
+    {
+        string[] opts =
+        [
+            "Memcard Emulation", "Cheats", "Cheat Path", "Unlock Read Speed", "Wiimote CC Rumble",
+            "TRI Arcade Mode", "BBA Emulation", "Auto Video Width", "Patch PAL50", "Force Widescreen",
+            "Force Progressive", "Skip IPL", "OSReport", "Log"
+        ];
+
+        Options.Clear();
+        for (int i = 0; i < opts.Length; i++)
+        {
+            bool isChecked = (i == 0 || i == 7); // Default Memcard Emulation & Auto Video Width
+            Options.Add(new OptionItem(opts[i], isChecked));
+        }
+    }
+
+    private string? GetSelectedDriveLetter()
+    {
+        if (string.IsNullOrWhiteSpace(SelectedDrive)) return null;
+
+        if (OperatingSystem.IsWindows())
+        {
+            if (SelectedDrive.Length >= 3 && SelectedDrive[1] == ':' && (SelectedDrive[2] == '\\' || SelectedDrive[2] == '/'))
+            {
+                return SelectedDrive.Substring(0, 3);
+            }
+            return SelectedDrive;
+        }
+
+        int parenIdx = SelectedDrive.IndexOf(" (");
+        string path = parenIdx > 0 ? SelectedDrive.Substring(0, parenIdx).Trim() : SelectedDrive.Trim();
+        return Directory.Exists(path) ? path : null;
     }
 }

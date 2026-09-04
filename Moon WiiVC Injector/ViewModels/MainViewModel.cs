@@ -59,184 +59,460 @@ public partial class MainViewModel : ViewModelBase
     private bool _flagWbfs;
 
     // Observable Properties: System Type Selection
-    [ObservableProperty]
     private bool _isWiiRetail = true;
+    public bool IsWiiRetail
+    {
+        get => _isWiiRetail;
+        set
+        {
+            if (SetProperty(ref _isWiiRetail, value))
+            {
+                OnIsWiiRetailChanged(value);
+            }
+        }
+    }
 
-    [ObservableProperty]
     private bool _isWiiHomebrew;
+    public bool IsWiiHomebrew
+    {
+        get => _isWiiHomebrew;
+        set
+        {
+            if (SetProperty(ref _isWiiHomebrew, value))
+            {
+                OnIsWiiHomebrewChanged(value);
+            }
+        }
+    }
 
-    [ObservableProperty]
     private bool _isGCRetail;
+    public bool IsGCRetail
+    {
+        get => _isGCRetail;
+        set
+        {
+            if (SetProperty(ref _isGCRetail, value))
+            {
+                OnIsGCRetailChanged(value);
+            }
+        }
+    }
 
-    [ObservableProperty]
     private bool _isWiiNAND;
+    public bool IsWiiNAND
+    {
+        get => _isWiiNAND;
+        set
+        {
+            if (SetProperty(ref _isWiiNAND, value))
+            {
+                OnIsWiiNANDChanged(value);
+            }
+        }
+    }
 
     // Observable Properties: Source Files
-    [ObservableProperty]
     private string _gameSourceText = "Game file has not been specified";
+    public string GameSourceText
+    {
+        get => _gameSourceText;
+        set => SetProperty(ref _gameSourceText, value);
+    }
 
-    [ObservableProperty]
     private string _iconSourceText = "Icon has not been specified";
+    public string IconSourceText
+    {
+        get => _iconSourceText;
+        set => SetProperty(ref _iconSourceText, value);
+    }
 
-    [ObservableProperty]
     private string _bannerSourceText = "Banner has not been specified";
+    public string BannerSourceText
+    {
+        get => _bannerSourceText;
+        set => SetProperty(ref _bannerSourceText, value);
+    }
 
-    [ObservableProperty]
     private string _gC2SourceText = "2nd GameCube Disc Image has not been specified";
+    public string GC2SourceText
+    {
+        get => _gC2SourceText;
+        set => SetProperty(ref _gC2SourceText, value);
+    }
 
-    [ObservableProperty]
     private string _bootSoundText = "Boot Sound has not been specified";
+    public string BootSoundText
+    {
+        get => _bootSoundText;
+        set => SetProperty(ref _bootSoundText, value);
+    }
 
-    [ObservableProperty]
     private string _logoSourceText = "Boot Logo has not been specified";
+    public string LogoSourceText
+    {
+        get => _logoSourceText;
+        set => SetProperty(ref _logoSourceText, value);
+    }
 
-    [ObservableProperty]
     private string _drcSourceText = "GamePad Banner has not been specified";
+    public string DrcSourceText
+    {
+        get => _drcSourceText;
+        set => SetProperty(ref _drcSourceText, value);
+    }
 
     // Observable Properties: Previews
-    [ObservableProperty]
     private Bitmap? _iconPreview;
+    public Bitmap? IconPreview
+    {
+        get => _iconPreview;
+        set => SetProperty(ref _iconPreview, value);
+    }
 
-    [ObservableProperty]
     private Bitmap? _bannerPreview;
+    public Bitmap? BannerPreview
+    {
+        get => _bannerPreview;
+        set => SetProperty(ref _bannerPreview, value);
+    }
 
-    [ObservableProperty]
     private Bitmap? _logoPreview;
+    public Bitmap? LogoPreview
+    {
+        get => _logoPreview;
+        set => SetProperty(ref _logoPreview, value);
+    }
 
-    [ObservableProperty]
     private Bitmap? _drcPreview;
+    public Bitmap? DrcPreview
+    {
+        get => _drcPreview;
+        set => SetProperty(ref _drcPreview, value);
+    }
 
     // Observable Properties: Game Metadata
-    [ObservableProperty]
     private string _internalGameNameDisplay = string.Empty;
+    public string InternalGameNameDisplay
+    {
+        get => _internalGameNameDisplay;
+        set => SetProperty(ref _internalGameNameDisplay, value);
+    }
 
-    [ObservableProperty]
     private string _internalGameIDDisplay = string.Empty;
+    public string InternalGameIDDisplay
+    {
+        get => _internalGameIDDisplay;
+        set => SetProperty(ref _internalGameIDDisplay, value);
+    }
 
-    [ObservableProperty]
     private string _packedTitleLine1 = string.Empty;
+    public string PackedTitleLine1
+    {
+        get => _packedTitleLine1;
+        set
+        {
+            if (SetProperty(ref _packedTitleLine1, value))
+            {
+                OnPackedTitleLine1Changed(value);
+            }
+        }
+    }
 
-    [ObservableProperty]
     private string _packedTitleLine2 = string.Empty;
+    public string PackedTitleLine2
+    {
+        get => _packedTitleLine2;
+        set => SetProperty(ref _packedTitleLine2, value);
+    }
 
-    [ObservableProperty]
     private bool _enablePackedLine2;
+    public bool EnablePackedLine2
+    {
+        get => _enablePackedLine2;
+        set => SetProperty(ref _enablePackedLine2, value);
+    }
 
-    [ObservableProperty]
     private string _packedTitleIDLine = string.Empty;
+    public string PackedTitleIDLine
+    {
+        get => _packedTitleIDLine;
+        set
+        {
+            if (SetProperty(ref _packedTitleIDLine, value))
+            {
+                OnPackedTitleIDLineChanged(value);
+            }
+        }
+    }
 
     // Observable Properties: Emulation / Controller
-    [ObservableProperty]
     private bool _noGamePadEmu = true;
+    public bool NoGamePadEmu
+    {
+        get => _noGamePadEmu;
+        set => SetProperty(ref _noGamePadEmu, value);
+    }
 
-    [ObservableProperty]
     private bool _forceCC;
+    public bool ForceCC
+    {
+        get => _forceCC;
+        set => SetProperty(ref _forceCC, value);
+    }
 
-    [ObservableProperty]
     private bool _ccEmu;
+    public bool CcEmu
+    {
+        get => _ccEmu;
+        set => SetProperty(ref _ccEmu, value);
+    }
 
-    [ObservableProperty]
     private bool _forceNoCC;
+    public bool ForceNoCC
+    {
+        get => _forceNoCC;
+        set => SetProperty(ref _forceNoCC, value);
+    }
 
-    [ObservableProperty]
     private bool _horWiiMote;
+    public bool HorWiiMote
+    {
+        get => _horWiiMote;
+        set => SetProperty(ref _horWiiMote, value);
+    }
 
-    [ObservableProperty]
     private bool _verWiiMote;
+    public bool VerWiiMote
+    {
+        get => _verWiiMote;
+        set => SetProperty(ref _verWiiMote, value);
+    }
 
-    [ObservableProperty]
     private bool _lrPatch;
+    public bool LrPatch
+    {
+        get => _lrPatch;
+        set => SetProperty(ref _lrPatch, value);
+    }
 
     // Observable Properties: Advanced Options
-    [ObservableProperty]
     private bool _wiimmfi;
+    public bool Wiimmfi
+    {
+        get => _wiimmfi;
+        set => SetProperty(ref _wiimmfi, value);
+    }
 
-    [ObservableProperty]
     private bool _wiiVMC;
+    public bool WiiVMC
+    {
+        get => _wiiVMC;
+        set => SetProperty(ref _wiiVMC, value);
+    }
 
-    [ObservableProperty]
     private bool _disableGamePad;
+    public bool DisableGamePad
+    {
+        get => _disableGamePad;
+        set => SetProperty(ref _disableGamePad, value);
+    }
 
-    [ObservableProperty]
     private bool _disableTrimming;
+    public bool DisableTrimming
+    {
+        get => _disableTrimming;
+        set => SetProperty(ref _disableTrimming, value);
+    }
 
-    [ObservableProperty]
     private bool _disableNintendontAutoboot;
+    public bool DisableNintendontAutoboot
+    {
+        get => _disableNintendontAutoboot;
+        set => SetProperty(ref _disableNintendontAutoboot, value);
+    }
 
-    [ObservableProperty]
     private bool _c2WPatchFlag;
+    public bool C2WPatchFlag
+    {
+        get => _c2WPatchFlag;
+        set
+        {
+            if (SetProperty(ref _c2WPatchFlag, value))
+            {
+                OnC2WPatchFlagChanged(value);
+            }
+        }
+    }
 
-    [ObservableProperty]
     private bool _toggleBootSoundLoop;
+    public bool ToggleBootSoundLoop
+    {
+        get => _toggleBootSoundLoop;
+        set => SetProperty(ref _toggleBootSoundLoop, value);
+    }
 
     // Observable Properties: Keys
-    [ObservableProperty]
     private string _wiiUCommonKey = string.Empty;
+    public string WiiUCommonKey
+    {
+        get => _wiiUCommonKey;
+        set => SetProperty(ref _wiiUCommonKey, value);
+    }
 
-    [ObservableProperty]
     private string _titleKey = string.Empty;
+    public string TitleKey
+    {
+        get => _titleKey;
+        set => SetProperty(ref _titleKey, value);
+    }
 
-    [ObservableProperty]
     private string _ancastKey = string.Empty;
+    public string AncastKey
+    {
+        get => _ancastKey;
+        set => SetProperty(ref _ancastKey, value);
+    }
 
-    [ObservableProperty]
     private bool _isCommonKeyValid;
+    public bool IsCommonKeyValid
+    {
+        get => _isCommonKeyValid;
+        set => SetProperty(ref _isCommonKeyValid, value);
+    }
 
-    [ObservableProperty]
     private bool _isTitleKeyValid;
+    public bool IsTitleKeyValid
+    {
+        get => _isTitleKeyValid;
+        set => SetProperty(ref _isTitleKeyValid, value);
+    }
 
-    [ObservableProperty]
     private bool _isAncastKeyValid;
+    public bool IsAncastKeyValid
+    {
+        get => _isAncastKeyValid;
+        set => SetProperty(ref _isAncastKeyValid, value);
+    }
 
-    [ObservableProperty]
     private bool _isCommonKeyReadOnly;
+    public bool IsCommonKeyReadOnly
+    {
+        get => _isCommonKeyReadOnly;
+        set => SetProperty(ref _isCommonKeyReadOnly, value);
+    }
 
-    [ObservableProperty]
     private bool _isTitleKeyReadOnly;
+    public bool IsTitleKeyReadOnly
+    {
+        get => _isTitleKeyReadOnly;
+        set => SetProperty(ref _isTitleKeyReadOnly, value);
+    }
 
-    [ObservableProperty]
     private bool _isAncastKeyReadOnly;
+    public bool IsAncastKeyReadOnly
+    {
+        get => _isAncastKeyReadOnly;
+        set => SetProperty(ref _isAncastKeyReadOnly, value);
+    }
 
     // Observable Properties: Checklist & Build Status
-    [ObservableProperty]
     private bool _sourceCheck;
+    public bool SourceCheck
+    {
+        get => _sourceCheck;
+        set => SetProperty(ref _sourceCheck, value);
+    }
 
-    [ObservableProperty]
     private bool _metaCheck;
+    public bool MetaCheck
+    {
+        get => _metaCheck;
+        set => SetProperty(ref _metaCheck, value);
+    }
 
-    [ObservableProperty]
     private bool _keysCheck;
+    public bool KeysCheck
+    {
+        get => _keysCheck;
+        set => SetProperty(ref _keysCheck, value);
+    }
 
-    [ObservableProperty]
     private bool _advanceCheck = true;
+    public bool AdvanceCheck
+    {
+        get => _advanceCheck;
+        set => SetProperty(ref _advanceCheck, value);
+    }
 
-    [ObservableProperty]
     private bool _canBuild;
+    public bool CanBuild
+    {
+        get => _canBuild;
+        set => SetProperty(ref _canBuild, value);
+    }
 
-    [ObservableProperty]
     private bool _isBuilding;
+    public bool IsBuilding
+    {
+        get => _isBuilding;
+        set => SetProperty(ref _isBuilding, value);
+    }
 
-    [ObservableProperty]
     private bool _canCancel;
+    public bool CanCancel
+    {
+        get => _canCancel;
+        set => SetProperty(ref _canCancel, value);
+    }
 
-    [ObservableProperty]
     private double _buildProgress;
+    public double BuildProgress
+    {
+        get => _buildProgress;
+        set => SetProperty(ref _buildProgress, value);
+    }
 
-    [ObservableProperty]
     private string _buildStatus = "Ready";
+    public string BuildStatus
+    {
+        get => _buildStatus;
+        set => SetProperty(ref _buildStatus, value);
+    }
 
-    [ObservableProperty]
     private string _logOutput = string.Empty;
+    public string LogOutput
+    {
+        get => _logOutput;
+        set => SetProperty(ref _logOutput, value);
+    }
 
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(CanRetryDownloadRepo))]
-    [NotifyPropertyChangedFor(nameof(RepoDownloadButtonText))]
     private bool _isRepoDownloading;
+    public bool IsRepoDownloading
+    {
+        get => _isRepoDownloading;
+        set
+        {
+            if (SetProperty(ref _isRepoDownloading, value))
+            {
+                OnPropertyChanged(nameof(CanRetryDownloadRepo));
+                OnPropertyChanged(nameof(RepoDownloadButtonText));
+            }
+        }
+    }
 
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(CanRetryDownloadRepo))]
-    [NotifyPropertyChangedFor(nameof(RepoDownloadButtonText))]
     private bool _repoDownloadFailed;
+    public bool RepoDownloadFailed
+    {
+        get => _repoDownloadFailed;
+        set
+        {
+            if (SetProperty(ref _repoDownloadFailed, value))
+            {
+                OnPropertyChanged(nameof(CanRetryDownloadRepo));
+                OnPropertyChanged(nameof(RepoDownloadButtonText));
+            }
+        }
+    }
 
     // UI Capability bindings
     public string WindowTitle => $"Moon WiiVC Injector - [{GetType().Assembly.GetName().Version?.ToString(3) ?? "1.1.0"}]";
@@ -282,20 +558,27 @@ public partial class MainViewModel : ViewModelBase
                 ZipFile.ExtractToDirectory(toolZipPath, TempRootPath);
                 File.Delete(toolZipPath);
 
-                if (OperatingSystem.IsLinux() || OperatingSystem.IsMacOS() || OperatingSystem.IsFreeBSD())
+                if (!OperatingSystem.IsWindows())
                 {
                     string witLinuxPath = Path.Combine(TempToolsPath, "WIT", "wit");
-                    if (File.Exists(witLinuxPath))
+                    string witMacPath = Path.Combine(TempToolsPath, "WIT", "wit-mac");
+
+                    foreach (string toolPath in new[] { witLinuxPath, witMacPath })
                     {
-                        try
+                        if (File.Exists(toolPath))
                         {
-                            File.SetUnixFileMode(witLinuxPath, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute |
+                            try
+                            {
+#pragma warning disable CA1416
+                                File.SetUnixFileMode(toolPath, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute |
                                                                UnixFileMode.GroupRead | UnixFileMode.GroupExecute |
                                                                UnixFileMode.OtherRead | UnixFileMode.OtherExecute);
-                        }
-                        catch
-                        {
-                            try { Process.Start("chmod", $"+x \"{witLinuxPath}\"")?.WaitForExit(); } catch { }
+#pragma warning restore CA1416
+                            }
+                            catch
+                            {
+                                try { Process.Start("chmod", $"+x \"{toolPath}\"")?.WaitForExit(); } catch { }
+                            }
                         }
                     }
                 }
@@ -350,7 +633,7 @@ public partial class MainViewModel : ViewModelBase
         return string.Equals(hash, expectedHash, StringComparison.OrdinalIgnoreCase);
     }
 
-    public void UpdateChecklist()
+    private void UpdateChecklist()
     {
         SourceCheck = _flagGameSpecified && _flagIconSpecified && _flagBannerSpecified;
         MetaCheck = !string.IsNullOrEmpty(PackedTitleLine1) && PackedTitleIDLine?.Length == 16;
@@ -362,22 +645,22 @@ public partial class MainViewModel : ViewModelBase
         CanBuild = SourceCheck && MetaCheck && AdvanceCheck && KeysCheck && !IsBuilding;
     }
 
-    partial void OnIsWiiRetailChanged(bool value)
+    private void OnIsWiiRetailChanged(bool value)
     {
         if (value) SetSystemType("wii");
     }
 
-    partial void OnIsWiiHomebrewChanged(bool value)
+    private void OnIsWiiHomebrewChanged(bool value)
     {
         if (value) SetSystemType("dol");
     }
 
-    partial void OnIsGCRetailChanged(bool value)
+    private void OnIsGCRetailChanged(bool value)
     {
         if (value) SetSystemType("gcn");
     }
 
-    partial void OnIsWiiNANDChanged(bool value)
+    private void OnIsWiiNANDChanged(bool value)
     {
         if (value)
         {
@@ -470,9 +753,9 @@ public partial class MainViewModel : ViewModelBase
         UpdateChecklist();
     }
 
-    partial void OnPackedTitleLine1Changed(string value) => UpdateChecklist();
-    partial void OnPackedTitleIDLineChanged(string value) => UpdateChecklist();
-    partial void OnC2WPatchFlagChanged(bool value)
+    private void OnPackedTitleLine1Changed(string value) => UpdateChecklist();
+    private void OnPackedTitleIDLineChanged(string value) => UpdateChecklist();
+    private void OnC2WPatchFlagChanged(bool value)
     {
         OnPropertyChanged(nameof(IsAncastKeyVisible));
         UpdateChecklist();
@@ -507,7 +790,7 @@ public partial class MainViewModel : ViewModelBase
         }
     }
 
-    public async Task LoadGameFromFileAsync(string gamePath)
+    private async Task LoadGameFromFileAsync(string gamePath)
     {
         _selectedGamePath = gamePath;
         CleanUpImages();
@@ -646,6 +929,12 @@ public partial class MainViewModel : ViewModelBase
     {
         try
         {
+            if (!TgaReader.TryGetImageDimensions(path, out _, out _, out string? error))
+            {
+                await _dialogService.ShowMessageAsync($"The selected file for {imageType.ToLowerInvariant()} is invalid or unsupported:\n{error}", "Invalid Image", MessageBoxButtons.Ok);
+                return false;
+            }
+
             FileUtil.SafeDeleteFile(tempPath);
 
             if (Path.GetExtension(path).Equals(".tga", StringComparison.OrdinalIgnoreCase))
@@ -797,7 +1086,7 @@ public partial class MainViewModel : ViewModelBase
     [RelayCommand]
     public async Task DownloadRepoAsync() => await FetchRepoAssetsAsync(silent: false);
 
-    public async Task FetchRepoAssetsAsync(bool silent = false)
+    private async Task FetchRepoAssetsAsync(bool silent = false)
     {
         if (string.IsNullOrEmpty(_cucholixRepoId))
         {
@@ -808,13 +1097,21 @@ public partial class MainViewModel : ViewModelBase
             return;
         }
 
-        string rawBaseUrl = "https://raw.githubusercontent.com/cucholix/wiivc-bis/master";
+        string cucholixBaseUrl = "https://raw.githubusercontent.com/cucholix/wiivc-bis/master";
+        string uwuvciBaseUrl = GetUwuvciBaseUrl();
 
-        string[] platforms = _systemType switch
+        string[] cucholixPlatforms = _systemType switch
         {
             "wii" => ["wii", "wiiware"],
             "gcn" => ["gcn"],
             _ => ["wii", "gcn", "wiiware"]
+        };
+
+        string[] uwuvciPlatforms = _systemType switch
+        {
+            "wii" => ["wii"],
+            "gcn" => ["gcn"],
+            _ => ["wii", "gcn"]
         };
 
         // Collect candidate IDs to probe (e.g. SF8P01, SF8E01, SF8J01, SF8E, SF8P, etc.)
@@ -852,12 +1149,12 @@ public partial class MainViewModel : ViewModelBase
         IsRepoDownloading = true;
         try
         {
-            // 1. Search for game-specific assets across platforms and candidate IDs
-            foreach (var platform in platforms)
+            // 1. Primary search: cucholix/wiivc-bis ({cucholixBaseUrl}/{platform}/image/{id})
+            foreach (var platform in cucholixPlatforms)
             {
                 foreach (var id in candidateIds)
                 {
-                    string gameBaseUrl = $"{rawBaseUrl}/{platform}/image/{id}";
+                    string gameBaseUrl = $"{cucholixBaseUrl}/{platform}/image/{id}";
 
                     if (!downloadedIcon)
                     {
@@ -870,7 +1167,7 @@ public partial class MainViewModel : ViewModelBase
                             IconSourceText = $"Downloaded from cucholix ({id})";
                             _flagIconSpecified = true;
                             downloadedIcon = true;
-                            AppLogger.DebugLog($"[AutoDownload] Icon downloaded for {id}");
+                            AppLogger.DebugLog($"[AutoDownload] Icon downloaded for {id} (from cucholix)");
                         }
                     }
 
@@ -885,7 +1182,7 @@ public partial class MainViewModel : ViewModelBase
                             BannerSourceText = $"Downloaded from cucholix ({id})";
                             _flagBannerSpecified = true;
                             downloadedBanner = true;
-                            AppLogger.DebugLog($"[AutoDownload] TV Banner downloaded for {id}");
+                            AppLogger.DebugLog($"[AutoDownload] TV Banner downloaded for {id} (from cucholix)");
                         }
                     }
 
@@ -899,7 +1196,7 @@ public partial class MainViewModel : ViewModelBase
                             DrcPreview = new Bitmap(ms);
                             DrcSourceText = $"Downloaded from cucholix ({id})";
                             downloadedDrc = true;
-                            AppLogger.DebugLog($"[AutoDownload] GamePad Banner downloaded for {id}");
+                            AppLogger.DebugLog($"[AutoDownload] GamePad Banner downloaded for {id} (from cucholix)");
                         }
                     }
 
@@ -913,7 +1210,7 @@ public partial class MainViewModel : ViewModelBase
                             LogoPreview = new Bitmap(ms);
                             LogoSourceText = $"Downloaded from cucholix ({id})";
                             downloadedLogo = true;
-                            AppLogger.DebugLog($"[AutoDownload] Logo downloaded for {id}");
+                            AppLogger.DebugLog($"[AutoDownload] Logo downloaded for {id} (from cucholix)");
                         }
                     }
 
@@ -926,7 +1223,7 @@ public partial class MainViewModel : ViewModelBase
                             await File.WriteAllBytesAsync(TempSoundPath, soundBytes);
                             BootSoundText = $"Downloaded from cucholix ({id})";
                             downloadedSound = true;
-                            AppLogger.DebugLog($"[AutoDownload] Boot Sound downloaded for {id}");
+                            AppLogger.DebugLog($"[AutoDownload] Boot Sound downloaded for {id} (from cucholix)");
                         }
                     }
 
@@ -942,13 +1239,114 @@ public partial class MainViewModel : ViewModelBase
                 }
             }
 
-            // 2. Fallback for platform default bootSound (e.g. GameCube or platform jingle)
+            // 2. Fallback search: UWUVCI-IMAGES ({uwuvciBaseUrl}/{platform}/{id})
+            // If icon, banner, or any other asset wasn't found in cucholix, search in UWUVCI-IMAGES
+            if (!downloadedIcon || !downloadedBanner || !downloadedDrc || !downloadedLogo || !downloadedSound)
+            {
+                AppLogger.DebugLog($"[AutoDownload] Missing assets after cucholix check. Querying fallback repo: {uwuvciBaseUrl}");
+                foreach (var platform in uwuvciPlatforms)
+                {
+                    foreach (var id in candidateIds)
+                    {
+                        string gameBaseUrl = $"{uwuvciBaseUrl}/{platform}/{id}";
+
+                        if (!downloadedIcon)
+                        {
+                            byte[]? iconBytes = await DownloadIfAvailableAsync($"{gameBaseUrl}/iconTex.png")
+                                             ?? await DownloadIfAvailableAsync($"{gameBaseUrl}/iconTex.jpg")
+                                             ?? await DownloadIfAvailableAsync($"{gameBaseUrl}/iconTex.jpeg");
+                            if (iconBytes != null)
+                            {
+                                await File.WriteAllBytesAsync(TempIconPath, iconBytes);
+                                using var ms = new MemoryStream(iconBytes);
+                                IconPreview = new Bitmap(ms);
+                                IconSourceText = $"Downloaded from UWUVCI ({id})";
+                                _flagIconSpecified = true;
+                                downloadedIcon = true;
+                                AppLogger.DebugLog($"[AutoDownload] Icon downloaded for {id} (from UWUVCI)");
+                            }
+                        }
+
+                        if (!downloadedBanner)
+                        {
+                            byte[]? bannerBytes = await DownloadIfAvailableAsync($"{gameBaseUrl}/bootTvTex.png")
+                                               ?? await DownloadIfAvailableAsync($"{gameBaseUrl}/bootTvTex.jpg")
+                                               ?? await DownloadIfAvailableAsync($"{gameBaseUrl}/bootTvTex.jpeg");
+                            if (bannerBytes != null)
+                            {
+                                await File.WriteAllBytesAsync(TempBannerPath, bannerBytes);
+                                using var ms = new MemoryStream(bannerBytes);
+                                BannerPreview = new Bitmap(ms);
+                                BannerSourceText = $"Downloaded from UWUVCI ({id})";
+                                _flagBannerSpecified = true;
+                                downloadedBanner = true;
+                                AppLogger.DebugLog($"[AutoDownload] TV Banner downloaded for {id} (from UWUVCI)");
+                            }
+                        }
+
+                        if (!downloadedDrc)
+                        {
+                            byte[]? drcBytes = await DownloadIfAvailableAsync($"{gameBaseUrl}/bootDrcTex.png")
+                                            ?? await DownloadIfAvailableAsync($"{gameBaseUrl}/bootDrcTex.jpg");
+                            if (drcBytes != null)
+                            {
+                                await File.WriteAllBytesAsync(TempDrcPath, drcBytes);
+                                using var ms = new MemoryStream(drcBytes);
+                                DrcPreview = new Bitmap(ms);
+                                DrcSourceText = $"Downloaded from UWUVCI ({id})";
+                                downloadedDrc = true;
+                                AppLogger.DebugLog($"[AutoDownload] GamePad Banner downloaded for {id} (from UWUVCI)");
+                            }
+                        }
+
+                        if (!downloadedLogo)
+                        {
+                            byte[]? logoBytes = await DownloadIfAvailableAsync($"{gameBaseUrl}/bootLogoTex.png");
+                            if (logoBytes != null)
+                            {
+                                await File.WriteAllBytesAsync(TempLogoPath, logoBytes);
+                                using var ms = new MemoryStream(logoBytes);
+                                LogoPreview = new Bitmap(ms);
+                                LogoSourceText = $"Downloaded from UWUVCI ({id})";
+                                downloadedLogo = true;
+                                AppLogger.DebugLog($"[AutoDownload] Logo downloaded for {id} (from UWUVCI)");
+                            }
+                        }
+
+                        if (!downloadedSound)
+                        {
+                            byte[]? soundBytes = await DownloadIfAvailableAsync($"{gameBaseUrl}/bootSound.btsnd")
+                                              ?? await DownloadIfAvailableAsync($"{gameBaseUrl}/bootSound.wav")
+                                              ?? await DownloadIfAvailableAsync($"{gameBaseUrl}/BootSound");
+                            if (soundBytes != null)
+                            {
+                                await File.WriteAllBytesAsync(TempSoundPath, soundBytes);
+                                BootSoundText = $"Downloaded from UWUVCI ({id})";
+                                downloadedSound = true;
+                                AppLogger.DebugLog($"[AutoDownload] Boot Sound downloaded for {id} (from UWUVCI)");
+                            }
+                        }
+
+                        if (downloadedIcon && downloadedBanner)
+                        {
+                            break;
+                        }
+                    }
+
+                    if (downloadedIcon && downloadedBanner)
+                    {
+                        break;
+                    }
+                }
+            }
+
+            // 3. Fallback for platform default bootSound (e.g. GameCube or platform jingle)
             if (!downloadedSound)
             {
-                foreach (var platform in platforms)
+                foreach (var platform in cucholixPlatforms)
                 {
-                    byte[]? soundBytes = await DownloadIfAvailableAsync($"{rawBaseUrl}/{platform}/sound/bootSound.btsnd")
-                                      ?? await DownloadIfAvailableAsync($"{rawBaseUrl}/{platform}/sound/gcnboot/bootSound.wav");
+                    byte[]? soundBytes = await DownloadIfAvailableAsync($"{cucholixBaseUrl}/{platform}/sound/bootSound.btsnd")
+                                      ?? await DownloadIfAvailableAsync($"{cucholixBaseUrl}/{platform}/sound/gcnboot/bootSound.wav");
                     if (soundBytes != null)
                     {
                         await File.WriteAllBytesAsync(TempSoundPath, soundBytes);
@@ -966,7 +1364,7 @@ public partial class MainViewModel : ViewModelBase
             if (!anyDownloaded && !silent)
             {
                 await _dialogService.ShowMessageAsync(
-                    $"Could not find any files matching '{_cucholixRepoId}' (or regional alternatives) in cucholix's repository.",
+                    $"Could not find any files matching '{_cucholixRepoId}' (or regional alternatives) in cucholix or UWUVCI repositories.",
                     "Error",
                     MessageBoxButtons.Ok);
             }
@@ -985,6 +1383,40 @@ public partial class MainViewModel : ViewModelBase
             IsRepoDownloading = false;
             UpdateChecklist();
         }
+    }
+
+    private static string GetUwuvciBaseUrl()
+    {
+        string repoSetting = Settings.Default.BannersRepository?.Trim() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(repoSetting))
+        {
+            return "https://raw.githubusercontent.com/UWUVCI-PRIME/UWUVCI-IMAGES/master";
+        }
+
+        // If provided as a standard github.com repo URL, transform to raw.githubusercontent.com
+        if (repoSetting.StartsWith("https://github.com/", StringComparison.OrdinalIgnoreCase))
+        {
+            string clean = repoSetting["https://github.com/".Length..].TrimEnd('/');
+            // If branch is specified (owner/repo/tree/branch), replace /tree/ with /
+            if (!clean.Contains("/tree/"))
+            {
+                clean += "/master";
+            }
+            else
+            {
+                clean = clean.Replace("/tree/", "/");
+            }
+            return $"https://raw.githubusercontent.com/{clean}";
+        }
+
+        if (repoSetting.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+            repoSetting.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+        {
+            return repoSetting.TrimEnd('/');
+        }
+
+        // If specified as "Owner/Repo" (e.g. "UWUVCI-PRIME/UWUVCI-IMAGES")
+        return $"https://raw.githubusercontent.com/{repoSetting.Trim('/')}/master";
     }
 
     [RelayCommand]

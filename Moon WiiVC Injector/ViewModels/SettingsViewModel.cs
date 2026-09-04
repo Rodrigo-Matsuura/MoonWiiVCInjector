@@ -12,11 +12,19 @@ public partial class SettingsViewModel : ViewModelBase
     private readonly IDialogService _dialogService;
     private readonly Action _closeAction;
 
-    [ObservableProperty]
     private string _bannersRepository = string.Empty;
+    public string BannersRepository
+    {
+        get => _bannersRepository;
+        set => SetProperty(ref _bannersRepository, value);
+    }
 
-    [ObservableProperty]
     private string _outputDir = string.Empty;
+    public string OutputDir
+    {
+        get => _outputDir;
+        set => SetProperty(ref _outputDir, value);
+    }
 
     public SettingsViewModel(IDialogService dialogService, Action closeAction)
     {
