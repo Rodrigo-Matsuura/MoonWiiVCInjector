@@ -19,6 +19,9 @@ public class BuildOptions
 
     public string WiiUCommonKey { get; set; } = string.Empty;
     public string TitleKey { get; set; } = string.Empty;
+    public string BaseTitleId { get; set; } = "00050000101B0700";
+    public string BaseFolderName { get; set; } = "Rhythm Heaven Fever [VAKE01]";
+    public string BaseHtkHash { get; set; } = "C99CAF5995E395F39C3FCAB4A8AF20E0";
     public string AncastKey { get; set; } = string.Empty;
     public string PackedTitleIDLine { get; set; } = string.Empty;
     public string PackedTitleLine1 { get; set; } = string.Empty;
@@ -119,6 +122,16 @@ public class BuildEngine(BuildOptions options, IProgress<(string Message, double
             }
 
             // 1. Download base files with JNUSTool if not present
+            string baseFolder = !string.IsNullOrWhiteSpace(_options.BaseFolderName)
+                ? _options.BaseFolderName
+                : "Rhythm Heaven Fever [VAKE01]";
+            string baseTitleId = !string.IsNullOrWhiteSpace(_options.BaseTitleId)
+                ? _options.BaseTitleId
+                : "00050000101b0700";
+            string baseHtkHash = !string.IsNullOrWhiteSpace(_options.BaseHtkHash)
+                ? _options.BaseHtkHash
+                : "C99CAF5995E395F39C3FCAB4A8AF20E0";
+
             string[] downloadedFiles =
             [
                 Path.Combine(_options.JNUSToolDownloads, "0005001010004000", "code", "deint.txt"),
@@ -126,17 +139,17 @@ public class BuildEngine(BuildOptions options, IProgress<(string Message, double
                 Path.Combine(_options.JNUSToolDownloads, "0005001010004001", "code", "c2w.img"),
                 Path.Combine(_options.JNUSToolDownloads, "0005001010004001", "code", "boot.bin"),
                 Path.Combine(_options.JNUSToolDownloads, "0005001010004001", "code", "dmcu.d.hex"),
-                Path.Combine(_options.JNUSToolDownloads, "Rhythm Heaven Fever [VAKE01]", "code", "cos.xml"),
-                Path.Combine(_options.JNUSToolDownloads, "Rhythm Heaven Fever [VAKE01]", "code", "frisbiiU.rpx"),
-                Path.Combine(_options.JNUSToolDownloads, "Rhythm Heaven Fever [VAKE01]", "code", "fw.img"),
-                Path.Combine(_options.JNUSToolDownloads, "Rhythm Heaven Fever [VAKE01]", "code", "fw.tmd"),
-                Path.Combine(_options.JNUSToolDownloads, "Rhythm Heaven Fever [VAKE01]", "code", "htk.bin"),
-                Path.Combine(_options.JNUSToolDownloads, "Rhythm Heaven Fever [VAKE01]", "code", "nn_hai_user.rpl"),
-                Path.Combine(_options.JNUSToolDownloads, "Rhythm Heaven Fever [VAKE01]", "content", "assets", "shaders", "cafe", "banner.gsh"),
-                Path.Combine(_options.JNUSToolDownloads, "Rhythm Heaven Fever [VAKE01]", "content", "assets", "shaders", "cafe", "fade.gsh"),
-                Path.Combine(_options.JNUSToolDownloads, "Rhythm Heaven Fever [VAKE01]", "meta", "bootMovie.h264"),
-                Path.Combine(_options.JNUSToolDownloads, "Rhythm Heaven Fever [VAKE01]", "meta", "bootLogoTex.tga"),
-                Path.Combine(_options.JNUSToolDownloads, "Rhythm Heaven Fever [VAKE01]", "meta", "bootSound.btsnd")
+                Path.Combine(_options.JNUSToolDownloads, baseFolder, "code", "cos.xml"),
+                Path.Combine(_options.JNUSToolDownloads, baseFolder, "code", "frisbiiU.rpx"),
+                Path.Combine(_options.JNUSToolDownloads, baseFolder, "code", "fw.img"),
+                Path.Combine(_options.JNUSToolDownloads, baseFolder, "code", "fw.tmd"),
+                Path.Combine(_options.JNUSToolDownloads, baseFolder, "code", "htk.bin"),
+                Path.Combine(_options.JNUSToolDownloads, baseFolder, "code", "nn_hai_user.rpl"),
+                Path.Combine(_options.JNUSToolDownloads, baseFolder, "content", "assets", "shaders", "cafe", "banner.gsh"),
+                Path.Combine(_options.JNUSToolDownloads, baseFolder, "content", "assets", "shaders", "cafe", "fade.gsh"),
+                Path.Combine(_options.JNUSToolDownloads, baseFolder, "meta", "bootMovie.h264"),
+                Path.Combine(_options.JNUSToolDownloads, baseFolder, "meta", "bootLogoTex.tga"),
+                Path.Combine(_options.JNUSToolDownloads, baseFolder, "meta", "bootSound.btsnd")
             ];
 
             string[] fileHashes =
@@ -150,7 +163,7 @@ public class BuildEngine(BuildOptions options, IProgress<(string Message, double
                 "69E191E8B0DF1D5304B36F1375C4F127",
                 "3CAF52A9A440EEE4F125A3AD22E305C8",
                 "AE4E06CAD3BEF60AE5C49E22CCDC3254",
-                "C99CAF5995E395F39C3FCAB4A8AF20E0",
+                baseHtkHash,
                 "C4BF586BA0071BD8477986C1AA37E1F1",
                 "5F2FA196DFC158F0FCC69272073AE07E",
                 "307221985A7B46F0386A2637DC15DA3E",
@@ -166,17 +179,17 @@ public class BuildEngine(BuildOptions options, IProgress<(string Message, double
                 "0005001010004001 -file /code/c2w.img",
                 "0005001010004001 -file /code/boot.bin",
                 "0005001010004001 -file /code/dmcu.d.hex",
-                "00050000101b0700 " + _options.TitleKey + " -file /code/cos.xml",
-                "00050000101b0700 " + _options.TitleKey + " -file /code/frisbiiU.rpx",
-                "00050000101b0700 " + _options.TitleKey + " -file /code/fw.img",
-                "00050000101b0700 " + _options.TitleKey + " -file /code/fw.tmd",
-                "00050000101b0700 " + _options.TitleKey + " -file /code/htk.bin",
-                "00050000101b0700 " + _options.TitleKey + " -file /code/nn_hai_user.rpl",
-                "00050000101b0700 " + _options.TitleKey + " -file /content/assets/shaders/cafe/banner.gsh",
-                "00050000101b0700 " + _options.TitleKey + " -file /content/assets/shaders/cafe/fade.gsh*",
-                "00050000101b0700 " + _options.TitleKey + " -file /meta/bootMovie.h264",
-                "00050000101b0700 " + _options.TitleKey + " -file /meta/bootLogoTex.tga",
-                "00050000101b0700 " + _options.TitleKey + " -file /meta/bootSound.btsnd"
+                $"{baseTitleId} {_options.TitleKey} -file /code/cos.xml",
+                $"{baseTitleId} {_options.TitleKey} -file /code/frisbiiU.rpx",
+                $"{baseTitleId} {_options.TitleKey} -file /code/fw.img",
+                $"{baseTitleId} {_options.TitleKey} -file /code/fw.tmd",
+                $"{baseTitleId} {_options.TitleKey} -file /code/htk.bin",
+                $"{baseTitleId} {_options.TitleKey} -file /code/nn_hai_user.rpl",
+                $"{baseTitleId} {_options.TitleKey} -file /content/assets/shaders/cafe/banner.gsh",
+                $"{baseTitleId} {_options.TitleKey} -file /content/assets/shaders/cafe/fade.gsh*",
+                $"{baseTitleId} {_options.TitleKey} -file /meta/bootMovie.h264",
+                $"{baseTitleId} {_options.TitleKey} -file /meta/bootLogoTex.tga",
+                $"{baseTitleId} {_options.TitleKey} -file /meta/bootSound.btsnd"
             ];
 
             UpdateStatus("Checking if the necessary base files are present...", 3);
@@ -211,14 +224,24 @@ public class BuildEngine(BuildOptions options, IProgress<(string Message, double
             if (hasDownloadedAnything)
             {
                 UpdateStatus("Saving files from Nintendo for future use...", 9);
-                string jnusVake = Path.Combine(jarDir, "Rhythm Heaven Fever [VAKE01]");
+                string jnusBase = Path.Combine(jarDir, baseFolder);
                 string jnus4000 = Path.Combine(jarDir, "0005001010004000");
                 string jnus4001 = Path.Combine(jarDir, "0005001010004001");
 
-                if (Directory.Exists(jnusVake))
+                if (!Directory.Exists(jnusBase))
                 {
-                    FileUtil.CopyDirectory(jnusVake, Path.Combine(_options.JNUSToolDownloads, "Rhythm Heaven Fever [VAKE01]"));
-                    FileUtil.SafeDeleteDirectory(jnusVake);
+                    // Fallback search in case folder name slightly differs (e.g. wildcards)
+                    string[] matchingDirs = Directory.GetDirectories(jarDir, "*[VAK*]*");
+                    if (matchingDirs.Length > 0)
+                    {
+                        jnusBase = matchingDirs[0];
+                    }
+                }
+
+                if (Directory.Exists(jnusBase))
+                {
+                    FileUtil.CopyDirectory(jnusBase, Path.Combine(_options.JNUSToolDownloads, baseFolder));
+                    FileUtil.SafeDeleteDirectory(jnusBase);
                 }
                 if (Directory.Exists(jnus4000))
                 {
@@ -259,7 +282,7 @@ public class BuildEngine(BuildOptions options, IProgress<(string Message, double
             Directory.CreateDirectory(Path.Combine(_options.TempBuildPath, "meta"));
             Directory.CreateDirectory(Path.Combine(_options.TempBuildPath, "content"));
 
-            FileUtil.CopyDirectory(Path.Combine(_options.JNUSToolDownloads, "Rhythm Heaven Fever [VAKE01]"), _options.TempBuildPath);
+            FileUtil.CopyDirectory(Path.Combine(_options.JNUSToolDownloads, baseFolder), _options.TempBuildPath);
             if (_options.C2WPatch)
             {
                 FileUtil.CopyDirectory(Path.Combine(_options.JNUSToolDownloads, "0005001010004000"), _options.TempBuildPath);

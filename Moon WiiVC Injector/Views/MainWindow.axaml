@@ -160,9 +160,10 @@
             <StackPanel Spacing="6">
               <TextBlock Text="Wii U Ancast Key" FontWeight="SemiBold"/>
               <Grid ColumnDefinitions="*,Auto">
-                <TextBox Grid.Column="0" Name="AncastKey" Text="{Binding AncastKey}" IsReadOnly="{Binding IsAncastKeyReadOnly}" DoubleTapped="OnKeyTextBoxDoubleTapped"/>
-                <Button Grid.Column="1" Name="SaveAncastKeyButton" Content="Save Key" Command="{Binding SaveAncastKeyCommand}" IsEnabled="{Binding !IsAncastKeyValid}" Margin="4,0,0,0"/>
+                <TextBox Grid.Column="0" Name="AncastKey" Classes="key-box" Text="{Binding AncastKey}" IsReadOnly="{Binding IsAncastKeyReadOnly}" BorderBrush="{Binding AncastKeyBorderBrush}" DoubleTapped="OnKeyTextBoxDoubleTapped"/>
+                <Button Grid.Column="1" Name="SaveAncastKeyButton" Content="Save Key" Command="{Binding SaveAncastKeyCommand}" IsEnabled="{Binding CanSaveAncastKey}" Margin="4,0,0,0"/>
               </Grid>
+              <TextBlock Text="{Binding AncastKeyStatusText}" Foreground="{Binding AncastKeyStatusColor}" FontSize="11" FontWeight="SemiBold" Margin="2,-2,0,0" IsVisible="{Binding AncastKeyStatusText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
             </StackPanel>
           </Border>
         </StackPanel>
@@ -183,14 +184,17 @@
                 <TextBlock Text="Keys Configuration" FontWeight="SemiBold"/>
                 <TextBlock Text="Wii U Common Key:"/>
                 <Grid ColumnDefinitions="*,Auto">
-                  <TextBox Grid.Column="0" Name="WiiUCommonKey" Text="{Binding WiiUCommonKey}" IsReadOnly="{Binding IsCommonKeyReadOnly}" DoubleTapped="OnKeyTextBoxDoubleTapped"/>
-                  <Button Grid.Column="1" Name="SaveCommonKeyButton" Content="Save" Command="{Binding SaveCommonKeyCommand}" IsEnabled="{Binding !IsCommonKeyValid}" Margin="4,0,0,0"/>
+                  <TextBox Grid.Column="0" Name="WiiUCommonKey" Classes="key-box" Text="{Binding WiiUCommonKey}" IsReadOnly="{Binding IsCommonKeyReadOnly}" BorderBrush="{Binding CommonKeyBorderBrush}" DoubleTapped="OnKeyTextBoxDoubleTapped"/>
+                  <Button Grid.Column="1" Name="SaveCommonKeyButton" Content="Save" Command="{Binding SaveCommonKeyCommand}" IsEnabled="{Binding CanSaveCommonKey}" Margin="4,0,0,0"/>
                 </Grid>
-                <TextBlock Text="Rhythm Heaven Fever Title Key:"/>
+                <TextBlock Text="{Binding CommonKeyStatusText}" Foreground="{Binding CommonKeyStatusColor}" FontSize="11" FontWeight="SemiBold" Margin="2,-2,0,0" IsVisible="{Binding CommonKeyStatusText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+
+                <TextBlock Text="Base Game Title Key (USA / EUR Rhythm Heaven):" Margin="0,4,0,0"/>
                 <Grid ColumnDefinitions="*,Auto">
-                  <TextBox Grid.Column="0" Name="TitleKey" Text="{Binding TitleKey}" IsReadOnly="{Binding IsTitleKeyReadOnly}" DoubleTapped="OnKeyTextBoxDoubleTapped"/>
-                  <Button Grid.Column="1" Name="SaveTitleKeyButton" Content="Save" Command="{Binding SaveTitleKeyCommand}" IsEnabled="{Binding !IsTitleKeyValid}" Margin="4,0,0,0"/>
+                  <TextBox Grid.Column="0" Name="TitleKey" Classes="key-box" Text="{Binding TitleKey}" IsReadOnly="{Binding IsTitleKeyReadOnly}" BorderBrush="{Binding TitleKeyBorderBrush}" DoubleTapped="OnKeyTextBoxDoubleTapped"/>
+                  <Button Grid.Column="1" Name="SaveTitleKeyButton" Content="Save" Command="{Binding SaveTitleKeyCommand}" IsEnabled="{Binding CanSaveTitleKey}" Margin="4,0,0,0"/>
                 </Grid>
+                <TextBlock Text="{Binding TitleKeyStatusText}" Foreground="{Binding TitleKeyStatusColor}" FontSize="11" FontWeight="SemiBold" Margin="2,-2,0,0" IsVisible="{Binding TitleKeyStatusText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
               </StackPanel>
             </Border>
           </StackPanel>

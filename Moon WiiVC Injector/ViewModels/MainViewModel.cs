@@ -13,6 +13,7 @@ using Avalonia.Media.Imaging;
 using Avalonia.Platform.Storage;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Moon_WiiVC_Injector.Models;
 using Moon_WiiVC_Injector.Properties;
 using Moon_WiiVC_Injector.Services;
 
@@ -24,7 +25,6 @@ public partial class MainViewModel : ViewModelBase
     private const long GCGameType = 4440324665927270400;
 
     private const string CommonKeyExpectedHash = "35-AC-59-94-97-22-79-33-1D-97-09-4F-A2-FB-97-FC";
-    private const string TitleKeyExpectedHash = "F9-4B-D8-8E-BB-7A-A9-38-67-E6-30-61-5F-27-1C-9F";
     private const string AncastKeyExpectedHash = "31-8D-1F-9D-98-FB-08-E7-7C-7F-E1-77-AA-49-05-43";
 
     private static string TempRootPath => Path.TrimEndingDirectorySeparator(Settings.Default.GetEffectiveTempPath()) + Path.DirectorySeparatorChar;
@@ -351,26 +351,51 @@ public partial class MainViewModel : ViewModelBase
         set => SetProperty(ref _toggleBootSoundLoop, value);
     }
 
-    // Observable Properties: Keys
+    // Observable Properties: Base Game & Keys
+    private BaseGameInfo _selectedBase = BaseGameInfo.USA;
+    public BaseGameInfo SelectedBase
+    {
+        get => _selectedBase;
+        set => SetProperty(ref _selectedBase, value);
+    }
+
     private string _wiiUCommonKey = string.Empty;
     public string WiiUCommonKey
     {
         get => _wiiUCommonKey;
-        set => SetProperty(ref _wiiUCommonKey, value);
+        set
+        {
+            if (SetProperty(ref _wiiUCommonKey, value))
+            {
+                ValidateKeys();
+            }
+        }
     }
 
     private string _titleKey = string.Empty;
     public string TitleKey
     {
         get => _titleKey;
-        set => SetProperty(ref _titleKey, value);
+        set
+        {
+            if (SetProperty(ref _titleKey, value))
+            {
+                ValidateKeys();
+            }
+        }
     }
 
     private string _ancastKey = string.Empty;
     public string AncastKey
     {
         get => _ancastKey;
-        set => SetProperty(ref _ancastKey, value);
+        set
+        {
+            if (SetProperty(ref _ancastKey, value))
+            {
+                ValidateKeys();
+            }
+        }
     }
 
     private bool _isCommonKeyValid;
@@ -398,22 +423,107 @@ public partial class MainViewModel : ViewModelBase
     public bool IsCommonKeyReadOnly
     {
         get => _isCommonKeyReadOnly;
-        set => SetProperty(ref _isCommonKeyReadOnly, value);
+        set
+        {
+            if (SetProperty(ref _isCommonKeyReadOnly, value))
+            {
+                OnPropertyChanged(nameof(CanSaveCommonKey));
+            }
+        }
     }
 
     private bool _isTitleKeyReadOnly;
     public bool IsTitleKeyReadOnly
     {
         get => _isTitleKeyReadOnly;
-        set => SetProperty(ref _isTitleKeyReadOnly, value);
+        set
+        {
+            if (SetProperty(ref _isTitleKeyReadOnly, value))
+            {
+                OnPropertyChanged(nameof(CanSaveTitleKey));
+            }
+        }
     }
 
     private bool _isAncastKeyReadOnly;
     public bool IsAncastKeyReadOnly
     {
         get => _isAncastKeyReadOnly;
-        set => SetProperty(ref _isAncastKeyReadOnly, value);
+        set
+        {
+            if (SetProperty(ref _isAncastKeyReadOnly, value))
+            {
+                OnPropertyChanged(nameof(CanSaveAncastKey));
+            }
+        }
     }
+
+    private string _commonKeyStatusText = string.Empty;
+    public string CommonKeyStatusText
+    {
+        get => _commonKeyStatusText;
+        set => SetProperty(ref _commonKeyStatusText, value);
+    }
+
+    private string _commonKeyStatusColor = "#7f8c8d";
+    public string CommonKeyStatusColor
+    {
+        get => _commonKeyStatusColor;
+        set => SetProperty(ref _commonKeyStatusColor, value);
+    }
+
+    private string _commonKeyBorderBrush = "#a0a0a0";
+    public string CommonKeyBorderBrush
+    {
+        get => _commonKeyBorderBrush;
+        set => SetProperty(ref _commonKeyBorderBrush, value);
+    }
+
+    private string _titleKeyStatusText = string.Empty;
+    public string TitleKeyStatusText
+    {
+        get => _titleKeyStatusText;
+        set => SetProperty(ref _titleKeyStatusText, value);
+    }
+
+    private string _titleKeyStatusColor = "#7f8c8d";
+    public string TitleKeyStatusColor
+    {
+        get => _titleKeyStatusColor;
+        set => SetProperty(ref _titleKeyStatusColor, value);
+    }
+
+    private string _titleKeyBorderBrush = "#a0a0a0";
+    public string TitleKeyBorderBrush
+    {
+        get => _titleKeyBorderBrush;
+        set => SetProperty(ref _titleKeyBorderBrush, value);
+    }
+
+    private string _ancastKeyStatusText = string.Empty;
+    public string AncastKeyStatusText
+    {
+        get => _ancastKeyStatusText;
+        set => SetProperty(ref _ancastKeyStatusText, value);
+    }
+
+    private string _ancastKeyStatusColor = "#7f8c8d";
+    public string AncastKeyStatusColor
+    {
+        get => _ancastKeyStatusColor;
+        set => SetProperty(ref _ancastKeyStatusColor, value);
+    }
+
+    private string _ancastKeyBorderBrush = "#a0a0a0";
+    public string AncastKeyBorderBrush
+    {
+        get => _ancastKeyBorderBrush;
+        set => SetProperty(ref _ancastKeyBorderBrush, value);
+    }
+
+    public bool CanSaveCommonKey => !IsCommonKeyReadOnly && IsCommonKeyValid;
+    public bool CanSaveTitleKey => !IsTitleKeyReadOnly && IsTitleKeyValid;
+    public bool CanSaveAncastKey => !IsAncastKeyReadOnly && IsAncastKeyValid;
 
     // Observable Properties: Checklist & Build Status
     private bool _sourceCheck;
@@ -605,22 +715,125 @@ public partial class MainViewModel : ViewModelBase
     private void LoadStoredKeys()
     {
         WiiUCommonKey = Settings.Default.WiiUCommonKey?.ToUpperInvariant() ?? string.Empty;
-        TitleKey = Settings.Default.TitleKey?.ToUpperInvariant() ?? string.Empty;
         AncastKey = Settings.Default.AncastKey?.ToUpperInvariant() ?? string.Empty;
 
+        // Try detecting base from legacy TitleKey or regional key
+        string rawKey = !string.IsNullOrWhiteSpace(Settings.Default.TitleKey)
+            ? Settings.Default.TitleKey
+            : Settings.Default.GetTitleKeyForRegion(Settings.Default.BaseRegion);
+
+        if (!string.IsNullOrWhiteSpace(rawKey))
+        {
+            byte[] data = MD5.HashData(Encoding.ASCII.GetBytes(rawKey.Trim().ToUpperInvariant()));
+            string keyHash = BitConverter.ToString(data);
+            var matchedBase = BaseGameInfo.FindByKeyHash(keyHash);
+            if (matchedBase != null)
+            {
+                _selectedBase = matchedBase;
+                Settings.Default.BaseRegion = matchedBase.RegionCode;
+                Settings.Default.SetTitleKeyForRegion(matchedBase.RegionCode, rawKey);
+            }
+            else
+            {
+                _selectedBase = BaseGameInfo.FindByRegion(Settings.Default.BaseRegion);
+            }
+        }
+        else
+        {
+            _selectedBase = BaseGameInfo.FindByRegion(Settings.Default.BaseRegion);
+        }
+
+        TitleKey = Settings.Default.GetTitleKeyForRegion(SelectedBase.RegionCode)?.ToUpperInvariant() ?? string.Empty;
+
         ValidateKeys();
+
+        IsCommonKeyReadOnly = IsCommonKeyValid;
+        IsTitleKeyReadOnly = IsTitleKeyValid;
+        IsAncastKeyReadOnly = IsAncastKeyValid;
+        OnPropertyChanged(nameof(CanSaveCommonKey));
+        OnPropertyChanged(nameof(CanSaveTitleKey));
+        OnPropertyChanged(nameof(CanSaveAncastKey));
     }
 
     private void ValidateKeys()
     {
+        // 1. Common Key
         IsCommonKeyValid = ValidateKeyHash(WiiUCommonKey, CommonKeyExpectedHash);
-        IsCommonKeyReadOnly = IsCommonKeyValid;
+        if (string.IsNullOrWhiteSpace(WiiUCommonKey))
+        {
+            CommonKeyStatusText = string.Empty;
+            CommonKeyStatusColor = "#7f8c8d";
+            CommonKeyBorderBrush = "#a0a0a0";
+        }
+        else if (IsCommonKeyValid)
+        {
+            CommonKeyStatusText = "✓ Valid Wii U Common Key";
+            CommonKeyStatusColor = "#27ae60";
+            CommonKeyBorderBrush = "#27ae60";
+        }
+        else
+        {
+            CommonKeyStatusText = "✗ Invalid Common Key";
+            CommonKeyStatusColor = "#c0392b";
+            CommonKeyBorderBrush = "#c0392b";
+        }
 
-        IsTitleKeyValid = ValidateKeyHash(TitleKey, TitleKeyExpectedHash);
-        IsTitleKeyReadOnly = IsTitleKeyValid;
+        // 2. Base & Title Key
+        if (string.IsNullOrWhiteSpace(TitleKey))
+        {
+            IsTitleKeyValid = false;
+            TitleKeyStatusText = string.Empty;
+            TitleKeyStatusColor = "#7f8c8d";
+            TitleKeyBorderBrush = "#a0a0a0";
+        }
+        else
+        {
+            string trimmed = TitleKey.Trim().ToUpperInvariant();
+            byte[] data = MD5.HashData(Encoding.ASCII.GetBytes(trimmed));
+            string keyHash = BitConverter.ToString(data);
 
+            var matchedBase = BaseGameInfo.FindByKeyHash(keyHash);
+            if (matchedBase != null)
+            {
+                _selectedBase = matchedBase;
+                IsTitleKeyValid = true;
+                TitleKeyStatusText = $"✓ Title: {matchedBase.GameName} ({matchedBase.RegionCode}) | Version: {matchedBase.Version} | Title ID: {matchedBase.TitleId}";
+                TitleKeyStatusColor = "#27ae60";
+                TitleKeyBorderBrush = "#27ae60";
+            }
+            else
+            {
+                IsTitleKeyValid = false;
+                TitleKeyStatusText = "✗ Invalid Title Key (Must match USA or EUR Rhythm Heaven base)";
+                TitleKeyStatusColor = "#c0392b";
+                TitleKeyBorderBrush = "#c0392b";
+            }
+        }
+
+        // 3. Ancast Key
         IsAncastKeyValid = ValidateKeyHash(AncastKey, AncastKeyExpectedHash);
-        IsAncastKeyReadOnly = IsAncastKeyValid;
+        if (string.IsNullOrWhiteSpace(AncastKey))
+        {
+            AncastKeyStatusText = string.Empty;
+            AncastKeyStatusColor = "#7f8c8d";
+            AncastKeyBorderBrush = "#a0a0a0";
+        }
+        else if (IsAncastKeyValid)
+        {
+            AncastKeyStatusText = "✓ Valid Wii U Ancast Key";
+            AncastKeyStatusColor = "#27ae60";
+            AncastKeyBorderBrush = "#27ae60";
+        }
+        else
+        {
+            AncastKeyStatusText = "✗ Invalid Ancast Key";
+            AncastKeyStatusColor = "#c0392b";
+            AncastKeyBorderBrush = "#c0392b";
+        }
+
+        OnPropertyChanged(nameof(CanSaveCommonKey));
+        OnPropertyChanged(nameof(CanSaveTitleKey));
+        OnPropertyChanged(nameof(CanSaveAncastKey));
 
         UpdateChecklist();
     }
@@ -1422,31 +1635,36 @@ public partial class MainViewModel : ViewModelBase
     [RelayCommand]
     public void SaveCommonKey()
     {
-        if (string.IsNullOrWhiteSpace(WiiUCommonKey)) return;
+        if (!IsCommonKeyValid || string.IsNullOrWhiteSpace(WiiUCommonKey)) return;
         WiiUCommonKey = WiiUCommonKey.Trim().ToUpperInvariant();
         Settings.Default.WiiUCommonKey = WiiUCommonKey;
         Settings.Default.Save();
-        ValidateKeys();
+        IsCommonKeyReadOnly = true;
+        OnPropertyChanged(nameof(CanSaveCommonKey));
     }
 
     [RelayCommand]
     public void SaveTitleKey()
     {
-        if (string.IsNullOrWhiteSpace(TitleKey)) return;
+        if (!IsTitleKeyValid || string.IsNullOrWhiteSpace(TitleKey)) return;
         TitleKey = TitleKey.Trim().ToUpperInvariant();
-        Settings.Default.TitleKey = TitleKey;
+
+        Settings.Default.SetTitleKeyForRegion(SelectedBase.RegionCode, TitleKey);
+        Settings.Default.BaseRegion = SelectedBase.RegionCode;
         Settings.Default.Save();
-        ValidateKeys();
+        IsTitleKeyReadOnly = true;
+        OnPropertyChanged(nameof(CanSaveTitleKey));
     }
 
     [RelayCommand]
     public void SaveAncastKey()
     {
-        if (string.IsNullOrWhiteSpace(AncastKey)) return;
+        if (!IsAncastKeyValid || string.IsNullOrWhiteSpace(AncastKey)) return;
         AncastKey = AncastKey.Trim().ToUpperInvariant();
         Settings.Default.AncastKey = AncastKey;
         Settings.Default.Save();
-        ValidateKeys();
+        IsAncastKeyReadOnly = true;
+        OnPropertyChanged(nameof(CanSaveAncastKey));
     }
 
     public void UnlockKey(string keyName)
@@ -1455,12 +1673,15 @@ public partial class MainViewModel : ViewModelBase
         {
             case "WiiUCommonKey":
                 IsCommonKeyReadOnly = false;
+                OnPropertyChanged(nameof(CanSaveCommonKey));
                 break;
             case "TitleKey":
                 IsTitleKeyReadOnly = false;
+                OnPropertyChanged(nameof(CanSaveTitleKey));
                 break;
             case "AncastKey":
                 IsAncastKeyReadOnly = false;
+                OnPropertyChanged(nameof(CanSaveAncastKey));
                 break;
         }
     }
@@ -1552,6 +1773,9 @@ public partial class MainViewModel : ViewModelBase
             SelectedOutputPath = selectedOutputPath,
             WiiUCommonKey = WiiUCommonKey,
             TitleKey = TitleKey,
+            BaseTitleId = SelectedBase.TitleId,
+            BaseFolderName = SelectedBase.FolderName,
+            BaseHtkHash = SelectedBase.HtkHash,
             AncastKey = AncastKey,
             PackedTitleIDLine = PackedTitleIDLine,
             PackedTitleLine1 = PackedTitleLine1,
