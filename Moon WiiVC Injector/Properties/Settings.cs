@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace Moon_WiiVC_Injector.Properties;
 
@@ -104,8 +105,7 @@ public sealed class Settings
                 Directory.CreateDirectory(SettingsFolder);
             }
 
-            var options = new JsonSerializerOptions { WriteIndented = true };
-            string json = JsonSerializer.Serialize(this, options);
+            string json = JsonSerializer.Serialize(this, SettingsJsonContext.Default.Settings);
             File.WriteAllText(SettingsPath, json);
         }
         catch (Exception ex)
@@ -121,7 +121,7 @@ public sealed class Settings
             if (File.Exists(SettingsPath))
             {
                 string json = File.ReadAllText(SettingsPath);
-                var settings = JsonSerializer.Deserialize<Settings>(json);
+                var settings = JsonSerializer.Deserialize(json, SettingsJsonContext.Default.Settings);
                 if (settings != null)
                 {
                     return settings;
@@ -135,4 +135,10 @@ public sealed class Settings
 
         return new Settings();
     }
+}
+
+[JsonSourceGenerationOptions(WriteIndented = true)]
+[JsonSerializable(typeof(Settings))]
+internal partial class SettingsJsonContext : JsonSerializerContext
+{
 }
