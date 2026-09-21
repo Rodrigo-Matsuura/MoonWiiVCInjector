@@ -2,7 +2,7 @@ using System.Text.Json;
 
 namespace Moon_WiiVC_Injector.Properties;
 
-internal sealed class Settings
+public sealed class Settings
 {
     private static readonly string SettingsFolder = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
@@ -33,8 +33,38 @@ internal sealed class Settings
     public string TempPath { get; set; } = string.Empty;
     public string WiiUCommonKey { get; set; } = string.Empty;
     public string TitleKey { get; set; } = string.Empty;
+    public string BaseRegion { get; set; } = "USA";
+    public string TitleKeyUSA { get; set; } = string.Empty;
+    public string TitleKeyEUR { get; set; } = string.Empty;
     public string AncastKey { get; set; } = string.Empty;
     public string BannersRepository { get; set; } = "https://raw.githubusercontent.com/UWUVCI-PRIME/UWUVCI-IMAGES/master/";
+
+    public string GetTitleKeyForRegion(string region)
+    {
+        return region.ToUpperInvariant() switch
+        {
+            "EUR" => !string.IsNullOrEmpty(TitleKeyEUR) ? TitleKeyEUR : (string.Equals(BaseRegion, "EUR", StringComparison.OrdinalIgnoreCase) ? TitleKey : string.Empty),
+            _ => !string.IsNullOrEmpty(TitleKeyUSA) ? TitleKeyUSA : TitleKey
+        };
+    }
+
+    public void SetTitleKeyForRegion(string region, string key)
+    {
+        switch (region.ToUpperInvariant())
+        {
+            case "EUR":
+                TitleKeyEUR = key;
+                break;
+            default:
+                TitleKeyUSA = key;
+                break;
+        }
+
+        if (string.Equals(BaseRegion, region, StringComparison.OrdinalIgnoreCase))
+        {
+            TitleKey = key;
+        }
+    }
 
     public static string GetDefaultTempPath()
     {
