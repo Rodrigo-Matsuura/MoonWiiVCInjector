@@ -1694,6 +1694,20 @@ public partial class MainViewModel : ViewModelBase
         BuildProgress = 0;
         BuildStatus = "Initializing Build Process...";
 
+        // Auto-save any valid keys that the user might not have manually clicked 'Save' for
+        if (IsCommonKeyValid && !IsCommonKeyReadOnly)
+        {
+            SaveCommonKey();
+        }
+        if (IsTitleKeyValid && !IsTitleKeyReadOnly)
+        {
+            SaveTitleKey();
+        }
+        if (IsAncastKeyValid && !IsAncastKeyReadOnly)
+        {
+            SaveAncastKey();
+        }
+
         await _setupTask;
 
         if (_systemType == "wii" || _systemType == "gcn")
