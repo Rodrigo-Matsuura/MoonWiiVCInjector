@@ -6,9 +6,11 @@
 [Bb]uild/
 [Bb]uild-win/
 publish/
+dist/
 
 # Packaging outputs
 *.zip
+*.tar.gz
 
 # Visual Studio Cache
 .vs/
