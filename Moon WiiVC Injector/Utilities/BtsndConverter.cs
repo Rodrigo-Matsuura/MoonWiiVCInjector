@@ -11,7 +11,6 @@ namespace Moon_WiiVC_Injector.Utilities;
 public static class BtsndConverter
 {
     private const int TargetSampleRate = 48000;
-    private const int TargetChannels = 2;
     private const double MaxDurationSeconds = 6.0;
     private const int MaxSamples = (int)(TargetSampleRate * MaxDurationSeconds); // 288,000 samples per channel
 

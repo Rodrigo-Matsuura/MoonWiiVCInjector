@@ -64,54 +64,6 @@ public class Nfs2Iso2Nfs(
         return instance.Execute(options);
     }
 
-    /// <summary>
-    /// Legacy entrypoint supporting array-based arguments.
-    /// </summary>
-    public static int ConvertNfs(
-        string[] args,
-        string? baseDirectory = null,
-        Action<string>? onLog = null,
-        IProgress<(string Message, double Progress)>? progress = null,
-        CancellationToken cancellationToken = default)
-    {
-        var options = ParseArguments(args, baseDirectory);
-        var instance = new Nfs2Iso2Nfs(baseDirectory, onLog, progress, cancellationToken);
-        return instance.Execute(options);
-    }
-
-    private static NfsConversionOptions ParseArguments(string[] args, string? baseDir)
-    {
-        var opt = new NfsConversionOptions
-        {
-            NfsDirectory = baseDir ?? string.Empty
-        };
-
-        for (int i = 0; i < args.Length; i++)
-        {
-            string arg = args[i];
-            switch (arg)
-            {
-                case "-dec": opt.Decrypt = true; opt.Encrypt = false; break;
-                case "-enc": opt.Encrypt = true; opt.Decrypt = false; break;
-                case "-keep": opt.KeepIntermediateFiles = true; break;
-                case "-legit": opt.KeepLegit = true; break;
-                case "-key" when i + 1 < args.Length: opt.KeyFile = args[++i]; break;
-                case "-wiikey" when i + 1 < args.Length: opt.WiiKeyFile = args[++i]; break;
-                case "-iso" when i + 1 < args.Length: opt.IsoFile = args[++i]; break;
-                case "-nfs" when i + 1 < args.Length: opt.NfsDirectory = args[++i]; break;
-                case "-fwimg" when i + 1 < args.Length: opt.FwFile = args[++i]; break;
-                case "-lrpatch": opt.MapShoulderToTrigger = true; break;
-                case "-wiimote": opt.VerticalWiimote = true; break;
-                case "-horizontal": opt.HorizontalWiimote = true; break;
-                case "-homebrew": opt.Homebrew = true; break;
-                case "-passthrough": opt.Passthrough = true; break;
-                case "-instantcc": opt.InstantCc = true; break;
-                case "-nocc": opt.NoCc = true; break;
-            }
-        }
-
-        return opt;
-    }
 
     public int Execute(NfsConversionOptions options)
     {

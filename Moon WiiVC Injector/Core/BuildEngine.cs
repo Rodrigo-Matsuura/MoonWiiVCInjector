@@ -495,27 +495,22 @@ public class BuildEngine(BuildOptions options, IProgress<(string Message, double
             // Convert ISO to NFS format (Smoothly mapped across 40% - 85%)
             UpdateStatus("Converting game ISO to NFS content format...", 40);
 
-            List<string> nfsArgs = ["-enc"];
-            if (_options.SystemType == "dol" || _options.SystemType == "wiiware" || _options.SystemType == "gcn")
-            {
-                nfsArgs.Add("-homebrew");
-            }
-            if (_options.SystemType == "gcn")
-            {
-                nfsArgs.Add("-passthrough");
-            }
-
-            if (_options.NfsPatchFlag.Contains("-horizontal")) nfsArgs.Add("-horizontal");
-            else if (_options.NfsPatchFlag.Contains("-wiimote")) nfsArgs.Add("-wiimote");
-            else if (_options.NfsPatchFlag.Contains("-instantcc")) nfsArgs.Add("-instantcc");
-            else if (_options.NfsPatchFlag.Contains("-nocc")) nfsArgs.Add("-nocc");
-
-            if (_options.LRPatch) nfsArgs.Add("-lrpatch");
-
-            nfsArgs.Add("-iso");
-            nfsArgs.Add(gameIsoPath);
-
             string contentDir = Path.Combine(_options.TempBuildPath, "content");
+
+            var nfsOptions = new NfsConversionOptions
+            {
+                Encrypt = true,
+                Decrypt = false,
+                IsoFile = gameIsoPath,
+                NfsDirectory = contentDir,
+                Homebrew = _options.SystemType == "dol" || _options.SystemType == "wiiware" || _options.SystemType == "gcn",
+                Passthrough = _options.SystemType == "gcn",
+                HorizontalWiimote = _options.NfsPatchFlag.Contains("-horizontal"),
+                VerticalWiimote = _options.NfsPatchFlag.Contains("-wiimote"),
+                InstantCc = _options.NfsPatchFlag.Contains("-instantcc"),
+                NoCc = _options.NfsPatchFlag.Contains("-nocc"),
+                MapShoulderToTrigger = _options.LRPatch
+            };
 
             var nfsProgress = new Progress<(string Message, double Progress)>(update =>
             {
@@ -525,7 +520,7 @@ public class BuildEngine(BuildOptions options, IProgress<(string Message, double
 
             // Convert in-process with real-time logging, cancellation and progress
             int nfsResult = Nfs2Iso2Nfs.ConvertNfs(
-                [.. nfsArgs],
+                nfsOptions,
                 baseDirectory: contentDir,
                 onLog: Log,
                 progress: nfsProgress,
