@@ -71,3 +71,4 @@ public class BigEndianMemoryStream : MemoryStream
         base.Write(_spanBuffer, 0, 8);
     }
 }
+

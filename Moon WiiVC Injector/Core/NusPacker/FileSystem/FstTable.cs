@@ -337,3 +337,4 @@ public class FstTable
         return (int)NusUtils.Align(size, 0x8000);
     }
 }
+
