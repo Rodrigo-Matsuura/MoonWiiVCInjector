@@ -49,6 +49,19 @@ public static class BaseIsoTemplate
         ExtractResource(resourceName, destinationFilePath);
     }
 
+    public static void CopyChanBooterDol(string destinationFilePath)
+    {
+        string resourceName = $"{ResourcePrefix}.Dol.wiivc_chan_booter.dol";
+
+        string? dir = Path.GetDirectoryName(destinationFilePath);
+        if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+        {
+            Directory.CreateDirectory(dir);
+        }
+
+        ExtractResource(resourceName, destinationFilePath);
+    }
+
     private static void ExtractResource(string resourceName, string targetPath)
     {
         using var stream = CurrentAssembly.GetManifestResourceStream(resourceName);

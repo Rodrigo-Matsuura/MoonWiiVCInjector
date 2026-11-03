@@ -481,6 +481,21 @@ public class BuildEngine(BuildOptions options, IProgress<(string Message, double
                 await LaunchProgramAsync(Path.Combine(_options.TempToolsPath, "WIT", "wit.exe"), $"copy \"{tempIsoBase}\" --DEST \"{gameIsoPath}\" -ovv --links --iso", true, cancellationToken);
                 Directory.Delete(tempIsoBase, true);
             }
+            else if (_options.SystemType == "wiiware")
+            {
+                string tempIsoBase = Path.Combine(_options.TempSourcePath, "TEMPISOBASE");
+                if (Directory.Exists(tempIsoBase)) Directory.Delete(tempIsoBase, true);
+                Core.BaseIsoTemplate.CreateBaseDirectory(tempIsoBase);
+
+                Core.BaseIsoTemplate.CopyChanBooterDol(Path.Combine(tempIsoBase, "sys", "main.dol"));
+
+                string[] titleTxt = [_options.TitleIdText];
+                await File.WriteAllLinesAsync(Path.Combine(tempIsoBase, "files", "title.txt"), titleTxt, cancellationToken);
+
+                UpdateStatus("Rebuilding vWii NAND Title Launcher ISO...", 30);
+                await LaunchProgramAsync(Path.Combine(_options.TempToolsPath, "WIT", "wit.exe"), $"copy \"{tempIsoBase}\" --DEST \"{gameIsoPath}\" -ovv --links --iso", true, cancellationToken);
+                Directory.Delete(tempIsoBase, true);
+            }
 
             // Extract ticket and TMD for encrypting content
             UpdateStatus("Extracting game tickets and TMD information...", 38);
@@ -538,11 +553,25 @@ public class BuildEngine(BuildOptions options, IProgress<(string Message, double
             string sanitizedGameName = SanitizeFilename(_options.PackedTitleLine1);
             finalOutputPath = Path.Combine(_options.SelectedOutputPath, sanitizedGameName + " WUP-N-" + _options.TitleIdText + "_" + _options.PackedTitleIDLine);
 
+            string cleanBuildPath = Path.GetFullPath(_options.TempBuildPath).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            string cleanOutputPath = Path.GetFullPath(finalOutputPath).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+
+            // Pre-validation: ensure input directories (code, content, meta) exist before packaging
+            string codeDir = Path.Combine(cleanBuildPath, "code");
+            string contentSubDir = Path.Combine(cleanBuildPath, "content");
+            string metaDir = Path.Combine(cleanBuildPath, "meta");
+
+            if (!Directory.Exists(codeDir) || !Directory.Exists(contentSubDir) || !Directory.Exists(metaDir))
+            {
+                throw new InvalidOperationException(
+                    $"Temporary build directory '{cleanBuildPath}' is missing required folders (code, content, or meta) for packaging.");
+            }
+
             string nusPackerExe = Path.Combine(_options.TempToolsPath, "JAR", "NUSPacker.exe");
             int nusChunkCount = 0;
-            await LaunchProgramAsync(
+            var nusResult = await LaunchProgramAsync(
                 nusPackerExe,
-                $"-in BUILDDIR -out \"{finalOutputPath}\" -encryptKeyWith {_options.WiiUCommonKey}",
+                $"-in \"{cleanBuildPath}\" -out \"{cleanOutputPath}\" -encryptKeyWith {_options.WiiUCommonKey.Trim()}",
                 true,
                 cancellationToken,
                 workingDirectory: _options.TempRootPath,
@@ -556,23 +585,56 @@ public class BuildEngine(BuildOptions options, IProgress<(string Message, double
                     }
                 });
 
-            // Cleanup
+            // Post-validation: verify that NUSPacker successfully produced a complete, valid WUP package.
+            // NUSPacker exits with code 0 even on fatal failures after creating an empty output folder.
+            bool hasTmd = File.Exists(Path.Combine(cleanOutputPath, "title.tmd"));
+            bool hasTik = File.Exists(Path.Combine(cleanOutputPath, "title.tik"));
+            bool hasCert = File.Exists(Path.Combine(cleanOutputPath, "title.cert"));
+            bool hasApp = Directory.Exists(cleanOutputPath) && Directory.EnumerateFiles(cleanOutputPath, "*.app").Any();
+
+            if (!Directory.Exists(cleanOutputPath) || !hasTmd || !hasTik || !hasCert || !hasApp)
+            {
+                var sb = new StringBuilder();
+                sb.AppendLine("WUP package creation failed: NUSPacker did not produce the required package files (title.tmd, title.tik, title.cert, *.app).");
+                if (Directory.Exists(cleanOutputPath))
+                {
+                    var existingFiles = Directory.GetFileSystemEntries(cleanOutputPath);
+                    if (existingFiles.Length == 0)
+                    {
+                        sb.AppendLine($"The output directory '{cleanOutputPath}' was created but is completely empty (0 files).");
+                    }
+                    else
+                    {
+                        sb.AppendLine($"The output directory '{cleanOutputPath}' contains incomplete files: {string.Join(", ", existingFiles.Select(Path.GetFileName))}");
+                    }
+                }
+                else
+                {
+                    sb.AppendLine($"The output directory '{cleanOutputPath}' was not created.");
+                }
+
+                if (!string.IsNullOrWhiteSpace(nusResult.StdErr))
+                {
+                    sb.AppendLine($"\nNUSPacker Error:\n{nusResult.StdErr}");
+                }
+                if (!string.IsNullOrWhiteSpace(nusResult.StdOut))
+                {
+                    sb.AppendLine($"\nNUSPacker Output:\n{nusResult.StdOut}");
+                }
+
+                throw new InvalidOperationException(sb.ToString().Trim());
+            }
+
+            // Cleanup - only delete intermediate build files after package integrity has been verified
             UpdateStatus("Cleaning up temporary directories...", 98);
             FileUtil.SafeDeleteDirectory(_options.TempBuildPath);
             FileUtil.SafeDeleteDirectory(Path.Combine(_options.TempRootPath, "output"));
             FileUtil.SafeDeleteDirectory(Path.Combine(_options.TempRootPath, "tmp"));
             Directory.CreateDirectory(_options.TempBuildPath);
 
-            if (Directory.Exists(finalOutputPath))
-            {
-                UpdateStatus("Build completed successfully!", 100);
-                Log("Build completed successfully!");
-                return finalOutputPath;
-            }
-            else
-            {
-                throw new Exception("WUP package directory was not created. Verify Java installation.");
-            }
+            UpdateStatus("Build completed successfully!", 100);
+            Log("Build completed successfully!");
+            return cleanOutputPath;
         }
         finally
         {
@@ -587,7 +649,7 @@ public class BuildEngine(BuildOptions options, IProgress<(string Message, double
         }
     }
 
-    private async Task LaunchProgramAsync(
+    private async Task<(int ExitCode, string StdOut, string StdErr)> LaunchProgramAsync(
         string exeFile,
         string arguments = "",
         bool hideProcess = true,
@@ -747,6 +809,8 @@ public class BuildEngine(BuildOptions options, IProgress<(string Message, double
                 }
                 throw new Exception(sbErr.ToString());
             }
+
+            return (process.ExitCode, stdOut, stdErr);
         }
         else
         {
@@ -769,7 +833,20 @@ public class BuildEngine(BuildOptions options, IProgress<(string Message, double
                     : "Please install 64-bit Java from https://adoptium.net or https://java.com and ensure 'java' is added to your PATH."));
         }
 
-        // 2. On Linux/Unix/macOS, verify WIT (Wiimms ISO Tools) or Wine availability for disc image operations
+        // 2. Verify Wii U Common Key is provided and has valid 32-hex character length
+        if (string.IsNullOrWhiteSpace(_options.WiiUCommonKey) || _options.WiiUCommonKey.Trim().Length != 32)
+        {
+            throw new InvalidOperationException(
+                "Wii U Common Key is missing or invalid. It must be a 32-character hexadecimal key.");
+        }
+
+        // 3. Verify output directory is specified
+        if (string.IsNullOrWhiteSpace(_options.SelectedOutputPath))
+        {
+            throw new InvalidOperationException("Output directory is not specified.");
+        }
+
+        // 4. On Linux/Unix/macOS, verify WIT (Wiimms ISO Tools) or Wine availability for disc image operations
         if (OperatingSystem.IsLinux() || OperatingSystem.IsMacOS() || OperatingSystem.IsFreeBSD())
         {
             string localWitName = OperatingSystem.IsMacOS() ? "wit-mac" : "wit";
