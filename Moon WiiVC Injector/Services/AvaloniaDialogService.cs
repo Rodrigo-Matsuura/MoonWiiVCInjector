@@ -7,7 +7,7 @@ using Avalonia.Platform.Storage;
 
 namespace Moon_WiiVC_Injector.Services;
 
-public class AvaloniaDialogService(Func<Window?> getActiveWindow) : IDialogService
+internal sealed class AvaloniaDialogService(Func<Window?> getActiveWindow) : IDialogService
 {
     private readonly Func<Window?> _getActiveWindow = getActiveWindow;
 

@@ -22,7 +22,7 @@
       <StackPanel Grid.Row="1" Grid.Column="0" Orientation="Horizontal">
         <RadioButton Name="WiiNAND" Content="vWii NAND Title Launcher" IsChecked="{Binding IsWiiNAND, Mode=TwoWay}" GroupName="Type"/>
       </StackPanel>
-      <Button Grid.Row="1" Grid.Column="1" Name="SdCardMenuButton" Content="Nintendont SD Card Menu" Command="{Binding OpenSdCardMenuCommand}" Width="180" HorizontalContentAlignment="Center"/>
+      <Button Grid.Row="1" Grid.Column="1" Name="SdCardMenuButton" Content="Nintendont SD Card Menu" Command="{Binding OpenSdCardMenuCommand}" MinWidth="180" Padding="12,5" HorizontalContentAlignment="Center"/>
     </Grid>
 
     <!-- Tab Control -->

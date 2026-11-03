@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Moon_WiiVC_Injector.Services;
 
-public enum LogLevel
+internal enum LogLevel
 {
     Debug,
     Info,
@@ -14,7 +14,7 @@ public enum LogLevel
     Error
 }
 
-public static class AppLogger
+internal static class AppLogger
 {
     private static readonly ConcurrentQueue<string> LogHistory = new();
     private static Action<string>? _logListener;

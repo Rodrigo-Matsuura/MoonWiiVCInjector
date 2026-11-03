@@ -11,7 +11,7 @@
     <FileVersion>1.3.0.0</FileVersion>
     <Description>Nintendo Kit</Description>
     <Copyright>Copyright © Nanook 2019</Copyright>
-    <NoWarn>$(NoWarn);IDE0130</NoWarn>
+    <NoWarn>$(NoWarn);IDE0130;CA1819;CA1002;CA1063;CA1805;CA1027;CA1040;CA5401;CA1852;CA1515</NoWarn>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="SharpCompress" Version="0.50.4" />

@@ -14,7 +14,7 @@ using Moon_WiiVC_Injector.Core.NusPacker.Utils;
 
 namespace Moon_WiiVC_Injector.Core.NusPacker.Packaging;
 
-public class NusContentInfo
+internal sealed class NusContentInfo
 {
     public const int StaticDataSize = 0x24;
     private readonly short _indexOffset;
@@ -37,11 +37,12 @@ public class NusContentInfo
         buffer.WriteBigEndian(_indexOffset);
         buffer.WriteBigEndian(_contentCount);
         buffer.Write(Sha2Hash, 0, Sha2Hash.Length);
-        return buffer.GetBuffer();
+        buffer.SetLength(2304);
+        return buffer.ToArray();
     }
 }
 
-public class NusContent
+internal sealed class NusContent
 {
     public const int StaticFstContentHeaderDataSize = 32;
     public const int StaticDataSize = 48;
@@ -119,8 +120,9 @@ public class NusContent
         buffer.WriteBigEndian(_parentTitleId);
         buffer.WriteBigEndian(_groupId);
         buffer.WriteByte(unknown);
+        buffer.SetLength(StaticFstContentHeaderDataSize);
 
-        return new KeyValuePair<long, byte[]>(contentOffset, buffer.GetBuffer());
+        return new KeyValuePair<long, byte[]>(contentOffset, buffer.ToArray());
     }
 
     public long GetOffsetForFileAndIncrease(FstEntry fstEntry)
@@ -140,7 +142,8 @@ public class NusContent
         buffer.WriteBigEndian(_type);
         buffer.WriteBigEndian(EncryptedFileSize);
         buffer.Write(Sha1, 0, Sha1.Length);
-        return buffer.GetBuffer();
+        buffer.SetLength(StaticDataSize);
+        return buffer.ToArray();
     }
 
     public void PackContentToFile(string outputDir, NusEncryption encryption, string tempDir, Action<string, double>? onProgress = null, CancellationToken cancellationToken = default)
@@ -242,7 +245,7 @@ public class NusContent
     public bool Equals(NusContent? other) => other != null && Id == other.Id;
 }
 
-public class NusContentsCollection
+internal sealed class NusContentsCollection
 {
     private readonly List<NusContent> _contents = new();
     public readonly NusContent FstContent;
@@ -311,7 +314,7 @@ public class NusContentsCollection
     public void DeleteContent(NusContent curContent) => _contents.Remove(curContent);
 }
 
-public class NusPackage
+internal sealed class NusPackage
 {
     private readonly FstTable _fst;
     private readonly TitleTicket _ticket;

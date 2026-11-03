@@ -4,7 +4,7 @@ using System.Linq;
 
 namespace Moon_WiiVC_Injector.Models;
 
-public record BaseGameInfo(
+internal sealed record BaseGameInfo(
     string RegionCode,
     string DisplayName,
     string GameName,

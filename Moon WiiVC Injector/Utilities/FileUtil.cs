@@ -7,7 +7,7 @@ using Moon_WiiVC_Injector.Services;
 
 namespace Moon_WiiVC_Injector;
 
-public static class FileUtil
+internal static class FileUtil
 {
     public static void CopyDirectory(string sourceDir, string destinationDir)
     {

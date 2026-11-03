@@ -16,14 +16,15 @@
     <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
     <PublishSingleFile>true</PublishSingleFile>
     <PublishTrimmed Condition="'$(Configuration)' == 'Release'">true</PublishTrimmed>
-    <TrimMode>partial</TrimMode>
+    <TrimMode Condition="'$(Configuration)' == 'Release'">partial</TrimMode>
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
     <IncludeAllContentForSelfExtract>true</IncludeAllContentForSelfExtract>
-    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <EnableCompressionInSingleFile Condition="'$(Configuration)' == 'Release'">true</EnableCompressionInSingleFile>
     <CopyOutputSymbolsToPublishDirectory>false</CopyOutputSymbolsToPublishDirectory>
     <AllowedReferenceRelatedFileExtensions Condition="'$(Configuration)' == 'Release'">none</AllowedReferenceRelatedFileExtensions>
     <DebugType Condition="'$(Configuration)' == 'Release'">none</DebugType>
-    <NoWarn>$(NoWarn);IDE0130</NoWarn>
+    <NeutralLanguage>en-US</NeutralLanguage>
+    <NoWarn>$(NoWarn);IDE0130;CA2007;CA1031;CA5350;CA5351;CA1707;CA1062;CA1051;CA1305;CA1307;CA1308;CA1310;CA1711</NoWarn>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Avalonia" Version="12.1.2" />

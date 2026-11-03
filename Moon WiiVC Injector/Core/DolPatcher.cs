@@ -9,7 +9,7 @@ namespace Moon_WiiVC_Injector.Core;
 /// Native C# PowerPC DOL patcher for Wii Virtual Console injections.
 /// Based on GetExtTypePatcher by FIX94 - https://github.com/FIX94/GetExtTypePatcher
 /// </summary>
-public static class DolPatcher
+internal static class DolPatcher
 {
     private struct FuncPattern
     {
@@ -69,7 +69,7 @@ public static class DolPatcher
                 continue;
 
             int funcStart = i + 4;
-            if (funcStart + 0x2000 > length)
+            if (funcStart + 0xD4 > length)
                 break;
 
             FuncPattern pattern = AnalyzeFunctionPattern(dolData.AsSpan(funcStart, Math.Min(0x2000, length - funcStart)));

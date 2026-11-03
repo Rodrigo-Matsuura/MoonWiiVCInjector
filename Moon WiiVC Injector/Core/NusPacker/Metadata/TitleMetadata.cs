@@ -11,7 +11,7 @@ using Moon_WiiVC_Injector.Core.NusPacker.Utils;
 
 namespace Moon_WiiVC_Injector.Core.NusPacker.Metadata;
 
-public static class TitleCert
+internal static class TitleCert
 {
     private static readonly byte[] StaticCertData = InitializeCertData();
 
@@ -37,7 +37,7 @@ public static class TitleCert
     public static byte[] GetCertAsData() => (byte[])StaticCertData.Clone();
 }
 
-public class TitleTicket
+internal sealed class TitleTicket
 {
     public readonly long TitleId;
     public readonly byte[] DecryptedKey;
@@ -91,8 +91,8 @@ public class TitleTicket
         buffer.Write(b5, 0, b5.Length);
 
         buffer.Seek(0x7C, SeekOrigin.Current);
-
-        return buffer.GetBuffer();
+        buffer.SetLength(0x350);
+        return buffer.ToArray();
     }
 
     public byte[] GetEncryptedKey()
@@ -104,7 +104,7 @@ public class TitleTicket
     }
 }
 
-public class TitleTmd
+internal sealed class TitleTmd
 {
     private const int SignatureType = 0x00010004;
     private readonly byte[] _signature = new byte[0x100];
@@ -180,8 +180,9 @@ public class TitleTmd
         buffer.Write(infoData, 0, infoData.Length);
         byte[] contentsData = _contents.GetAsData();
         buffer.Write(contentsData, 0, contentsData.Length);
+        buffer.SetLength(GetDataSize());
 
-        return buffer.GetBuffer();
+        return buffer.ToArray();
     }
 
     private int GetDataSize()

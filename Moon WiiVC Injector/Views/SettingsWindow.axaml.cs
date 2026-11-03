@@ -4,7 +4,7 @@ using Moon_WiiVC_Injector.ViewModels;
 
 namespace Moon_WiiVC_Injector;
 
-public partial class SettingsWindow : Window
+internal sealed partial class SettingsWindow : Window
 {
     public SettingsWindow()
     {

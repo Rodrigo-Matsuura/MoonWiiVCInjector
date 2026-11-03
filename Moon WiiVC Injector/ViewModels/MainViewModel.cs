@@ -19,7 +19,7 @@ using Moon_WiiVC_Injector.Services;
 
 namespace Moon_WiiVC_Injector.ViewModels;
 
-public partial class MainViewModel : ViewModelBase
+internal sealed partial class MainViewModel : ViewModelBase, IDisposable
 {
     private const long WiiGameType = 2745048157;
     private const long GCGameType = 4440324665927270400;
@@ -559,7 +559,7 @@ public partial class MainViewModel : ViewModelBase
     }
 
     // UI Capability bindings
-    public string WindowTitle => $"Moon WiiVC Injector - [{GetType().Assembly.GetName().Version?.ToString(3) ?? "1.2.1"}]";
+    public string WindowTitle => $"Moon WiiVC Injector - [{GetType().Assembly.GetName().Version?.ToString(3) ?? "2.0.0"}]";
     public bool CanSelectGame => !IsWiiNAND;
     public bool IsGCSelected => IsGCRetail;
     public bool CanDownloadRepo => IsWiiRetail || IsGCRetail || IsWiiNAND;
@@ -584,7 +584,7 @@ public partial class MainViewModel : ViewModelBase
         LoadStoredKeys();
     }
 
-    private async Task SetupEnvironmentAsync()
+    private static async Task SetupEnvironmentAsync()
     {
         await Task.Run(() =>
         {
@@ -972,6 +972,7 @@ public partial class MainViewModel : ViewModelBase
 
                     fs.Position = 0x200;
                     _cucholixRepoId = ReadNullTerminatedString(fs);
+                    if (_cucholixRepoId.Length > 6) _cucholixRepoId = _cucholixRepoId[..6];
                 }
                 else
                 {
@@ -1003,6 +1004,7 @@ public partial class MainViewModel : ViewModelBase
 
                         fs.Position = startOffset + 0x00;
                         _cucholixRepoId = ReadNullTerminatedString(fs);
+                        if (_cucholixRepoId.Length > 6) _cucholixRepoId = _cucholixRepoId[..6];
                     }
                 }
             }
@@ -1015,16 +1017,12 @@ public partial class MainViewModel : ViewModelBase
                 return;
             }
 
-            InternalGameNameDisplay = _internalGameName;
-            var dbName = RemoveSpecialChars(GameTdb.GetName(_cucholixRepoId) ?? string.Empty);
-            PackedTitleLine1 = !string.IsNullOrEmpty(dbName) ? dbName : _internalGameName;
-
             byte[] titleIdBytes = BitConverter.GetBytes(_titleIdInt);
             if (!BitConverter.IsLittleEndian)
             {
                 Array.Reverse(titleIdBytes);
             }
-            _titleIdHex = BitConverter.ToString(titleIdBytes).Replace("-", "");
+            _titleIdHex = Convert.ToHexString(titleIdBytes);
 
             if (_systemType == "dol")
             {
@@ -1038,6 +1036,11 @@ public partial class MainViewModel : ViewModelBase
                 InternalGameIDDisplay = $"{_titleIdText} / {_titleIdHex}";
                 PackedTitleIDLine = $"00050002{_titleIdHex}";
             }
+
+            InternalGameNameDisplay = _internalGameName;
+            string? matchedDbName = GameTdb.GetName(_cucholixRepoId) ?? GameTdb.GetName(_titleIdText);
+            var dbName = RemoveSpecialChars(matchedDbName ?? string.Empty);
+            PackedTitleLine1 = !string.IsNullOrEmpty(dbName) ? dbName : _internalGameName;
 
             UpdateChecklist();
 
@@ -1283,7 +1286,7 @@ public partial class MainViewModel : ViewModelBase
         {
             try
             {
-                using var response = await Program.Client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead);
+                using var response = await Program.Client.GetAsync(new Uri(url), HttpCompletionOption.ResponseHeadersRead);
                 if (response.IsSuccessStatusCode)
                 {
                     return await response.Content.ReadAsByteArrayAsync();
@@ -1767,6 +1770,7 @@ public partial class MainViewModel : ViewModelBase
             BuildProgress = update.Progress;
         });
 
+        _buildCts?.Dispose();
         _buildCts = new CancellationTokenSource();
         var builder = new BuildEngine(options, progress, onLogMessage: AppendLogMessage);
 
@@ -1966,5 +1970,11 @@ public partial class MainViewModel : ViewModelBase
             }
         }
         return stringBuilder.ToString().Normalize(NormalizationForm.FormC);
+    }
+
+    public void Dispose()
+    {
+        _buildCts?.Dispose();
+        _buildCts = null;
     }
 }

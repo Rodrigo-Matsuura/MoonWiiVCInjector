@@ -7,7 +7,7 @@ using System.IO;
 
 namespace Moon_WiiVC_Injector.Core.NusPacker.Utils;
 
-public static class NusUtils
+internal static class NusUtils
 {
     public static void DeleteDir(string dir)
     {
@@ -39,7 +39,7 @@ public static class NusUtils
     }
 }
 
-public class BigEndianMemoryStream : MemoryStream
+internal sealed class BigEndianMemoryStream : MemoryStream
 {
     private readonly byte[] _spanBuffer = new byte[8];
 

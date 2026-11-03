@@ -4,7 +4,7 @@ using Avalonia.Markup.Xaml;
 
 namespace Moon_WiiVC_Injector;
 
-public partial class App : Application
+internal sealed partial class App : Application
 {
     public override void Initialize()
     {

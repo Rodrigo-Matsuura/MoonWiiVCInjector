@@ -8,7 +8,7 @@ using Moon_WiiVC_Injector.Core.NusPacker.FileSystem;
 
 namespace Moon_WiiVC_Injector.Core.NusPacker.Packaging;
 
-public class ContentDetails
+internal sealed class ContentDetails
 {
     public readonly bool IsHashed;
     public readonly short GroupId;
@@ -24,7 +24,7 @@ public class ContentDetails
     }
 }
 
-public class ContentRule
+internal sealed class ContentRule
 {
     public readonly string Pattern;
     public readonly ContentDetails Details;
@@ -71,7 +71,7 @@ public class ContentRule
     }
 }
 
-public static class ContentRulesService
+internal static class ContentRulesService
 {
     private const long MaxContentLength = (long)(0xBFFFFFFFL * 0.975);
 

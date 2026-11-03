@@ -6,7 +6,7 @@ using System.Xml;
 
 namespace Moon_WiiVC_Injector.Core.NusPacker.Metadata;
 
-public class AppXmlInfo
+internal sealed class AppXmlInfo
 {
     public long OsVersion { get; set; }
     public long TitleId { get; set; }
@@ -15,7 +15,7 @@ public class AppXmlInfo
     public short GroupId { get; set; }
 }
 
-public static class AppXmlParser
+internal static class AppXmlParser
 {
     public static AppXmlInfo Parse(string xmlPath)
     {
@@ -32,9 +32,9 @@ public static class AppXmlParser
         {
             OsVersion = !string.IsNullOrWhiteSpace(osVersionStr) ? Convert.ToInt64(osVersionStr, 16) : 0L,
             TitleId = !string.IsNullOrWhiteSpace(titleIdStr) ? Convert.ToInt64(titleIdStr, 16) : 0L,
-            TitleVersion = !string.IsNullOrWhiteSpace(titleVersionStr) ? Convert.ToInt16(titleVersionStr, 16) : (short)0,
+            TitleVersion = !string.IsNullOrWhiteSpace(titleVersionStr) ? unchecked((short)Convert.ToUInt16(titleVersionStr, 16)) : (short)0,
             AppType = !string.IsNullOrWhiteSpace(appTypeStr) ? Convert.ToUInt32(appTypeStr, 16) : 0x80000000,
-            GroupId = !string.IsNullOrWhiteSpace(groupIdStr) ? Convert.ToInt16(groupIdStr, 16) : (short)0
+            GroupId = !string.IsNullOrWhiteSpace(groupIdStr) ? unchecked((short)Convert.ToInt32(groupIdStr, 16)) : (short)0
         };
     }
 }

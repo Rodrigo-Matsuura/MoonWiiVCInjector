@@ -13,7 +13,7 @@ using Moon_WiiVC_Injector.Core.NusPacker.Utils;
 
 namespace Moon_WiiVC_Injector.Core.NusPacker.Crypto;
 
-public class NusEncryption : IDisposable
+internal sealed class NusEncryption : IDisposable
 {
     private readonly Aes _aes = Aes.Create();
 
@@ -144,10 +144,11 @@ public class NusEncryption : IDisposable
     public void Dispose()
     {
         _aes.Dispose();
+        GC.SuppressFinalize(this);
     }
 }
 
-public class ContentHashes
+internal sealed class ContentHashes
 {
     private readonly Dictionary<int, byte[]> _h0Hashes = new();
     private readonly Dictionary<int, byte[]> _h1Hashes = new();

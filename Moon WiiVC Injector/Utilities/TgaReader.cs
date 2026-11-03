@@ -2,7 +2,7 @@ using SkiaSharp;
 
 namespace Moon_WiiVC_Injector;
 
-public static class TgaReader
+internal static class TgaReader
 {
     public static SKBitmap LoadTga(string filePath)
     {
@@ -277,42 +277,42 @@ public static class TgaReader
             }
             else
             {
-                    // Convert 32-bit to 24-bit BGR
-                    if (bmp.ColorType == SKColorType.Bgra8888)
+                // Convert 32-bit to 24-bit BGR
+                if (bmp.ColorType == SKColorType.Bgra8888)
+                {
+                    for (int x = 0; x < bmp.Width; x++)
                     {
-                        for (int x = 0; x < bmp.Width; x++)
-                        {
-                            int srcOffset = x * 4;
-                            int dstOffset = x * 3;
-                            destRow[dstOffset] = srcRow[srcOffset];         // B
-                            destRow[dstOffset + 1] = srcRow[srcOffset + 1]; // G
-                            destRow[dstOffset + 2] = srcRow[srcOffset + 2]; // R
-                        }
+                        int srcOffset = x * 4;
+                        int dstOffset = x * 3;
+                        destRow[dstOffset] = srcRow[srcOffset];         // B
+                        destRow[dstOffset + 1] = srcRow[srcOffset + 1]; // G
+                        destRow[dstOffset + 2] = srcRow[srcOffset + 2]; // R
                     }
-                    else if (bmp.ColorType == SKColorType.Rgba8888)
+                }
+                else if (bmp.ColorType == SKColorType.Rgba8888)
+                {
+                    for (int x = 0; x < bmp.Width; x++)
                     {
-                        for (int x = 0; x < bmp.Width; x++)
-                        {
-                            int srcOffset = x * 4;
-                            int dstOffset = x * 3;
-                            destRow[dstOffset] = srcRow[srcOffset + 2];     // B
-                            destRow[dstOffset + 1] = srcRow[srcOffset + 1]; // G
-                            destRow[dstOffset + 2] = srcRow[srcOffset];     // R
-                        }
+                        int srcOffset = x * 4;
+                        int dstOffset = x * 3;
+                        destRow[dstOffset] = srcRow[srcOffset + 2];     // B
+                        destRow[dstOffset + 1] = srcRow[srcOffset + 1]; // G
+                        destRow[dstOffset + 2] = srcRow[srcOffset];     // R
                     }
-                    else
+                }
+                else
+                {
+                    for (int x = 0; x < bmp.Width; x++)
                     {
-                        for (int x = 0; x < bmp.Width; x++)
-                        {
-                            SKColor color = bmp.GetPixel(x, srcY);
-                            int dstOffset = x * 3;
-                            destRow[dstOffset] = color.Blue;
-                            destRow[dstOffset + 1] = color.Green;
-                            destRow[dstOffset + 2] = color.Red;
-                        }
+                        SKColor color = bmp.GetPixel(x, srcY);
+                        int dstOffset = x * 3;
+                        destRow[dstOffset] = color.Blue;
+                        destRow[dstOffset + 1] = color.Green;
+                        destRow[dstOffset + 2] = color.Red;
                     }
                 }
             }
+        }
 
         writer.Write(pixelData);
     }

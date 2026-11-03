@@ -139,6 +139,6 @@ public sealed class Settings
 
 [JsonSourceGenerationOptions(WriteIndented = true)]
 [JsonSerializable(typeof(Settings))]
-internal partial class SettingsJsonContext : JsonSerializerContext
+internal sealed partial class SettingsJsonContext : JsonSerializerContext
 {
 }

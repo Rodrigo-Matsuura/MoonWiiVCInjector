@@ -13,7 +13,7 @@ using Moon_WiiVC_Injector.Services;
 
 namespace Moon_WiiVC_Injector;
 
-public class BuildOptions
+internal sealed class BuildOptions
 {
     public string SystemType { get; set; } = "wii";
     public string SelectedGamePath { get; set; } = string.Empty;
@@ -64,7 +64,7 @@ public class BuildOptions
     public string TempLogoPath { get; set; } = string.Empty;
 }
 
-public class BuildEngine(BuildOptions options, IProgress<(string Message, double Progress)> progress, Action<string>? onLogMessage = null)
+internal sealed class BuildEngine(BuildOptions options, IProgress<(string Message, double Progress)> progress, Action<string>? onLogMessage = null)
 {
     private readonly BuildOptions _options = options;
     private readonly IProgress<(string Message, double Progress)> _progress = progress;
@@ -201,7 +201,7 @@ public class BuildEngine(BuildOptions options, IProgress<(string Message, double
             // Create config for JNUSTool
             string jnusConfigPath = Path.Combine(jarDir, "config");
             string[] jnusToolConfig = ["http://ccs.cdn.wup.shop.nintendo.net/ccs/download", _options.WiiUCommonKey];
-            await File.WriteAllLinesAsync(jnusConfigPath, jnusToolConfig);
+            await File.WriteAllLinesAsync(jnusConfigPath, jnusToolConfig, cancellationToken);
 
             // Create downloads directory if not exists
             Directory.CreateDirectory(_options.JNUSToolDownloads);
@@ -219,7 +219,7 @@ public class BuildEngine(BuildOptions options, IProgress<(string Message, double
                 // Download it
                 double dlProgress = 3.0 + (i * 6.0 / downloadedFiles.Length);
                 UpdateStatus($"(One-Time Download) Downloading base files ({i + 1}/{downloadedFiles.Length})...", dlProgress);
-                await LaunchProgramAsync("JNUSTool.exe", filesToDownload[i], true, cancellationToken, workingDirectory: jarDir);
+                await LaunchProgramAsync("JNUSTool.exe", filesToDownload[i], hideProcess: true, workingDirectory: jarDir, cancellationToken: cancellationToken);
                 hasDownloadedAnything = true;
             }
 
@@ -269,7 +269,7 @@ public class BuildEngine(BuildOptions options, IProgress<(string Message, double
 
                 if (jnusFail)
                 {
-                    throw new Exception("Failed to download or verify base files using JNUSTool.");
+                    throw new InvalidOperationException("Failed to download or verify base files using JNUSTool.");
                 }
             }
 
@@ -291,7 +291,10 @@ public class BuildEngine(BuildOptions options, IProgress<(string Message, double
                 FileUtil.CopyDirectory(Path.Combine(_options.JNUSToolDownloads, "0005001010004001"), _options.TempBuildPath);
                 UpdateStatus("Applying cafe2wii (c2w) patch...", 12);
                 string c2wBuildImg = Path.Combine(_options.TempBuildPath, "code", "c2w.img");
-                C2wPatcher.PatchC2wImage(c2wBuildImg, _options.AncastKey);
+                if (!C2wPatcher.PatchC2wImage(c2wBuildImg, _options.AncastKey))
+                {
+                    throw new InvalidOperationException("Failed to patch c2w.img! Please check your Ancast Key and verify base files.");
+                }
             }
 
             UpdateStatus("Generating app.xml and meta.xml...", 14);
@@ -311,7 +314,7 @@ public class BuildEngine(BuildOptions options, IProgress<(string Message, double
                   <common_id type="hexBinary" length="8">0000000000000000</common_id>
                 </app>
                 """;
-            await File.WriteAllTextAsync(Path.Combine(_options.TempBuildPath, "code", "app.xml"), appXml);
+            await File.WriteAllTextAsync(Path.Combine(_options.TempBuildPath, "code", "app.xml"), appXml, cancellationToken);
 
             string line2Text = _options.EnablePackedLine2 ? _options.PackedTitleLine2 : "";
             var metaXmlBuilder = new StringBuilder();
@@ -349,7 +352,7 @@ public class BuildEngine(BuildOptions options, IProgress<(string Message, double
             }
 
             metaXmlBuilder.AppendLine("</menu>");
-            await File.WriteAllTextAsync(Path.Combine(_options.TempBuildPath, "meta", "meta.xml"), metaXmlBuilder.ToString());
+            await File.WriteAllTextAsync(Path.Combine(_options.TempBuildPath, "meta", "meta.xml"), metaXmlBuilder.ToString(), cancellationToken);
 
             UpdateStatus("Converting all image sources to expected TGA specification...", 16);
 
@@ -409,7 +412,7 @@ public class BuildEngine(BuildOptions options, IProgress<(string Message, double
                 if (_options.FlagWbfs)
                 {
                     UpdateStatus("Converting WBFS file to ISO format...", 22);
-                    await LaunchProgramAsync(Path.Combine(_options.TempToolsPath, "WIT", "wit.exe"), $"copy \"{ogFilePath}\" --DEST \"{convertedIso}\" --iso", true, cancellationToken);
+                    await LaunchProgramAsync(Path.Combine(_options.TempToolsPath, "WIT", "wit.exe"), $"copy \"{ogFilePath}\" --DEST \"{convertedIso}\" --iso", cancellationToken: cancellationToken);
                     currentWiiGame = convertedIso;
                 }
 
@@ -420,7 +423,7 @@ public class BuildEngine(BuildOptions options, IProgress<(string Message, double
                     if (Directory.Exists(isoExtractDir)) Directory.Delete(isoExtractDir, true);
 
                     UpdateStatus("Extracting game ISO partitions...", 25);
-                    await LaunchProgramAsync(Path.Combine(_options.TempToolsPath, "WIT", "wit.exe"), $"extract \"{currentWiiGame}\" --DEST \"{isoExtractDir}\" --psel data,-update -ovv", true, cancellationToken);
+                    await LaunchProgramAsync(Path.Combine(_options.TempToolsPath, "WIT", "wit.exe"), $"extract \"{currentWiiGame}\" --DEST \"{isoExtractDir}\" --psel data,-update -ovv", cancellationToken: cancellationToken);
 
                     // Free up 4.8 - 8.5 GB immediately before rebuilding the ISO to avoid running out of disk space
                     if (_options.FlagWbfs && File.Exists(convertedIso))
@@ -438,7 +441,7 @@ public class BuildEngine(BuildOptions options, IProgress<(string Message, double
 
                     string wiimmfiOption = _options.Wiimmfi ? " --wiimmfi" : "";
                     UpdateStatus("Rebuilding patched game ISO...", 33);
-                    await LaunchProgramAsync(Path.Combine(_options.TempToolsPath, "WIT", "wit.exe"), $"copy \"{isoExtractDir}\" --DEST \"{gameIsoPath}\" -ovv --links --iso{wiimmfiOption}", true, cancellationToken);
+                    await LaunchProgramAsync(Path.Combine(_options.TempToolsPath, "WIT", "wit.exe"), $"copy \"{isoExtractDir}\" --DEST \"{gameIsoPath}\" -ovv --links --iso{wiimmfiOption}", cancellationToken: cancellationToken);
                     if (Directory.Exists(isoExtractDir)) Directory.Delete(isoExtractDir, true);
                 }
                 else
@@ -458,7 +461,7 @@ public class BuildEngine(BuildOptions options, IProgress<(string Message, double
                 File.Copy(ogFilePath, Path.Combine(tempIsoBase, "sys", "main.dol"), true);
 
                 UpdateStatus("Rebuilding Homebrew game ISO...", 30);
-                await LaunchProgramAsync(Path.Combine(_options.TempToolsPath, "WIT", "wit.exe"), $"copy \"{tempIsoBase}\" --DEST \"{gameIsoPath}\" -ovv --links --iso", true, cancellationToken);
+                await LaunchProgramAsync(Path.Combine(_options.TempToolsPath, "WIT", "wit.exe"), $"copy \"{tempIsoBase}\" --DEST \"{gameIsoPath}\" -ovv --links --iso", cancellationToken: cancellationToken);
                 Directory.Delete(tempIsoBase, true);
             }
             else if (_options.SystemType == "gcn")
@@ -480,7 +483,7 @@ public class BuildEngine(BuildOptions options, IProgress<(string Message, double
                 }
 
                 UpdateStatus("Rebuilding GameCube game ISO...", 32);
-                await LaunchProgramAsync(Path.Combine(_options.TempToolsPath, "WIT", "wit.exe"), $"copy \"{tempIsoBase}\" --DEST \"{gameIsoPath}\" -ovv --links --iso", true, cancellationToken);
+                await LaunchProgramAsync(Path.Combine(_options.TempToolsPath, "WIT", "wit.exe"), $"copy \"{tempIsoBase}\" --DEST \"{gameIsoPath}\" -ovv --links --iso", cancellationToken: cancellationToken);
                 Directory.Delete(tempIsoBase, true);
             }
             else if (_options.SystemType == "wiiware")
@@ -495,7 +498,7 @@ public class BuildEngine(BuildOptions options, IProgress<(string Message, double
                 await File.WriteAllLinesAsync(Path.Combine(tempIsoBase, "files", "title.txt"), titleTxt, cancellationToken);
 
                 UpdateStatus("Rebuilding vWii NAND Title Launcher ISO...", 30);
-                await LaunchProgramAsync(Path.Combine(_options.TempToolsPath, "WIT", "wit.exe"), $"copy \"{tempIsoBase}\" --DEST \"{gameIsoPath}\" -ovv --links --iso", true, cancellationToken);
+                await LaunchProgramAsync(Path.Combine(_options.TempToolsPath, "WIT", "wit.exe"), $"copy \"{tempIsoBase}\" --DEST \"{gameIsoPath}\" -ovv --links --iso", cancellationToken: cancellationToken);
                 Directory.Delete(tempIsoBase, true);
             }
 
@@ -503,7 +506,7 @@ public class BuildEngine(BuildOptions options, IProgress<(string Message, double
             UpdateStatus("Extracting game tickets and TMD information...", 38);
             string tikTempDir = Path.Combine(_options.TempSourcePath, "TIKTEMP");
             if (Directory.Exists(tikTempDir)) Directory.Delete(tikTempDir, true);
-            await LaunchProgramAsync(Path.Combine(_options.TempToolsPath, "WIT", "wit.exe"), $"extract \"{gameIsoPath}\" --psel data --psel -update --files +tmd.bin --files +ticket.bin --dest \"{tikTempDir}\" -vv1", true, cancellationToken);
+            await LaunchProgramAsync(Path.Combine(_options.TempToolsPath, "WIT", "wit.exe"), $"extract \"{gameIsoPath}\" --psel data --psel -update --files +tmd.bin --files +ticket.bin --dest \"{tikTempDir}\" -vv1", cancellationToken: cancellationToken);
 
             File.Copy(Path.Combine(tikTempDir, "tmd.bin"), Path.Combine(_options.TempBuildPath, "code", "rvlt.tmd"), true);
             File.Copy(Path.Combine(tikTempDir, "ticket.bin"), Path.Combine(_options.TempBuildPath, "code", "rvlt.tik"), true);
@@ -545,7 +548,7 @@ public class BuildEngine(BuildOptions options, IProgress<(string Message, double
 
             if (nfsResult != 0)
             {
-                throw new Exception("Nfs2Iso2Nfs conversion failed. Please verify that the Wii Common Key is correct and the source game ISO is not corrupted.");
+                throw new InvalidOperationException("Nfs2Iso2Nfs conversion failed. Please verify that the Wii Common Key is correct and the source game ISO is not corrupted.");
             }
 
             FileUtil.SafeDeleteFile(gameIsoPath);
@@ -645,10 +648,10 @@ public class BuildEngine(BuildOptions options, IProgress<(string Message, double
         string exeFile,
         string arguments = "",
         bool hideProcess = true,
-        CancellationToken cancellationToken = default,
         int[]? allowedExitCodes = null,
         string? workingDirectory = null,
-        Action<string>? onOutputLine = null)
+        Action<string>? onOutputLine = null,
+        CancellationToken cancellationToken = default)
     {
         string targetExe = exeFile;
         string targetArgs = arguments;
@@ -799,14 +802,14 @@ public class BuildEngine(BuildOptions options, IProgress<(string Message, double
                     sbErr.AppendLine("\nError:");
                     sbErr.AppendLine(stdErr);
                 }
-                throw new Exception(sbErr.ToString());
+                throw new InvalidOperationException(sbErr.ToString());
             }
 
             return (process.ExitCode, stdOut, stdErr);
         }
         else
         {
-            throw new Exception($"Failed to start process for {exeFile}");
+            throw new InvalidOperationException($"Failed to start process for {exeFile}");
         }
     }
 
@@ -938,7 +941,7 @@ public class BuildEngine(BuildOptions options, IProgress<(string Message, double
         return false;
     }
 
-    private string GetLanguageSuffix(int index)
+    private static string GetLanguageSuffix(int index)
     {
         return index switch
         {
@@ -957,7 +960,7 @@ public class BuildEngine(BuildOptions options, IProgress<(string Message, double
         };
     }
 
-    private string SanitizeFilename(string str)
+    private static string SanitizeFilename(string str)
     {
         var invalids = Path.GetInvalidFileNameChars();
         return string.Join("_", str.Split(invalids, StringSplitOptions.RemoveEmptyEntries)).TrimEnd('.');

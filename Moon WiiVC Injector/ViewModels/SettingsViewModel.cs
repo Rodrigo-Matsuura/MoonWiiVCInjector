@@ -7,7 +7,7 @@ using Moon_WiiVC_Injector.Services;
 
 namespace Moon_WiiVC_Injector.ViewModels;
 
-public partial class SettingsViewModel : ViewModelBase
+internal sealed partial class SettingsViewModel : ViewModelBase
 {
     private readonly IDialogService _dialogService;
     private readonly Action _closeAction;

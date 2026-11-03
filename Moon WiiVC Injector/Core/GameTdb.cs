@@ -8,7 +8,7 @@ using Moon_WiiVC_Injector.Services;
 
 namespace Moon_WiiVC_Injector;
 
-public class GameTdb
+internal static class GameTdb
 {
     private const string ResourcePath = "Moon_WiiVC_Injector.Resources.wiitdb.txt";
     private static readonly Assembly CurrentAssembly = Assembly.GetExecutingAssembly();
@@ -145,10 +145,9 @@ internal static class StringExtensions
 {
     public static string ReplaceAt(this string input, int index, char newChar)
     {
-        if (input == null)
-            throw new ArgumentNullException(nameof(input));
-        if (index < 0 || index >= input.Length)
-            throw new ArgumentOutOfRangeException(nameof(index));
+        ArgumentNullException.ThrowIfNull(input);
+        ArgumentOutOfRangeException.ThrowIfNegative(index);
+        ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(index, input.Length);
 
         return string.Create(input.Length, (input, index, newChar), static (span, state) =>
         {

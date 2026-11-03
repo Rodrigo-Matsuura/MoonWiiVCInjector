@@ -5,7 +5,7 @@ using Moon_WiiVC_Injector.Services;
 
 namespace Moon_WiiVC_Injector.Core;
 
-public static class BaseIsoTemplate
+internal static class BaseIsoTemplate
 {
     private static readonly Assembly CurrentAssembly = typeof(BaseIsoTemplate).Assembly;
     private const string ResourcePrefix = "Moon_WiiVC_Injector.Resources";

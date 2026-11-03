@@ -4,7 +4,7 @@ using Avalonia.Markup.Xaml;
 
 namespace Moon_WiiVC_Injector;
 
-public partial class MessageBoxWindow : Window
+internal sealed partial class MessageBoxWindow : Window
 {
     public MessageBoxWindow()
     {
@@ -50,14 +50,14 @@ public partial class MessageBoxWindow : Window
     }
 }
 
-public enum MessageBoxResult
+internal enum MessageBoxResult
 {
     Ok,
     Yes,
     No
 }
 
-public enum MessageBoxButtons
+internal enum MessageBoxButtons
 {
     Ok,
     YesNo

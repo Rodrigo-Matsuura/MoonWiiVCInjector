@@ -4,7 +4,7 @@ using Moon_WiiVC_Injector.ViewModels;
 
 namespace Moon_WiiVC_Injector;
 
-public partial class SdCardMenuAvalonia : Window
+internal sealed partial class SdCardMenuAvalonia : Window
 {
     public SdCardMenuAvalonia()
     {

@@ -375,8 +375,8 @@ public class Converter : ILog
                     results.FullSize.ToString(),
                     results.InputFileName ?? "",
                     results.OutputFileName ?? "",
-                    results.OutputMd5 == null ? "" : BitConverter.ToString(results.OutputMd5).Replace("-", ""),
-                    results.OutputSha1 == null ? "" : BitConverter.ToString(results.OutputSha1).Replace("-", ""),
+                    results.OutputMd5 == null ? "" : Convert.ToHexString(results.OutputMd5),
+                    results.OutputSha1 == null ? "" : Convert.ToHexString(results.OutputSha1),
                     results.Passes ?? "",
                     ((int)results.ProcessingTime.TotalSeconds).ToString(),
                     (results.ErrorMessage ?? "").Replace("\r", "").Replace('\t', ' ').Trim('\n', ' ').Replace("\n", " : ")

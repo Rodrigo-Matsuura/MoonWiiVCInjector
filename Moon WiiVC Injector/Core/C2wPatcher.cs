@@ -10,7 +10,7 @@ namespace Moon_WiiVC_Injector.Core;
 /// Based on c2w_patcher by FIX94 - https://github.com/FIX94/c2w_patcher
 /// Decrypts, patches, re-encrypts, and updates the SHA1 hash of c2w.img using the Ancast key.
 /// </summary>
-public static class C2wPatcher
+internal static class C2wPatcher
 {
     // c2w basic verification magic
     private static ReadOnlySpan<byte> ImgHeader => [0xEF, 0xA2, 0x82, 0xD9];
@@ -92,7 +92,14 @@ public static class C2wPatcher
             patchCount += ApplyPatchPattern(decPayload, Iop2xOri, Iop2xPatch, "LT_IOP2X");
         }
 
-        AppLogger.Info($"[C2wPatcher] Applied {patchCount} c2w patches.");
+        if (patchCount == 0)
+        {
+            AppLogger.Warning("[C2wPatcher] Warning: No c2w patches were applied (binary may already be patched or contains an unknown revision).");
+        }
+        else
+        {
+            AppLogger.Info($"[C2wPatcher] Applied {patchCount} c2w patches.");
+        }
 
         // Re-encrypt payload from offset 0x200 with hardware-accelerated AES-128-CBC
         using (var aes = Aes.Create())
@@ -129,8 +136,12 @@ public static class C2wPatcher
                 replacement.CopyTo(buffer.Slice(matchIdx, replacement.Length));
                 count++;
                 AppLogger.Info($"[C2wPatcher] Patched {patchName} at 0x{0x200 + matchIdx:X8}");
+                searchOffset = matchIdx + pattern.Length;
             }
-            searchOffset = matchIdx + 4;
+            else
+            {
+                searchOffset = matchIdx + 1;
+            }
         }
         return count;
     }

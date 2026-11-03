@@ -9,7 +9,7 @@ using Moon_WiiVC_Injector.ViewModels;
 
 namespace Moon_WiiVC_Injector;
 
-public partial class MainWindow : Window
+internal sealed partial class MainWindow : Window
 {
     public MainViewModel ViewModel { get; }
 

@@ -11,14 +11,14 @@ using Moon_WiiVC_Injector.Core.NusPacker.Utils;
 
 namespace Moon_WiiVC_Injector.Core.NusPacker.FileSystem;
 
-public enum FstEntryType
+internal enum FstEntryType
 {
     File = 0x00,
     Directory = 0x01,
     WiiVC = 0x02
 }
 
-public class FstEntry
+internal sealed class FstEntry
 {
     public readonly string Filepath = "";
     public readonly string Filename = "";
@@ -220,7 +220,7 @@ public class FstEntry
     public void SetEntryCount(int fstEntryCount) => _rootEntryCount = fstEntryCount;
 }
 
-public class FstEntriesCollection
+internal sealed class FstEntriesCollection
 {
     private readonly List<FstEntry> _entries = new();
 
@@ -267,7 +267,7 @@ public class FstEntriesCollection
     public FstEntry GetRootEntry() => _entries[0];
 }
 
-public class FstTable
+internal sealed class FstTable
 {
     private static readonly byte[] MagicBytes = { 0x46, 0x53, 0x54, 0x00 };
     private const int Unknown = 0x20;
@@ -324,8 +324,9 @@ public class FstTable
         buffer.Write(fstEntriesData, 0, fstEntriesData.Length);
         byte[] strData = StringsStream.ToArray();
         buffer.Write(strData, 0, strData.Length);
+        buffer.SetLength(GetDataSize());
 
-        return buffer.GetBuffer();
+        return buffer.ToArray();
     }
 
     public int GetDataSize()

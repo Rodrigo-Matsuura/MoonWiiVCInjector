@@ -12,7 +12,7 @@ using Moon_WiiVC_Injector.Services;
 
 namespace Moon_WiiVC_Injector.ViewModels;
 
-public class OptionItem(string name, bool isChecked = false) : ObservableObject
+internal sealed class OptionItem(string name, bool isChecked = false) : ObservableObject
 {
     public string Name { get; } = name;
 
@@ -23,7 +23,7 @@ public class OptionItem(string name, bool isChecked = false) : ObservableObject
     } = isChecked;
 }
 
-public partial class SdCardViewModel : ViewModelBase
+internal sealed partial class SdCardViewModel : ViewModelBase
 {
     // ==========================================
     // 1. Services & Dependencies
@@ -55,31 +55,31 @@ public partial class SdCardViewModel : ViewModelBase
     {
         get;
         set => SetProperty(ref field, value);
-    } = 0;
+    }
 
     public int VideoForceModeIndex
     {
         get;
         set => SetProperty(ref field, value);
-    } = 0;
+    }
 
     public int VideoTypeModeIndex
     {
         get;
         set => SetProperty(ref field, value);
-    } = 0;
+    }
 
     public int LanguageIndex
     {
         get;
         set => SetProperty(ref field, value);
-    } = 0;
+    }
 
     public int WiiUGamepadSlotIndex
     {
         get;
         set => SetProperty(ref field, value);
-    } = 0;
+    }
 
     public double VideoWidth
     {
@@ -196,7 +196,7 @@ public partial class SdCardViewModel : ViewModelBase
                 var client = Program.Client;
                 async Task DownloadFileAsync(string url, string path)
                 {
-                    using var stream = await client.GetStreamAsync(url);
+                    using var stream = await client.GetStreamAsync(new Uri(url));
                     using var file = File.Create(path);
                     await stream.CopyToAsync(file);
                 }
@@ -249,7 +249,7 @@ public partial class SdCardViewModel : ViewModelBase
                     DateTime dateTime = DateTime.UtcNow.Date;
                     string zipPath = Path.Combine(folder, $"Nintendont-{dateTime:dd.MMM.yyyy}.zip");
                     if (File.Exists(zipPath)) File.Delete(zipPath);
-                    ZipFile.CreateFromDirectory(downloadPath, zipPath);
+                    await Task.Run(() => ZipFile.CreateFromDirectory(downloadPath, zipPath));
                     await _dialogService.ShowMessageAsync("Download complete.", "Success", MessageBoxButtons.Ok);
                 }
             }

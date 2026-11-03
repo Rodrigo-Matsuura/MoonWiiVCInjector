@@ -9,31 +9,31 @@ namespace Moon_WiiVC_Injector;
 /// <summary>
 /// Configuration options for NFS conversion operations.
 /// </summary>
-public class NfsConversionOptions
+internal sealed class NfsConversionOptions
 {
     public bool Encrypt { get; set; } = true;
-    public bool Decrypt { get; set; } = false;
+    public bool Decrypt { get; set; }
     public string IsoFile { get; set; } = "game.iso";
     public string KeyFile { get; set; } = Path.Combine("..", "code", "htk.bin");
     public string WiiKeyFile { get; set; } = "wii_common_key.bin";
     public string FwFile { get; set; } = Path.Combine("..", "code", "fw.img");
     public string NfsDirectory { get; set; } = string.Empty;
-    public bool KeepIntermediateFiles { get; set; } = false;
-    public bool KeepLegit { get; set; } = false;
-    public bool MapShoulderToTrigger { get; set; } = false;
-    public bool VerticalWiimote { get; set; } = false;
-    public bool HorizontalWiimote { get; set; } = false;
-    public bool Homebrew { get; set; } = false;
-    public bool Passthrough { get; set; } = false;
-    public bool InstantCc { get; set; } = false;
-    public bool NoCc { get; set; } = false;
+    public bool KeepIntermediateFiles { get; set; }
+    public bool KeepLegit { get; set; }
+    public bool MapShoulderToTrigger { get; set; }
+    public bool VerticalWiimote { get; set; }
+    public bool HorizontalWiimote { get; set; }
+    public bool Homebrew { get; set; }
+    public bool Passthrough { get; set; }
+    public bool InstantCc { get; set; }
+    public bool NoCc { get; set; }
 }
 
 /// <summary>
 /// Native C# implementation of NFS2ISO2NFS (Wii U Virtual Console NFS partition unpacker/packer).
 /// Based on NFS2ISO2NFS by FIX94 - https://github.com/FIX94/NFS2ISO2NFS
 /// </summary>
-public class Nfs2Iso2Nfs(
+internal sealed class Nfs2Iso2Nfs(
     string? baseDirectory = null,
     Action<string>? onLog = null,
     IProgress<(string Message, double Progress)>? progress = null,
@@ -488,7 +488,7 @@ public class Nfs2Iso2Nfs(
                             ReportProgress($"Processing ISO partitions: {reader.Position / (1024 * 1024)} MB / {reader.Length / (1024 * 1024)} MB ({(int)(isoFraction * 100)}%)...", subProgress);
                         }
 
-                        int read1 = reader.Read(sector, 0, 0x400);
+                        int read1 = reader.ReadAtLeast(sector.AsSpan(0, 0x400), 0x400, throwOnEndOfStream: false);
                         if (read1 < 0x400) break;
 
                         if (enc)
@@ -500,7 +500,7 @@ public class Nfs2Iso2Nfs(
                             if (reader.Position >= reader.Length) break;
 
                             sector.AsSpan(0x3D0, 0x10).CopyTo(ivTemp);
-                            int read2 = reader.Read(sector, 0x400, SectorSize - 0x400);
+                            int read2 = reader.ReadAtLeast(sector.AsSpan(0x400, SectorSize - 0x400), SectorSize - 0x400, throwOnEndOfStream: false);
                             if (read2 <= 0) break;
 
                             aesTitle.EncryptCbc(sector.AsSpan(0x400, read2), ivTemp, sector.AsSpan(0x400, read2), PaddingMode.None);
@@ -515,7 +515,7 @@ public class Nfs2Iso2Nfs(
 
                             if (reader.Position >= reader.Length) break;
 
-                            int read2 = reader.Read(sector, 0x400, SectorSize - 0x400);
+                            int read2 = reader.ReadAtLeast(sector.AsSpan(0x400, SectorSize - 0x400), SectorSize - 0x400, throwOnEndOfStream: false);
                             if (read2 <= 0) break;
 
                             aesTitle.DecryptCbc(sector.AsSpan(0x400, read2), ivTemp, sector.AsSpan(0x400, read2), PaddingMode.None);
@@ -686,7 +686,7 @@ public class Nfs2Iso2Nfs(
                 }
 
                 int toRead = leftSize > SectorSize ? SectorSize : (int)leftSize;
-                int read = reader.Read(sector, 0, toRead);
+                int read = reader.ReadAtLeast(sector.AsSpan(0, toRead), toRead, throwOnEndOfStream: false);
                 if (read <= 0) break;
 
                 bool useBlockIv = processedBytes >= 0x18000;
@@ -702,7 +702,7 @@ public class Nfs2Iso2Nfs(
 
                 writer.Write(sector, 0, read);
                 processedBytes += read;
-                leftSize -= SectorSize;
+                leftSize -= read;
             } while (leftSize > 0);
         }
         finally
@@ -762,7 +762,7 @@ public class Nfs2Iso2Nfs(
         return patchCount;
     }
 
-    public void PatchFirmware(string fwFilePath, NfsConversionOptions options)
+    public static void PatchFirmware(string fwFilePath, NfsConversionOptions options)
     {
         byte[] fileBytes = File.ReadAllBytes(fwFilePath);
         Span<byte> fileSpan = fileBytes.AsSpan();

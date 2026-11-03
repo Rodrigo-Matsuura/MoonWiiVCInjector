@@ -3,7 +3,7 @@ using Avalonia.Platform.Storage;
 
 namespace Moon_WiiVC_Injector.Services;
 
-public interface IDialogService
+internal interface IDialogService
 {
     Task<MessageBoxResult> ShowMessageAsync(string message, string title, MessageBoxButtons buttons = MessageBoxButtons.Ok);
     Task<string?> PromptAsync(string message, string title, string defaultValue = "");
