@@ -38,7 +38,8 @@ The primary mission of this modernized edition is to provide a **clean, fast, po
 
 ### 🎮 3. Expanded Game Format & Toolchain Support
 * **Out-of-the-Box Compression Support**: Native support for compressed disk images, including **NKIT** (`.nkit.iso`) and **NASOS** (`.iso.dec` / `.dec`), without requiring manual decompression.
-* **Smart Tool & JAR Resolution**: Enhanced process launcher automatically discovers local Java `.jar` dependencies and native binaries before falling back to system environments or Wine wrappers.
+* **Native Pure C# WUP Packaging Engine**: Integrated an in-process packaging engine based on **[CNUS_Packer](https://github.com/NicoAICP/CNUS_Packer)**, completely eliminating external Java (`java.exe`) and `NUSPacker.jar` execution during WUP package generation with native exception handling, real-time Avalonia UI progress reporting, and multi-run state safety.
+* **Smart Tool & JAR Resolution**: Enhanced process launcher automatically discovers local dependencies and native binaries before falling back to system environments or Wine wrappers.
 
 ### ✨ 4. Enhanced User Experience & Controls
 * **Drag-and-Drop Workflow**: Drag game ROMs, icons, banners, and boot sounds directly into the interface.
@@ -117,6 +118,7 @@ Special thanks and full attribution to the authors and projects of the Wii, Wii 
 * **[Maschell](https://github.com/Maschell)**:
   * **[JNUSTool](https://github.com/Maschell/JNUSTool)**: Nintendo NUS download client.
   * **[NUSPacker](https://github.com/Maschell/NUSPacker)**: Wii U WUP package encryption and generation.
+* **[NicoAICP](https://github.com/NicoAICP)** & **[Morilli](https://github.com/Morilli)**: Creators of **[CNUS_Packer](https://github.com/NicoAICP/CNUS_Packer)**, the native C# port of NUSPacker used as the foundation for the built-in WUP packaging engine in `MoonWiiVCInjector` (eliminating the dependency on external Java runtime for package generation).
 * **[Waninkoko](https://github.com/waninkoko)**: Creator of `wii-vmc` (Wii Video Mode Changer).
 * **[GameTDB / WiiTDB](https://www.gametdb.com/)**: Comprehensive video game metadata database for Wii and GameCube titles.
 

@@ -2,11 +2,13 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Moon_WiiVC_Injector.Core;
+using Moon_WiiVC_Injector.Core.NusPacker;
 using Moon_WiiVC_Injector.Services;
 
 namespace Moon_WiiVC_Injector;
@@ -548,7 +550,7 @@ public class BuildEngine(BuildOptions options, IProgress<(string Message, double
 
             FileUtil.SafeDeleteFile(gameIsoPath);
 
-            // Encrypt package with NUSPacker (Mapped across 85% - 98%)
+            // Encrypt package with native C# NusPacker (Mapped across 85% - 98%)
             UpdateStatus("Encrypting contents into installable WUP package...", 85);
             string sanitizedGameName = SanitizeFilename(_options.PackedTitleLine1);
             finalOutputPath = Path.Combine(_options.SelectedOutputPath, sanitizedGameName + " WUP-N-" + _options.TitleIdText + "_" + _options.PackedTitleIDLine);
@@ -567,26 +569,22 @@ public class BuildEngine(BuildOptions options, IProgress<(string Message, double
                     $"Temporary build directory '{cleanBuildPath}' is missing required folders (code, content, or meta) for packaging.");
             }
 
-            string nusPackerExe = Path.Combine(_options.TempToolsPath, "JAR", "NUSPacker.exe");
-            int nusChunkCount = 0;
-            var nusResult = await LaunchProgramAsync(
-                nusPackerExe,
-                $"-in \"{cleanBuildPath}\" -out \"{cleanOutputPath}\" -encryptKeyWith {_options.WiiUCommonKey.Trim()}",
-                true,
-                cancellationToken,
-                workingDirectory: _options.TempRootPath,
-                onOutputLine: line =>
-                {
-                    if (line.Contains(".app", StringComparison.OrdinalIgnoreCase) || line.Contains("Packing", StringComparison.OrdinalIgnoreCase) || line.Contains("Processing", StringComparison.OrdinalIgnoreCase))
-                    {
-                        nusChunkCount++;
-                        double nusProgress = Math.Min(97.0, 85.0 + (nusChunkCount * 1.5));
-                        UpdateStatus($"Packing WUP package ({line.Trim()})...", nusProgress);
-                    }
-                });
+            var packProgress = new Progress<(string Status, double Percentage)>(p =>
+            {
+                double mappedProgress = 85.0 + (p.Percentage * 12.0); // 85% to 97%
+                UpdateStatus($"Packing WUP package: {p.Status}", mappedProgress);
+            });
 
-            // Post-validation: verify that NUSPacker successfully produced a complete, valid WUP package.
-            // NUSPacker exits with code 0 even on fatal failures after creating an empty output folder.
+            string stagingTemp = Path.Combine(_options.TempRootPath, "nus_tmp");
+            await NusPackerEngine.PackAsync(
+                inputPath: cleanBuildPath,
+                outputPath: cleanOutputPath,
+                commonKey: _options.WiiUCommonKey.Trim(),
+                tempDirectory: stagingTemp,
+                progress: packProgress,
+                cancellationToken: cancellationToken);
+
+            // Post-validation: verify that packaging produced a complete, valid WUP package.
             bool hasTmd = File.Exists(Path.Combine(cleanOutputPath, "title.tmd"));
             bool hasTik = File.Exists(Path.Combine(cleanOutputPath, "title.tik"));
             bool hasCert = File.Exists(Path.Combine(cleanOutputPath, "title.cert"));
@@ -595,7 +593,7 @@ public class BuildEngine(BuildOptions options, IProgress<(string Message, double
             if (!Directory.Exists(cleanOutputPath) || !hasTmd || !hasTik || !hasCert || !hasApp)
             {
                 var sb = new StringBuilder();
-                sb.AppendLine("WUP package creation failed: NUSPacker did not produce the required package files (title.tmd, title.tik, title.cert, *.app).");
+                sb.AppendLine("WUP package creation failed: Package files (title.tmd, title.tik, title.cert, *.app) were not created properly.");
                 if (Directory.Exists(cleanOutputPath))
                 {
                     var existingFiles = Directory.GetFileSystemEntries(cleanOutputPath);
@@ -613,21 +611,15 @@ public class BuildEngine(BuildOptions options, IProgress<(string Message, double
                     sb.AppendLine($"The output directory '{cleanOutputPath}' was not created.");
                 }
 
-                if (!string.IsNullOrWhiteSpace(nusResult.StdErr))
-                {
-                    sb.AppendLine($"\nNUSPacker Error:\n{nusResult.StdErr}");
-                }
-                if (!string.IsNullOrWhiteSpace(nusResult.StdOut))
-                {
-                    sb.AppendLine($"\nNUSPacker Output:\n{nusResult.StdOut}");
-                }
-
                 throw new InvalidOperationException(sb.ToString().Trim());
             }
 
             // Cleanup - only delete intermediate build files after package integrity has been verified
             UpdateStatus("Cleaning up temporary directories...", 98);
             FileUtil.SafeDeleteDirectory(_options.TempBuildPath);
+            FileUtil.SafeDeleteDirectory(Path.Combine(_options.TempRootPath, "output"));
+            FileUtil.SafeDeleteDirectory(Path.Combine(_options.TempRootPath, "tmp"));
+            FileUtil.SafeDeleteDirectory(stagingTemp);
             FileUtil.SafeDeleteDirectory(Path.Combine(_options.TempRootPath, "output"));
             FileUtil.SafeDeleteDirectory(Path.Combine(_options.TempRootPath, "tmp"));
             Directory.CreateDirectory(_options.TempBuildPath);
@@ -820,12 +812,50 @@ public class BuildEngine(BuildOptions options, IProgress<(string Message, double
 
     private void ValidatePrerequisites()
     {
-        // 1. Verify Java runtime for JNUSTool and NUSPacker
-        if (!IsCommandAvailable("java"))
+        // 1. Verify Java runtime only if base files still need to be downloaded via JNUSTool.
+        // Packaging no longer requires Java as it uses native C# NusPacker.
+        bool needsBaseDownload = false;
+        if (!string.IsNullOrWhiteSpace(_options.JNUSToolDownloads))
+        {
+            string baseFolder = !string.IsNullOrWhiteSpace(_options.BaseFolderName)
+                ? _options.BaseFolderName
+                : "Rhythm Heaven Fever [VAKE01]";
+
+            string[] downloadedFiles =
+            [
+                Path.Combine(_options.JNUSToolDownloads, "0005001010004000", "code", "deint.txt"),
+                Path.Combine(_options.JNUSToolDownloads, "0005001010004000", "code", "font.bin"),
+                Path.Combine(_options.JNUSToolDownloads, "0005001010004001", "code", "c2w.img"),
+                Path.Combine(_options.JNUSToolDownloads, "0005001010004001", "code", "boot.bin"),
+                Path.Combine(_options.JNUSToolDownloads, "0005001010004001", "code", "dmcu.d.hex"),
+                Path.Combine(_options.JNUSToolDownloads, baseFolder, "code", "cos.xml"),
+                Path.Combine(_options.JNUSToolDownloads, baseFolder, "code", "frisbiiU.rpx"),
+                Path.Combine(_options.JNUSToolDownloads, baseFolder, "code", "fw.img"),
+                Path.Combine(_options.JNUSToolDownloads, baseFolder, "code", "fw.tmd"),
+                Path.Combine(_options.JNUSToolDownloads, baseFolder, "code", "htk.bin"),
+                Path.Combine(_options.JNUSToolDownloads, baseFolder, "code", "nn_hai_user.rpl"),
+                Path.Combine(_options.JNUSToolDownloads, baseFolder, "content", "assets", "shaders", "cafe", "banner.gsh"),
+                Path.Combine(_options.JNUSToolDownloads, baseFolder, "content", "assets", "shaders", "cafe", "fade.gsh"),
+                Path.Combine(_options.JNUSToolDownloads, baseFolder, "meta", "bootMovie.h264"),
+                Path.Combine(_options.JNUSToolDownloads, baseFolder, "meta", "bootLogoTex.tga"),
+                Path.Combine(_options.JNUSToolDownloads, baseFolder, "meta", "bootSound.btsnd")
+            ];
+
+            if (downloadedFiles.Any(f => !File.Exists(f)))
+            {
+                needsBaseDownload = true;
+            }
+        }
+        else
+        {
+            needsBaseDownload = true;
+        }
+
+        if (needsBaseDownload && !IsCommandAvailable("java"))
         {
             throw new InvalidOperationException(
                 "Java runtime (JRE/JDK) was not found in your system PATH.\n\n" +
-                "Java is required by JNUSTool and NUSPacker to download base files and pack the Wii U WUP package.\n" +
+                "Java is required by JNUSTool to download the base files from Nintendo NUS because they are not present in your downloads cache.\n" +
                 (OperatingSystem.IsLinux()
                     ? "Please install Java (e.g. 'sudo apt install default-jre' on Debian/Ubuntu or 'sudo pacman -S jre-openjdk' on Arch Linux)."
                     : OperatingSystem.IsMacOS()
