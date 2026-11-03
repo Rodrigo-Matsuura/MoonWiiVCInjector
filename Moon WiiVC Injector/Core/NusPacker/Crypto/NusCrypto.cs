@@ -2,6 +2,7 @@
 // Original Authors: NicoAICP, Morilli (based on NUSPacker by timogus)
 
 using System;
+using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.IO;
 using System.Security.Cryptography;
@@ -46,13 +47,13 @@ public class NusEncryption : IDisposable
 
     private void EncryptSingleFile(Stream input, Stream output, long inputLength, byte[] iv, int blockSize)
     {
-        _aes.IV = iv;
+        byte[] currentIv = (byte[])iv.Clone();
         long targetSize = NusUtils.Align(inputLength, blockSize);
+        byte[] blockBuffer = new byte[blockSize];
 
         long curPosition = 0;
         do
         {
-            byte[] blockBuffer = new byte[blockSize];
             int totalRead = 0;
             while (totalRead < blockSize)
             {
@@ -60,12 +61,16 @@ public class NusEncryption : IDisposable
                 if (read <= 0) break;
                 totalRead += read;
             }
+            if (totalRead < blockSize)
+            {
+                Array.Clear(blockBuffer, totalRead, blockSize - totalRead);
+            }
 
-            blockBuffer = Encrypt(blockBuffer);
-            _aes.IV = NusUtils.CopyOfRange(blockBuffer, blockSize - 16, blockSize);
+            _aes.EncryptCbc(blockBuffer.AsSpan(0, blockSize), currentIv, blockBuffer.AsSpan(0, blockSize), PaddingMode.None);
+            blockBuffer.AsSpan(blockSize - 16, 16).CopyTo(currentIv);
 
             curPosition += blockSize;
-            output.Write(blockBuffer, 0, blockBuffer.Length);
+            output.Write(blockBuffer, 0, blockSize);
         } while (curPosition < targetSize);
     }
 
@@ -108,30 +113,32 @@ public class NusEncryption : IDisposable
 
     private byte[] EncryptChunkHashed(byte[] buffer, int block, ContentHashes hashes, int contentID)
     {
-        BigEndianMemoryStream ivStream = new(16);
-        ivStream.WriteBigEndian((short)contentID);
-        _aes.IV = ivStream.GetBuffer();
+        byte[] iv = new byte[16];
+        BinaryPrimitives.WriteInt16BigEndian(iv.AsSpan(0, 2), (short)contentID);
+
         byte[] decryptedHashes = hashes.GetHashForBlock(block);
         decryptedHashes[1] ^= (byte)contentID;
 
-        byte[] encryptedHashes = Encrypt(decryptedHashes);
+        byte[] encryptedHashes = new byte[decryptedHashes.Length];
+        _aes.EncryptCbc(decryptedHashes, iv, encryptedHashes, PaddingMode.None);
         decryptedHashes[1] ^= (byte)contentID;
+
         int ivStart = (block % 16) * 20;
+        ReadOnlySpan<byte> nextIv = decryptedHashes.AsSpan(ivStart, 16);
 
-        _aes.IV = NusUtils.CopyOfRange(decryptedHashes, ivStart, ivStart + 16);
+        byte[] outputBuffer = new byte[encryptedHashes.Length + buffer.Length];
+        encryptedHashes.CopyTo(outputBuffer.AsSpan(0, encryptedHashes.Length));
 
-        byte[] encryptedContent = Encrypt(buffer);
-        MemoryStream outputStream = new(0x10000);
-        outputStream.Write(encryptedHashes, 0, encryptedHashes.Length);
-        outputStream.Write(encryptedContent, 0, encryptedContent.Length);
+        _aes.EncryptCbc(buffer, nextIv, outputBuffer.AsSpan(encryptedHashes.Length, buffer.Length), PaddingMode.None);
 
-        return outputStream.GetBuffer();
+        return outputBuffer;
     }
 
     public byte[] Encrypt(byte[] input)
     {
-        using var encryptor = _aes.CreateEncryptor();
-        return encryptor.TransformFinalBlock(input, 0, input.Length);
+        byte[] output = new byte[input.Length];
+        _aes.EncryptCbc(input, _aes.IV, output, PaddingMode.None);
+        return output;
     }
 
     public void Dispose()
@@ -258,15 +265,15 @@ public class ContentHashes
             throw new InvalidOperationException($"Requested hash block {block} exceeds block count {_blockCount}.");
         }
 
-        MemoryStream hashes = new(0x400);
+        byte[] hashes = new byte[0x400];
+        Span<byte> hashesSpan = hashes.AsSpan();
+
         int h0HashStart = (block / 16) * 16;
         for (int i = 0; i < 16; i++)
         {
             int index = h0HashStart + i;
             if (_h0Hashes.TryGetValue(index, out var h0))
-                hashes.Write(h0, 0, h0.Length);
-            else
-                hashes.Seek(20, SeekOrigin.Current);
+                h0.CopyTo(hashesSpan.Slice(i * 20, 20));
         }
 
         int h1HashStart = (block / 256) * 16;
@@ -274,9 +281,7 @@ public class ContentHashes
         {
             int index = h1HashStart + i;
             if (_h1Hashes.TryGetValue(index, out var h1))
-                hashes.Write(h1, 0, h1.Length);
-            else
-                hashes.Seek(20, SeekOrigin.Current);
+                h1.CopyTo(hashesSpan.Slice(320 + (i * 20), 20));
         }
 
         int h2HashStart = (block / 4096) * 16;
@@ -284,23 +289,21 @@ public class ContentHashes
         {
             int index = h2HashStart + i;
             if (_h2Hashes.TryGetValue(index, out var h2))
-                hashes.Write(h2, 0, h2.Length);
-            else
-                hashes.Seek(20, SeekOrigin.Current);
+                h2.CopyTo(hashesSpan.Slice(640 + (i * 20), 20));
         }
 
-        return hashes.GetBuffer();
+        return hashes;
     }
 
     private byte[] GetH3Hashes()
     {
-        MemoryStream buffer = new(_h3Hashes.Count * 20);
+        byte[] buffer = new byte[_h3Hashes.Count * 20];
         for (int i = 0; i < _h3Hashes.Count; i++)
         {
-            buffer.Write(_h3Hashes[i], 0, _h3Hashes[i].Length);
+            _h3Hashes[i].CopyTo(buffer.AsSpan(i * 20, 20));
         }
 
-        return buffer.GetBuffer();
+        return buffer;
     }
 
     public void SaveH3ToFile(string h3Path)

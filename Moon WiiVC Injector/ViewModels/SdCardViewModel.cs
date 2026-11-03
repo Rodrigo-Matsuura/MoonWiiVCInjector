@@ -16,12 +16,11 @@ public class OptionItem(string name, bool isChecked = false) : ObservableObject
 {
     public string Name { get; } = name;
 
-    private bool _isChecked = isChecked;
     public bool IsChecked
     {
-        get => _isChecked;
-        set => SetProperty(ref _isChecked, value);
-    }
+        get;
+        set => SetProperty(ref field, value);
+    } = isChecked;
 }
 
 public partial class SdCardViewModel : ViewModelBase
@@ -34,81 +33,71 @@ public partial class SdCardViewModel : ViewModelBase
     // ==========================================
     // 2. Observable Properties (UI State)
     // ==========================================
-    private ObservableCollection<string> _drives = [];
     public ObservableCollection<string> Drives
     {
-        get => _drives;
-        set => SetProperty(ref _drives, value);
-    }
+        get;
+        set => SetProperty(ref field, value);
+    } = [];
 
-    private string? _selectedDrive;
     public string? SelectedDrive
     {
-        get => _selectedDrive;
-        set => SetProperty(ref _selectedDrive, value);
+        get;
+        set => SetProperty(ref field, value);
     }
 
-    private int _selectedDriveIndex = -1;
     public int SelectedDriveIndex
     {
-        get => _selectedDriveIndex;
-        set => SetProperty(ref _selectedDriveIndex, value);
-    }
+        get;
+        set => SetProperty(ref field, value);
+    } = -1;
 
-    private int _memcardBlocksIndex = 0;
     public int MemcardBlocksIndex
     {
-        get => _memcardBlocksIndex;
-        set => SetProperty(ref _memcardBlocksIndex, value);
-    }
+        get;
+        set => SetProperty(ref field, value);
+    } = 0;
 
-    private int _videoForceModeIndex = 0;
     public int VideoForceModeIndex
     {
-        get => _videoForceModeIndex;
-        set => SetProperty(ref _videoForceModeIndex, value);
-    }
+        get;
+        set => SetProperty(ref field, value);
+    } = 0;
 
-    private int _videoTypeModeIndex = 0;
     public int VideoTypeModeIndex
     {
-        get => _videoTypeModeIndex;
-        set => SetProperty(ref _videoTypeModeIndex, value);
-    }
+        get;
+        set => SetProperty(ref field, value);
+    } = 0;
 
-    private int _languageIndex = 0;
     public int LanguageIndex
     {
-        get => _languageIndex;
-        set => SetProperty(ref _languageIndex, value);
-    }
+        get;
+        set => SetProperty(ref field, value);
+    } = 0;
 
-    private int _wiiUGamepadSlotIndex = 0;
     public int WiiUGamepadSlotIndex
     {
-        get => _wiiUGamepadSlotIndex;
-        set => SetProperty(ref _wiiUGamepadSlotIndex, value);
-    }
+        get;
+        set => SetProperty(ref field, value);
+    } = 0;
 
-    private double _videoWidth = 652;
     public double VideoWidth
     {
-        get => _videoWidth;
+        get;
         set
         {
-            if (SetProperty(ref _videoWidth, value))
+            if (SetProperty(ref field, value))
             {
                 OnPropertyChanged(nameof(VideoWidthText));
             }
         }
-    }
+    } = 652;
 
-    private string _actionStatus = string.Empty;
     public string ActionStatus
     {
-        get => _actionStatus;
-        set => SetProperty(ref _actionStatus, value);
-    }
+        get;
+        set => SetProperty(ref field, value);
+    } = string.Empty;
 
     public ObservableCollection<OptionItem> Options { get; } = [];
 

@@ -59,52 +59,48 @@ public partial class MainViewModel : ViewModelBase
     private bool _flagWbfs;
 
     // Observable Properties: System Type Selection
-    private bool _isWiiRetail = true;
     public bool IsWiiRetail
     {
-        get => _isWiiRetail;
+        get;
         set
         {
-            if (SetProperty(ref _isWiiRetail, value))
+            if (SetProperty(ref field, value))
             {
                 OnIsWiiRetailChanged(value);
             }
         }
-    }
+    } = true;
 
-    private bool _isWiiHomebrew;
     public bool IsWiiHomebrew
     {
-        get => _isWiiHomebrew;
+        get;
         set
         {
-            if (SetProperty(ref _isWiiHomebrew, value))
+            if (SetProperty(ref field, value))
             {
                 OnIsWiiHomebrewChanged(value);
             }
         }
     }
 
-    private bool _isGCRetail;
     public bool IsGCRetail
     {
-        get => _isGCRetail;
+        get;
         set
         {
-            if (SetProperty(ref _isGCRetail, value))
+            if (SetProperty(ref field, value))
             {
                 OnIsGCRetailChanged(value);
             }
         }
     }
 
-    private bool _isWiiNAND;
     public bool IsWiiNAND
     {
-        get => _isWiiNAND;
+        get;
         set
         {
-            if (SetProperty(ref _isWiiNAND, value))
+            if (SetProperty(ref field, value))
             {
                 OnIsWiiNANDChanged(value);
             }
@@ -112,497 +108,436 @@ public partial class MainViewModel : ViewModelBase
     }
 
     // Observable Properties: Source Files
-    private string _gameSourceText = "Game file has not been specified";
     public string GameSourceText
     {
-        get => _gameSourceText;
-        set => SetProperty(ref _gameSourceText, value);
-    }
+        get;
+        set => SetProperty(ref field, value);
+    } = "Game file has not been specified";
 
-    private string _iconSourceText = "Icon has not been specified";
     public string IconSourceText
     {
-        get => _iconSourceText;
-        set => SetProperty(ref _iconSourceText, value);
-    }
+        get;
+        set => SetProperty(ref field, value);
+    } = "Icon has not been specified";
 
-    private string _bannerSourceText = "Banner has not been specified";
     public string BannerSourceText
     {
-        get => _bannerSourceText;
-        set => SetProperty(ref _bannerSourceText, value);
-    }
+        get;
+        set => SetProperty(ref field, value);
+    } = "Banner has not been specified";
 
-    private string _gC2SourceText = "2nd GameCube Disc Image has not been specified";
     public string GC2SourceText
     {
-        get => _gC2SourceText;
-        set => SetProperty(ref _gC2SourceText, value);
-    }
+        get;
+        set => SetProperty(ref field, value);
+    } = "2nd GameCube Disc Image has not been specified";
 
-    private string _bootSoundText = "Boot Sound has not been specified";
     public string BootSoundText
     {
-        get => _bootSoundText;
-        set => SetProperty(ref _bootSoundText, value);
-    }
+        get;
+        set => SetProperty(ref field, value);
+    } = "Boot Sound has not been specified";
 
-    private string _logoSourceText = "Boot Logo has not been specified";
     public string LogoSourceText
     {
-        get => _logoSourceText;
-        set => SetProperty(ref _logoSourceText, value);
-    }
+        get;
+        set => SetProperty(ref field, value);
+    } = "Boot Logo has not been specified";
 
-    private string _drcSourceText = "GamePad Banner has not been specified";
     public string DrcSourceText
     {
-        get => _drcSourceText;
-        set => SetProperty(ref _drcSourceText, value);
-    }
+        get;
+        set => SetProperty(ref field, value);
+    } = "GamePad Banner has not been specified";
 
     // Observable Properties: Previews
-    private Bitmap? _iconPreview;
     public Bitmap? IconPreview
     {
-        get => _iconPreview;
-        set => SetProperty(ref _iconPreview, value);
+        get;
+        set => SetProperty(ref field, value);
     }
 
-    private Bitmap? _bannerPreview;
     public Bitmap? BannerPreview
     {
-        get => _bannerPreview;
-        set => SetProperty(ref _bannerPreview, value);
+        get;
+        set => SetProperty(ref field, value);
     }
 
-    private Bitmap? _logoPreview;
     public Bitmap? LogoPreview
     {
-        get => _logoPreview;
-        set => SetProperty(ref _logoPreview, value);
+        get;
+        set => SetProperty(ref field, value);
     }
 
-    private Bitmap? _drcPreview;
     public Bitmap? DrcPreview
     {
-        get => _drcPreview;
-        set => SetProperty(ref _drcPreview, value);
+        get;
+        set => SetProperty(ref field, value);
     }
 
     // Observable Properties: Game Metadata
-    private string _internalGameNameDisplay = string.Empty;
     public string InternalGameNameDisplay
     {
-        get => _internalGameNameDisplay;
-        set => SetProperty(ref _internalGameNameDisplay, value);
-    }
+        get;
+        set => SetProperty(ref field, value);
+    } = string.Empty;
 
-    private string _internalGameIDDisplay = string.Empty;
     public string InternalGameIDDisplay
     {
-        get => _internalGameIDDisplay;
-        set => SetProperty(ref _internalGameIDDisplay, value);
-    }
+        get;
+        set => SetProperty(ref field, value);
+    } = string.Empty;
 
-    private string _packedTitleLine1 = string.Empty;
     public string PackedTitleLine1
     {
-        get => _packedTitleLine1;
+        get;
         set
         {
-            if (SetProperty(ref _packedTitleLine1, value))
+            if (SetProperty(ref field, value))
             {
                 OnPackedTitleLine1Changed();
             }
         }
-    }
+    } = string.Empty;
 
-    private string _packedTitleLine2 = string.Empty;
     public string PackedTitleLine2
     {
-        get => _packedTitleLine2;
-        set => SetProperty(ref _packedTitleLine2, value);
-    }
+        get;
+        set => SetProperty(ref field, value);
+    } = string.Empty;
 
-    private bool _enablePackedLine2;
     public bool EnablePackedLine2
     {
-        get => _enablePackedLine2;
-        set => SetProperty(ref _enablePackedLine2, value);
+        get;
+        set => SetProperty(ref field, value);
     }
 
-    private string _packedTitleIDLine = string.Empty;
     public string PackedTitleIDLine
     {
-        get => _packedTitleIDLine;
+        get;
         set
         {
-            if (SetProperty(ref _packedTitleIDLine, value))
+            if (SetProperty(ref field, value))
             {
                 OnPackedTitleIDLineChanged();
             }
         }
-    }
+    } = string.Empty;
 
     // Observable Properties: Emulation / Controller
-    private bool _noGamePadEmu = true;
     public bool NoGamePadEmu
     {
-        get => _noGamePadEmu;
-        set => SetProperty(ref _noGamePadEmu, value);
-    }
+        get;
+        set => SetProperty(ref field, value);
+    } = true;
 
-    private bool _forceCC;
     public bool ForceCC
     {
-        get => _forceCC;
-        set => SetProperty(ref _forceCC, value);
+        get;
+        set => SetProperty(ref field, value);
     }
 
-    private bool _ccEmu;
     public bool CcEmu
     {
-        get => _ccEmu;
-        set => SetProperty(ref _ccEmu, value);
+        get;
+        set => SetProperty(ref field, value);
     }
 
-    private bool _forceNoCC;
     public bool ForceNoCC
     {
-        get => _forceNoCC;
-        set => SetProperty(ref _forceNoCC, value);
+        get;
+        set => SetProperty(ref field, value);
     }
 
-    private bool _horWiiMote;
     public bool HorWiiMote
     {
-        get => _horWiiMote;
-        set => SetProperty(ref _horWiiMote, value);
+        get;
+        set => SetProperty(ref field, value);
     }
 
-    private bool _verWiiMote;
     public bool VerWiiMote
     {
-        get => _verWiiMote;
-        set => SetProperty(ref _verWiiMote, value);
+        get;
+        set => SetProperty(ref field, value);
     }
 
-    private bool _lrPatch;
     public bool LrPatch
     {
-        get => _lrPatch;
-        set => SetProperty(ref _lrPatch, value);
+        get;
+        set => SetProperty(ref field, value);
     }
 
     // Observable Properties: Advanced Options
-    private bool _wiimmfi;
     public bool Wiimmfi
     {
-        get => _wiimmfi;
-        set => SetProperty(ref _wiimmfi, value);
+        get;
+        set => SetProperty(ref field, value);
     }
 
-    private bool _wiiVMC;
     public bool WiiVMC
     {
-        get => _wiiVMC;
-        set => SetProperty(ref _wiiVMC, value);
+        get;
+        set => SetProperty(ref field, value);
     }
 
-    private bool _disableGamePad;
     public bool DisableGamePad
     {
-        get => _disableGamePad;
-        set => SetProperty(ref _disableGamePad, value);
+        get;
+        set => SetProperty(ref field, value);
     }
 
-    private bool _disableTrimming;
     public bool DisableTrimming
     {
-        get => _disableTrimming;
-        set => SetProperty(ref _disableTrimming, value);
+        get;
+        set => SetProperty(ref field, value);
     }
 
-    private bool _disableNintendontAutoboot;
     public bool DisableNintendontAutoboot
     {
-        get => _disableNintendontAutoboot;
-        set => SetProperty(ref _disableNintendontAutoboot, value);
+        get;
+        set => SetProperty(ref field, value);
     }
 
-    private bool _c2WPatchFlag;
     public bool C2WPatchFlag
     {
-        get => _c2WPatchFlag;
+        get;
         set
         {
-            if (SetProperty(ref _c2WPatchFlag, value))
+            if (SetProperty(ref field, value))
             {
                 OnC2WPatchFlagChanged();
             }
         }
     }
 
-    private bool _toggleBootSoundLoop;
     public bool ToggleBootSoundLoop
     {
-        get => _toggleBootSoundLoop;
-        set => SetProperty(ref _toggleBootSoundLoop, value);
+        get;
+        set => SetProperty(ref field, value);
     }
 
     // Observable Properties: Base Game & Keys
-    private BaseGameInfo _selectedBase = BaseGameInfo.USA;
     public BaseGameInfo SelectedBase
     {
-        get => _selectedBase;
-        set => SetProperty(ref _selectedBase, value);
-    }
+        get;
+        set => SetProperty(ref field, value);
+    } = BaseGameInfo.USA;
 
-    private string _wiiUCommonKey = string.Empty;
     public string WiiUCommonKey
     {
-        get => _wiiUCommonKey;
+        get;
         set
         {
-            if (SetProperty(ref _wiiUCommonKey, value))
+            if (SetProperty(ref field, value))
             {
                 ValidateKeys();
             }
         }
-    }
+    } = string.Empty;
 
-    private string _titleKey = string.Empty;
     public string TitleKey
     {
-        get => _titleKey;
+        get;
         set
         {
-            if (SetProperty(ref _titleKey, value))
+            if (SetProperty(ref field, value))
             {
                 ValidateKeys();
             }
         }
-    }
+    } = string.Empty;
 
-    private string _ancastKey = string.Empty;
     public string AncastKey
     {
-        get => _ancastKey;
+        get;
         set
         {
-            if (SetProperty(ref _ancastKey, value))
+            if (SetProperty(ref field, value))
             {
                 ValidateKeys();
             }
         }
-    }
+    } = string.Empty;
 
-    private bool _isCommonKeyValid;
     public bool IsCommonKeyValid
     {
-        get => _isCommonKeyValid;
-        set => SetProperty(ref _isCommonKeyValid, value);
+        get;
+        set => SetProperty(ref field, value);
     }
 
-    private bool _isTitleKeyValid;
     public bool IsTitleKeyValid
     {
-        get => _isTitleKeyValid;
-        set => SetProperty(ref _isTitleKeyValid, value);
+        get;
+        set => SetProperty(ref field, value);
     }
 
-    private bool _isAncastKeyValid;
     public bool IsAncastKeyValid
     {
-        get => _isAncastKeyValid;
-        set => SetProperty(ref _isAncastKeyValid, value);
+        get;
+        set => SetProperty(ref field, value);
     }
 
-    private bool _isCommonKeyReadOnly;
     public bool IsCommonKeyReadOnly
     {
-        get => _isCommonKeyReadOnly;
+        get;
         set
         {
-            if (SetProperty(ref _isCommonKeyReadOnly, value))
+            if (SetProperty(ref field, value))
             {
                 OnPropertyChanged(nameof(CanSaveCommonKey));
             }
         }
     }
 
-    private bool _isTitleKeyReadOnly;
     public bool IsTitleKeyReadOnly
     {
-        get => _isTitleKeyReadOnly;
+        get;
         set
         {
-            if (SetProperty(ref _isTitleKeyReadOnly, value))
+            if (SetProperty(ref field, value))
             {
                 OnPropertyChanged(nameof(CanSaveTitleKey));
             }
         }
     }
 
-    private bool _isAncastKeyReadOnly;
     public bool IsAncastKeyReadOnly
     {
-        get => _isAncastKeyReadOnly;
+        get;
         set
         {
-            if (SetProperty(ref _isAncastKeyReadOnly, value))
+            if (SetProperty(ref field, value))
             {
                 OnPropertyChanged(nameof(CanSaveAncastKey));
             }
         }
     }
 
-    private string _commonKeyStatusText = string.Empty;
     public string CommonKeyStatusText
     {
-        get => _commonKeyStatusText;
-        set => SetProperty(ref _commonKeyStatusText, value);
-    }
+        get;
+        set => SetProperty(ref field, value);
+    } = string.Empty;
 
-    private string _commonKeyStatusColor = "#7f8c8d";
     public string CommonKeyStatusColor
     {
-        get => _commonKeyStatusColor;
-        set => SetProperty(ref _commonKeyStatusColor, value);
-    }
+        get;
+        set => SetProperty(ref field, value);
+    } = "#7f8c8d";
 
-    private string _commonKeyBorderBrush = "#a0a0a0";
     public string CommonKeyBorderBrush
     {
-        get => _commonKeyBorderBrush;
-        set => SetProperty(ref _commonKeyBorderBrush, value);
-    }
+        get;
+        set => SetProperty(ref field, value);
+    } = "#a0a0a0";
 
-    private string _titleKeyStatusText = string.Empty;
     public string TitleKeyStatusText
     {
-        get => _titleKeyStatusText;
-        set => SetProperty(ref _titleKeyStatusText, value);
-    }
+        get;
+        set => SetProperty(ref field, value);
+    } = string.Empty;
 
-    private string _titleKeyStatusColor = "#7f8c8d";
     public string TitleKeyStatusColor
     {
-        get => _titleKeyStatusColor;
-        set => SetProperty(ref _titleKeyStatusColor, value);
-    }
+        get;
+        set => SetProperty(ref field, value);
+    } = "#7f8c8d";
 
-    private string _titleKeyBorderBrush = "#a0a0a0";
     public string TitleKeyBorderBrush
     {
-        get => _titleKeyBorderBrush;
-        set => SetProperty(ref _titleKeyBorderBrush, value);
-    }
+        get;
+        set => SetProperty(ref field, value);
+    } = "#a0a0a0";
 
-    private string _ancastKeyStatusText = string.Empty;
     public string AncastKeyStatusText
     {
-        get => _ancastKeyStatusText;
-        set => SetProperty(ref _ancastKeyStatusText, value);
-    }
+        get;
+        set => SetProperty(ref field, value);
+    } = string.Empty;
 
-    private string _ancastKeyStatusColor = "#7f8c8d";
     public string AncastKeyStatusColor
     {
-        get => _ancastKeyStatusColor;
-        set => SetProperty(ref _ancastKeyStatusColor, value);
-    }
+        get;
+        set => SetProperty(ref field, value);
+    } = "#7f8c8d";
 
-    private string _ancastKeyBorderBrush = "#a0a0a0";
     public string AncastKeyBorderBrush
     {
-        get => _ancastKeyBorderBrush;
-        set => SetProperty(ref _ancastKeyBorderBrush, value);
-    }
+        get;
+        set => SetProperty(ref field, value);
+    } = "#a0a0a0";
 
     public bool CanSaveCommonKey => !IsCommonKeyReadOnly && IsCommonKeyValid;
     public bool CanSaveTitleKey => !IsTitleKeyReadOnly && IsTitleKeyValid;
     public bool CanSaveAncastKey => !IsAncastKeyReadOnly && IsAncastKeyValid;
 
     // Observable Properties: Checklist & Build Status
-    private bool _sourceCheck;
     public bool SourceCheck
     {
-        get => _sourceCheck;
-        set => SetProperty(ref _sourceCheck, value);
+        get;
+        set => SetProperty(ref field, value);
     }
 
-    private bool _metaCheck;
     public bool MetaCheck
     {
-        get => _metaCheck;
-        set => SetProperty(ref _metaCheck, value);
+        get;
+        set => SetProperty(ref field, value);
     }
 
-    private bool _keysCheck;
     public bool KeysCheck
     {
-        get => _keysCheck;
-        set => SetProperty(ref _keysCheck, value);
+        get;
+        set => SetProperty(ref field, value);
     }
 
-    private bool _advanceCheck = true;
     public bool AdvanceCheck
     {
-        get => _advanceCheck;
-        set => SetProperty(ref _advanceCheck, value);
-    }
+        get;
+        set => SetProperty(ref field, value);
+    } = true;
 
-    private bool _canBuild;
     public bool CanBuild
     {
-        get => _canBuild;
-        set => SetProperty(ref _canBuild, value);
+        get;
+        set => SetProperty(ref field, value);
     }
 
-    private bool _isBuilding;
     public bool IsBuilding
     {
-        get => _isBuilding;
-        set => SetProperty(ref _isBuilding, value);
+        get;
+        set => SetProperty(ref field, value);
     }
 
-    private bool _canCancel;
     public bool CanCancel
     {
-        get => _canCancel;
-        set => SetProperty(ref _canCancel, value);
+        get;
+        set => SetProperty(ref field, value);
     }
 
-    private double _buildProgress;
     public double BuildProgress
     {
-        get => _buildProgress;
-        set => SetProperty(ref _buildProgress, value);
+        get;
+        set => SetProperty(ref field, value);
     }
 
-    private string _buildStatus = "Ready";
     public string BuildStatus
     {
-        get => _buildStatus;
-        set => SetProperty(ref _buildStatus, value);
-    }
+        get;
+        set => SetProperty(ref field, value);
+    } = "Ready";
 
-    private string _logOutput = string.Empty;
     public string LogOutput
     {
-        get => _logOutput;
-        set => SetProperty(ref _logOutput, value);
-    }
+        get;
+        set => SetProperty(ref field, value);
+    } = string.Empty;
 
-    private bool _isRepoDownloading;
     public bool IsRepoDownloading
     {
-        get => _isRepoDownloading;
+        get;
         set
         {
-            if (SetProperty(ref _isRepoDownloading, value))
+            if (SetProperty(ref field, value))
             {
                 OnPropertyChanged(nameof(CanRetryDownloadRepo));
                 OnPropertyChanged(nameof(RepoDownloadButtonText));
@@ -610,13 +545,12 @@ public partial class MainViewModel : ViewModelBase
         }
     }
 
-    private bool _repoDownloadFailed;
     public bool RepoDownloadFailed
     {
-        get => _repoDownloadFailed;
+        get;
         set
         {
-            if (SetProperty(ref _repoDownloadFailed, value))
+            if (SetProperty(ref field, value))
             {
                 OnPropertyChanged(nameof(CanRetryDownloadRepo));
                 OnPropertyChanged(nameof(RepoDownloadButtonText));
@@ -729,18 +663,18 @@ public partial class MainViewModel : ViewModelBase
             var matchedBase = BaseGameInfo.FindByKeyHash(keyHash);
             if (matchedBase != null)
             {
-                _selectedBase = matchedBase;
+                SelectedBase = matchedBase;
                 Settings.Default.BaseRegion = matchedBase.RegionCode;
                 Settings.Default.SetTitleKeyForRegion(matchedBase.RegionCode, rawKey);
             }
             else
             {
-                _selectedBase = BaseGameInfo.FindByRegion(Settings.Default.BaseRegion);
+                SelectedBase = BaseGameInfo.FindByRegion(Settings.Default.BaseRegion);
             }
         }
         else
         {
-            _selectedBase = BaseGameInfo.FindByRegion(Settings.Default.BaseRegion);
+            SelectedBase = BaseGameInfo.FindByRegion(Settings.Default.BaseRegion);
         }
 
         TitleKey = Settings.Default.GetTitleKeyForRegion(SelectedBase.RegionCode)?.ToUpperInvariant() ?? string.Empty;
@@ -795,7 +729,7 @@ public partial class MainViewModel : ViewModelBase
             var matchedBase = BaseGameInfo.FindByKeyHash(keyHash);
             if (matchedBase != null)
             {
-                _selectedBase = matchedBase;
+                SelectedBase = matchedBase;
                 IsTitleKeyValid = true;
                 TitleKeyStatusText = $"✓ Title: {matchedBase.GameName} ({matchedBase.RegionCode}) | Version: {matchedBase.Version} | Title ID: {matchedBase.TitleId}";
                 TitleKeyStatusColor = "#27ae60";

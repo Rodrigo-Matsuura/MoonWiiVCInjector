@@ -72,7 +72,7 @@ public static class DolPatcher
             if (funcStart + 0x2000 > length)
                 break;
 
-            FuncPattern pattern = AnalyzeFunctionPattern(dolData, funcStart, Math.Min(0x2000, length - funcStart));
+            FuncPattern pattern = AnalyzeFunctionPattern(dolData.AsSpan(funcStart, Math.Min(0x2000, length - funcStart)));
 
             if (pattern.Matches(GetExtTypeA) || pattern.Matches(GetExtTypeB))
             {
@@ -122,14 +122,14 @@ public static class DolPatcher
         return false;
     }
 
-    private static FuncPattern AnalyzeFunctionPattern(byte[] data, int offset, int maxScanLength)
+    private static FuncPattern AnalyzeFunctionPattern(ReadOnlySpan<byte> data)
     {
         FuncPattern pattern = default;
         int i;
 
-        for (i = 0; i + 4 <= maxScanLength; i += 4)
+        for (i = 0; i + 4 <= data.Length; i += 4)
         {
-            uint word = BinaryPrimitives.ReadUInt32BigEndian(data.AsSpan(offset + i, 4));
+            uint word = BinaryPrimitives.ReadUInt32BigEndian(data.Slice(i, 4));
 
             if ((word & 0xFC000003) == 0x48000001)
                 pattern.FCalls++;

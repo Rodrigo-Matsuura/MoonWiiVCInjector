@@ -242,7 +242,7 @@ public class Nfs2Iso2Nfs(
         }
     }
 
-    private static void IncrementIv(byte[] iv, int startIndex = 12)
+    private static void IncrementIv(Span<byte> iv, int startIndex = 12)
     {
         for (int i = iv.Length - 1; i >= startIndex; i--)
         {
@@ -732,16 +732,14 @@ public class Nfs2Iso2Nfs(
         int index = 0;
         while (index <= buffer.Length - pattern.Length)
         {
-            if (buffer.Slice(index, pattern.Length).SequenceEqual(pattern))
-            {
-                replacement.CopyTo(buffer.Slice(index + writeOffset, replacement.Length));
-                patchCount++;
-                index += pattern.Length;
-            }
-            else
-            {
-                index++;
-            }
+            int relativeIdx = buffer[index..].IndexOf(pattern);
+            if (relativeIdx < 0)
+                break;
+
+            int matchIdx = index + relativeIdx;
+            replacement.CopyTo(buffer.Slice(matchIdx + writeOffset, replacement.Length));
+            patchCount++;
+            index = matchIdx + pattern.Length;
         }
         return patchCount;
     }
@@ -752,16 +750,14 @@ public class Nfs2Iso2Nfs(
         int index = 0;
         while (index <= buffer.Length - pattern.Length)
         {
-            if (buffer.Slice(index, pattern.Length).SequenceEqual(pattern))
-            {
-                patchAction(buffer, index);
-                patchCount++;
-                index += pattern.Length;
-            }
-            else
-            {
-                index++;
-            }
+            int relativeIdx = buffer[index..].IndexOf(pattern);
+            if (relativeIdx < 0)
+                break;
+
+            int matchIdx = index + relativeIdx;
+            patchAction(buffer, matchIdx);
+            patchCount++;
+            index = matchIdx + pattern.Length;
         }
         return patchCount;
     }
@@ -773,15 +769,21 @@ public class Nfs2Iso2Nfs(
 
         if (!options.KeepLegit)
         {
-            byte[] oldHashCheck = [0x20, 0x07, 0x23, 0xA2];
-            byte[] newHashCheck = [0x20, 0x07, 0x4B, 0x0B];
+            ReadOnlySpan<byte> oldHashCheck = [0x20, 0x07, 0x23, 0xA2];
+            ReadOnlySpan<byte> newHashCheck = [0x20, 0x07, 0x4B, 0x0B];
 
-            for (int offset = 0; offset <= fileSpan.Length - 4; offset++)
+            PatchHash(fileSpan, oldHashCheck);
+            PatchHash(fileSpan, newHashCheck);
+
+            static void PatchHash(Span<byte> span, ReadOnlySpan<byte> target)
             {
-                var slice = fileSpan.Slice(offset, 4);
-                if (slice.SequenceEqual(oldHashCheck) || slice.SequenceEqual(newHashCheck))
+                int offset = 0;
+                while (offset <= span.Length - target.Length)
                 {
-                    fileSpan[offset + 1] = 0x00;
+                    int rel = span[offset..].IndexOf(target);
+                    if (rel < 0) break;
+                    span[offset + rel + 1] = 0x00;
+                    offset += rel + target.Length;
                 }
             }
         }
@@ -829,18 +831,22 @@ public class Nfs2Iso2Nfs(
             byte[] patchNintendont2 = [0x49, 0x01, 0x47, 0x88, 0x46, 0xC0, 0xE0, 0x01, 0x12, 0xFF, 0xFE, 0x00, 0x22, 0x00, 0x23, 0x01, 0x46, 0xC0, 0x46, 0xC0];
             PatchBufferCustom(fileSpan, [0x68, 0x4B, 0x2B, 0x06], (buf, offset) => patchNintendont2.CopyTo(buf.Slice(offset, 20)));
 
-            byte[] patternN3a = [0x0D, 0x80, 0x00, 0x00, 0x0D, 0x80, 0x00, 0x00];
-            byte[] patternN3b = [0x00, 0x00, 0x00, 0x02];
-            byte[] patchN3 = [0x00, 0x00, 0x00, 0x03];
-            for (int offset = 0; offset <= fileSpan.Length - 8; offset++)
+            ReadOnlySpan<byte> patternN3a = [0x0D, 0x80, 0x00, 0x00, 0x0D, 0x80, 0x00, 0x00];
+            ReadOnlySpan<byte> patternN3b = [0x00, 0x00, 0x00, 0x02];
+            ReadOnlySpan<byte> patchN3 = [0x00, 0x00, 0x00, 0x03];
+            int n3Offset = 0;
+            while (n3Offset <= fileSpan.Length - 8)
             {
-                if (fileSpan.Slice(offset, 8).SequenceEqual(patternN3a) && offset + 0x10 + 4 <= fileSpan.Length)
+                int rel = fileSpan[n3Offset..].IndexOf(patternN3a);
+                if (rel < 0) break;
+
+                int matchIdx = n3Offset + rel;
+                if (matchIdx + 0x10 + 4 <= fileSpan.Length &&
+                    fileSpan.Slice(matchIdx + 0x10, 4).SequenceEqual(patternN3b))
                 {
-                    if (fileSpan.Slice(offset + 0x10, 4).SequenceEqual(patternN3b))
-                    {
-                        patchN3.CopyTo(fileSpan.Slice(offset + 0x10, 4));
-                    }
+                    patchN3.CopyTo(fileSpan.Slice(matchIdx + 0x10, 4));
                 }
+                n3Offset = matchIdx + 8;
             }
         }
 

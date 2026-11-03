@@ -12,26 +12,23 @@ public partial class SettingsViewModel : ViewModelBase
     private readonly IDialogService _dialogService;
     private readonly Action _closeAction;
 
-    private string _bannersRepository = string.Empty;
     public string BannersRepository
     {
-        get => _bannersRepository;
-        set => SetProperty(ref _bannersRepository, value);
-    }
+        get;
+        set => SetProperty(ref field, value);
+    } = string.Empty;
 
-    private string _outputDir = string.Empty;
     public string OutputDir
     {
-        get => _outputDir;
-        set => SetProperty(ref _outputDir, value);
-    }
+        get;
+        set => SetProperty(ref field, value);
+    } = string.Empty;
 
-    private string _tempDir = string.Empty;
     public string TempDir
     {
-        get => _tempDir;
-        set => SetProperty(ref _tempDir, value);
-    }
+        get;
+        set => SetProperty(ref field, value);
+    } = string.Empty;
 
     public SettingsViewModel(IDialogService dialogService, Action closeAction)
     {

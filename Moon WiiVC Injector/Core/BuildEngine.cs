@@ -855,7 +855,7 @@ public class BuildEngine(BuildOptions options, IProgress<(string Message, double
         {
             throw new InvalidOperationException(
                 "Java runtime (JRE/JDK) was not found in your system PATH.\n\n" +
-                "Java is required by JNUSTool to download the base files from Nintendo NUS because they are not present in your downloads cache.\n" +
+                "Java is still required because some tools in the toolchain have not yet been migrated to native C# (specifically JNUSTool, used to download base files from Nintendo NUS).\n\n" +
                 (OperatingSystem.IsLinux()
                     ? "Please install Java (e.g. 'sudo apt install default-jre' on Debian/Ubuntu or 'sudo pacman -S jre-openjdk' on Arch Linux)."
                     : OperatingSystem.IsMacOS()

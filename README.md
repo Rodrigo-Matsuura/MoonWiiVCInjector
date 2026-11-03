@@ -1,7 +1,7 @@
 # 🚀 Moon WiiVC Injector - Modernized Edition
 
 [![Build Status](https://img.shields.io/badge/Build-Passing-success?style=for-the-badge&logo=.net&color=31c754)](https://github.com/Rodrigo-Matsuura/TeconmoonWiiVCInjector)
-[![Framework](https://img.shields.io/badge/.NET-9.0-512bd4?style=for-the-badge&logo=dotnet)](https://dotnet.microsoft.com/)
+[![Framework](https://img.shields.io/badge/.NET-10.0%20(LTS)-512bd4?style=for-the-badge&logo=dotnet)](https://dotnet.microsoft.com/)
 [![UI Framework](https://img.shields.io/badge/UI-Avalonia%2012-purple?style=for-the-badge&logo=avalonia)](https://avaloniaui.net/)
 [![Vibe Coding](https://img.shields.io/badge/Developed%20with-Vibe%20Coding-pink?style=for-the-badge&logo=ai)](https://github.com/Rodrigo-Matsuura/TeconmoonWiiVCInjector)
 [![License](https://img.shields.io/badge/License-GPLv3-blue?style=for-the-badge)](LICENSE)
@@ -16,7 +16,7 @@ This project completely rewrites and modernizes the original Wii and GameCube Vi
 
 The primary mission of this modernized edition is to provide a **clean, fast, portable, and reliable** injection experience:
 
-1. **Modern Foundation**: Fully powered by **.NET 9** and **Avalonia UI**, removing dependencies on legacy Windows Forms and obsolete .NET Framework runtimes.
+1. **Modern Foundation**: Fully powered by **.NET 10 (LTS)** and **Avalonia UI**, removing dependencies on legacy Windows Forms and obsolete .NET Framework runtimes.
 2. **Robust Architecture**: Built with clean separation of concerns using the **MVVM (Model-View-ViewModel)** pattern and dependency-injected services.
 3. **High Efficiency**: Minimized memory footprint and CPU overhead during heavy ISO extraction and NFS repackaging.
 4. **Enhanced UX**: Modern desktop interactions including Drag & Drop, real-time logging, and safe task cancellation.
@@ -56,7 +56,8 @@ The primary mission of this modernized edition is to provide a **clean, fast, po
 ## 🛠️ How to Build and Run
 
 ### Prerequisites
-* [.NET 9.0 SDK](https://dotnet.microsoft.com/download/dotnet/9.0) or higher.
+* **[.NET 10.0 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)** or higher (if building from source).
+* **Java Runtime Environment (JRE or JDK 17 or higher)**: While the Wii U WUP packaging engine (`NUSPacker`) has been completely modernized into native in-process C#, Java is still currently required because other tools in the toolchain have not yet been migrated (specifically `JNUSTool`, which downloads clean base files from Nintendo NUS). Ensure `java` is accessible from your system PATH.
 
 ### Run Locally
 ```bash
