@@ -631,6 +631,12 @@ internal sealed class BuildEngine(BuildOptions options, IProgress<(string Messag
             Log("Build completed successfully!");
             return cleanOutputPath;
         }
+        catch (Exception ex)
+        {
+            Log($"[ERROR] Build process failed: {ex.Message}");
+            Log($"[ERROR] Exception details: {ex}");
+            throw;
+        }
         finally
         {
             if (!string.IsNullOrEmpty(recoveredMainIso) && File.Exists(recoveredMainIso))

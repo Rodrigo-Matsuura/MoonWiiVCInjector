@@ -122,6 +122,24 @@ public static class NusPackerEngine
                 NusPackage package = new(fst, ticket, tmd, stagingTemp);
                 package.Pack(cleanOutput, ReportSubProgress, cancellationToken);
             }
+            catch
+            {
+                if (Directory.Exists(cleanOutput))
+                {
+                    try
+                    {
+                        if (!Directory.EnumerateFileSystemEntries(cleanOutput).Any())
+                        {
+                            Directory.Delete(cleanOutput, true);
+                        }
+                    }
+                    catch
+                    {
+                        // Ignore cleanup error
+                    }
+                }
+                throw;
+            }
             finally
             {
                 try

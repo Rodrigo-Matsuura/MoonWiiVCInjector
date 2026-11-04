@@ -559,7 +559,7 @@ internal sealed partial class MainViewModel : ViewModelBase, IDisposable
     }
 
     // UI Capability bindings
-    public string WindowTitle => $"Moon WiiVC Injector - [{GetType().Assembly.GetName().Version?.ToString(3) ?? "2.0.0"}]";
+    public string WindowTitle => $"Moon WiiVC Injector - [{GetType().Assembly.GetName().Version?.ToString(3) ?? "2.0.1"}]";
     public bool CanSelectGame => !IsWiiNAND;
     public bool IsGCSelected => IsGCRetail;
     public bool CanDownloadRepo => IsWiiRetail || IsGCRetail || IsWiiNAND;

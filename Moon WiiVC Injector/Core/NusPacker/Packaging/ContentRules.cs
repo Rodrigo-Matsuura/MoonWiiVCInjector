@@ -65,6 +65,14 @@ internal sealed class ContentRule
         commonRules.Add(new ContentRule(@"^/code/rvlt\.tik$", commonDetailsCode));
         commonRules.Add(new ContentRule(@"^/code/rvlt\.tmd$", commonDetailsCode));
 
+        // Cafe2Wii (c2w) clock speed patch and vWii system base files
+        commonRules.Add(new ContentRule(@"^/code/c2w\.img$", commonDetailsCode));
+        commonRules.Add(new ContentRule(@"^/code/boot\.bin$", commonDetailsCode));
+        commonRules.Add(new ContentRule(@"^/code/dmcu\.d\.hex$", commonDetailsCode));
+        commonRules.Add(new ContentRule(@"^/code/dmptac\.bin$", commonDetailsCode));
+        commonRules.Add(new ContentRule(@"^/code/font\.bin$", commonDetailsCode));
+        commonRules.Add(new ContentRule(@"^/code/deint\.txt$", commonDetailsCode));
+
         commonRules.Add(new ContentRule(@"^/content/.*$", commonDetailsContent));
 
         return commonRules;
@@ -98,6 +106,45 @@ internal static class ContentRulesService
                 {
                     targetContents.DeleteContent(_curContent);
                 }
+            }
+        }
+
+        // Defensive fallback pass: ensure no unassigned files or empty directories remain
+        AssignUnmatchedFiles("", root, targetContents);
+    }
+
+    private static void AssignUnmatchedFiles(string path, FstEntry entry, NusContentsCollection targetContents)
+    {
+        path += entry.Filename + "/";
+        foreach (FstEntry child in entry.Children)
+        {
+            if (child.IsDir)
+            {
+                AssignUnmatchedFiles(path, child, targetContents);
+                if (child.Content == null)
+                {
+                    child.SetContent(targetContents.FstContent);
+                }
+            }
+            else if (child.Content == null)
+            {
+                string childPath = path + child.Filename;
+                ContentDetails details;
+                if (childPath.StartsWith("/code/", StringComparison.OrdinalIgnoreCase))
+                {
+                    details = new ContentDetails(false, NusPackerSettings.GroupIdCode, 0x0L, NusPackerSettings.FstFlagsCode);
+                }
+                else if (childPath.StartsWith("/meta/", StringComparison.OrdinalIgnoreCase))
+                {
+                    details = new ContentDetails(true, NusPackerSettings.GroupIdMeta, 0x0L, NusPackerSettings.FstFlagsMeta);
+                }
+                else
+                {
+                    details = new ContentDetails(true, 0, 0, NusPackerSettings.FstFlagsContent);
+                }
+
+                NusContent fallbackContent = targetContents.GetNewContent(details);
+                child.SetContent(fallbackContent);
             }
         }
     }
