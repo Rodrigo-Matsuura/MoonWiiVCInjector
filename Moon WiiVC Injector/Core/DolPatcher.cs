@@ -5,9 +5,16 @@ using Moon_WiiVC_Injector.Services;
 
 namespace Moon_WiiVC_Injector.Core;
 
+internal enum VideoPatchMode
+{
+    None = 0,
+    NtscToPal = 1,
+    PalToNtsc = 2
+}
+
 /// <summary>
 /// Native C# PowerPC DOL patcher for Wii Virtual Console injections.
-/// Based on GetExtTypePatcher by FIX94 - https://github.com/FIX94/GetExtTypePatcher
+/// Includes GetExtTypePatcher (FIX94) and Smart Video Mode Changer (Waninkoko wii-vmc).
 /// </summary>
 internal static class DolPatcher
 {
@@ -120,6 +127,86 @@ internal static class DolPatcher
 
         AppLogger.Info("[DolPatcher] No matching GetExtType function signature found (or already patched).");
         return false;
+    }
+
+    /// <summary>
+    /// Native C# port of Waninkoko's Wii Video Mode Changer (wii-vmc) Smart Patcher.
+    /// Scans main.dol for Nintendo SDK GXRModeObj structures and patches TV mode &amp; framebuffer dimensions.
+    /// </summary>
+    public static int PatchVideoMode(string dolFilePath, VideoPatchMode patchMode)
+    {
+        if (patchMode == VideoPatchMode.None)
+            return 0;
+
+        if (!File.Exists(dolFilePath))
+        {
+            AppLogger.Warning($"[DolPatcher] File not found for video mode patch: {dolFilePath}");
+            return 0;
+        }
+
+        byte[] dolData = File.ReadAllBytes(dolFilePath);
+        if (dolData.Length < 0x120)
+        {
+            AppLogger.Warning($"[DolPatcher] Invalid DOL file (too small): {dolFilePath}");
+            return 0;
+        }
+
+        Span<byte> span = dolData.AsSpan();
+        int patchedCount = 0;
+
+        // Scan for GXRModeObj signature starting at fbWidth (offset + 4 of GXRModeObj, so mode byte is at i - 1):
+        // ptr[0..1] == 0x0280 (fbWidth = 640)
+        // ptr[6..7] == 0x0028 (viXOrigin = 40)
+        // ptr[8]    == 0x00   (viYOrigin high byte = 0)
+        // ptr[10..11] == 0x0280 (viWidth = 640)
+        for (int i = 0x104; i + 12 <= span.Length; i++)
+        {
+            if (span[i] != 0x02 || span[i + 1] != 0x80 ||
+                span[i + 6] != 0x00 || span[i + 7] != 0x28 ||
+                span[i + 8] != 0x00 ||
+                span[i + 10] != 0x02 || span[i + 11] != 0x80)
+            {
+                continue;
+            }
+
+            int modeOffset = i - 1;
+            byte currentMode = span[modeOffset];
+            (byte newMode, ushort width, ushort height)? replacement = (patchMode, currentMode) switch
+            {
+                // NTSC -> PAL Smart Patcher
+                (VideoPatchMode.NtscToPal, 0x00) => ((byte)0x14, (ushort)640, (ushort)480), // NTSC 480i -> EURGB60 / PAL60 480i
+                (VideoPatchMode.NtscToPal, 0x02) => ((byte)0x16, (ushort)640, (ushort)480), // NTSC 480p -> EURGB60 / PAL60 480p
+                (VideoPatchMode.NtscToPal, 0x08) => ((byte)0x04, (ushort)640, (ushort)528), // MPAL 480i -> PAL 576i/528i
+
+                // PAL -> NTSC Smart Patcher
+                (VideoPatchMode.PalToNtsc, 0x04) => ((byte)0x08, (ushort)640, (ushort)480), // PAL 576i/528i -> MPAL 480i
+                (VideoPatchMode.PalToNtsc, 0x14) => ((byte)0x00, (ushort)640, (ushort)480), // EURGB60 480i -> NTSC 480i
+                (VideoPatchMode.PalToNtsc, 0x16) => ((byte)0x02, (ushort)640, (ushort)480), // EURGB60 480p -> NTSC 480p
+                _ => null
+            };
+
+            if (replacement is var (targetMode, fbWidth, fbHeight))
+            {
+                span[modeOffset] = targetMode;
+                BinaryPrimitives.WriteUInt16BigEndian(span.Slice(modeOffset + 1, 2), fbWidth);
+                BinaryPrimitives.WriteUInt16BigEndian(span.Slice(modeOffset + 3, 2), fbHeight);
+                BinaryPrimitives.WriteUInt16BigEndian(span.Slice(modeOffset + 5, 2), fbHeight);
+                patchedCount++;
+                AppLogger.Info($"[DolPatcher] Patched GXRModeObj at 0x{modeOffset:X8}: mode 0x{currentMode:X2} -> 0x{targetMode:X2} ({fbWidth}x{fbHeight})");
+            }
+        }
+
+        if (patchedCount > 0)
+        {
+            File.WriteAllBytes(dolFilePath, dolData);
+            AppLogger.Info($"[DolPatcher] Video mode Smart Patcher ({patchMode}) updated {patchedCount} mode table entries.");
+        }
+        else
+        {
+            AppLogger.Info($"[DolPatcher] No matching GXRModeObj entries required patching for {patchMode}.");
+        }
+
+        return patchedCount;
     }
 
     private static FuncPattern AnalyzeFunctionPattern(ReadOnlySpan<byte> data)

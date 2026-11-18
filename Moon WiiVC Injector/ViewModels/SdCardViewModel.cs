@@ -1,4 +1,5 @@
 using System;
+using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
@@ -12,27 +13,72 @@ using Moon_WiiVC_Injector.Services;
 
 namespace Moon_WiiVC_Injector.ViewModels;
 
-internal sealed class OptionItem(string name, bool isChecked = false) : ObservableObject
+internal sealed class OptionItem(string name, bool isChecked = false, Action? onChanged = null) : ObservableObject
 {
+    private readonly Action? _onChanged = onChanged;
+
     public string Name { get; } = name;
 
     public bool IsChecked
     {
         get;
-        set => SetProperty(ref field, value);
+        set
+        {
+            if (SetProperty(ref field, value))
+            {
+                _onChanged?.Invoke();
+            }
+        }
     } = isChecked;
 }
 
 internal sealed partial class SdCardViewModel : ViewModelBase
 {
-    // ==========================================
-    // 1. Services & Dependencies
-    // ==========================================
+    [Flags]
+    private enum NinConfigFlags : uint
+    {
+        None = 0,
+        Cheats = 1u << 0,
+        Debugger = 1u << 1,
+        DebugWait = 1u << 2,
+        MemcardEmu = 1u << 3,
+        CheatPath = 1u << 4,
+        ForceWide = 1u << 5,
+        ForceProg = 1u << 6,
+        AutoBoot = 1u << 7,
+        RemLimit = 1u << 8,
+        OsReport = 1u << 9,
+        Usb = 1u << 10,
+        Led = 1u << 11,
+        Log = 1u << 12,
+        McMulti = 1u << 13,
+        NativeSi = 1u << 14,
+        WiiUWide = 1u << 15,
+        ArcadeMode = 1u << 16,
+        CcRumble = 1u << 17,
+        SkipIpl = 1u << 18,
+        BbaEmu = 1u << 19
+    }
+
+    [Flags]
+    private enum NinVideoModeFlags : uint
+    {
+        Auto = 0u << 16,
+        Force = 1u << 16,
+        None = 2u << 16,
+        ForceDeflicker = 4u << 16,
+
+        ForcePal50 = 1u << 0,
+        ForcePal60 = 1u << 1,
+        ForceNtsc = 1u << 2,
+        ForceMpal = 1u << 3,
+
+        Prog = 1u << 4,
+        PatchPal50 = 1u << 5
+    }
+
     private readonly IDialogService _dialogService;
 
-    // ==========================================
-    // 2. Observable Properties (UI State)
-    // ==========================================
     public ObservableCollection<string> Drives
     {
         get;
@@ -57,16 +103,40 @@ internal sealed partial class SdCardViewModel : ViewModelBase
         set => SetProperty(ref field, value);
     }
 
-    public int VideoForceModeIndex
+    public bool MemcardMulti
     {
         get;
         set => SetProperty(ref field, value);
     }
 
+    public int VideoForceModeIndex
+    {
+        get;
+        set
+        {
+            if (SetProperty(ref field, value))
+            {
+                if (value is 0 or 3)
+                {
+                    VideoTypeModeIndex = 0;
+                }
+                else if (VideoTypeModeIndex == 0)
+                {
+                    VideoTypeModeIndex = 1;
+                }
+                OnPropertyChanged(nameof(IsVideoTypeEnabled));
+            }
+        }
+    }
+
     public int VideoTypeModeIndex
     {
         get;
-        set => SetProperty(ref field, value);
+        set
+        {
+            int adjusted = (VideoForceModeIndex is not (0 or 3) && value == 0) ? 1 : value;
+            SetProperty(ref field, adjusted);
+        }
     }
 
     public int LanguageIndex
@@ -101,14 +171,11 @@ internal sealed partial class SdCardViewModel : ViewModelBase
 
     public ObservableCollection<OptionItem> Options { get; } = [];
 
-    // ==========================================
-    // 3. Computed Properties (Get-only)
-    // ==========================================
-    public string VideoWidthText => ((int)VideoWidth).ToString();
+    public bool IsMemcardEnabled => Options.Count > 0 && Options[0].IsChecked;
+    public bool IsCustomVideoWidthEnabled => Options.Count > 7 && !Options[7].IsChecked;
+    public bool IsVideoTypeEnabled => VideoForceModeIndex is not (0 or 3);
+    public string VideoWidthText => IsCustomVideoWidthEnabled ? ((int)VideoWidth).ToString() : "Auto";
 
-    // ==========================================
-    // 4. Constructor
-    // ==========================================
     public SdCardViewModel(IDialogService dialogService)
     {
         _dialogService = dialogService;
@@ -116,9 +183,6 @@ internal sealed partial class SdCardViewModel : ViewModelBase
         ReloadDrives();
     }
 
-    // ==========================================
-    // 5. Commands (UI Actions)
-    // ==========================================
     [RelayCommand]
     public void ReloadDrives()
     {
@@ -164,7 +228,7 @@ internal sealed partial class SdCardViewModel : ViewModelBase
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"[SdCardViewModel] Failed to reload drives: {ex.Message}");
+            AppLogger.Warn($"[SdCardViewModel] Failed to reload drives: {ex.Message}");
         }
     }
 
@@ -285,53 +349,85 @@ internal sealed partial class SdCardViewModel : ViewModelBase
 
         try
         {
-            uint configFlags = 0;
-            if (Options.Count > 0 && Options[0].IsChecked) configFlags |= 1u << 3; // NIN_CFG_MEMCARDEMU
-            if (Options.Count > 1 && Options[1].IsChecked) configFlags |= 1u;      // NIN_CFG_CHEATS
-            if (Options.Count > 9 && Options[9].IsChecked) configFlags |= 1u << 6; // FORCE_WIDE
+            NinConfigFlags configFlags = NinConfigFlags.None;
+            NinVideoModeFlags videoFlags = NinVideoModeFlags.Prog;
 
-            sbyte videoScale = 0;
-            if (Options.Count > 7 && !Options[7].IsChecked)
+            if (IsOptionChecked(0)) configFlags |= NinConfigFlags.MemcardEmu;
+            if (IsOptionChecked(1)) configFlags |= NinConfigFlags.Cheats;
+            if (IsOptionChecked(2)) configFlags |= NinConfigFlags.CheatPath;
+            if (IsOptionChecked(3)) configFlags |= NinConfigFlags.RemLimit;
+            if (IsOptionChecked(4)) configFlags |= NinConfigFlags.CcRumble;
+            if (IsOptionChecked(5)) configFlags |= NinConfigFlags.ArcadeMode;
+            if (IsOptionChecked(6)) configFlags |= NinConfigFlags.BbaEmu;
+
+            if (IsOptionChecked(8))
             {
-                videoScale = (sbyte)(VideoWidth - 600);
+                videoFlags |= NinVideoModeFlags.PatchPal50;
+                if (VideoTypeModeIndex is 0 or 3)
+                {
+                    videoFlags |= NinVideoModeFlags.ForcePal50;
+                }
             }
 
-            using var cfgFile = new BinaryWriter(File.Open(savePath, FileMode.Create));
-            byte[] magicBytes = BitConverter.GetBytes(0x01070CF6u);
-            byte[] version = BitConverter.GetBytes(10u);
-            byte[] config = BitConverter.GetBytes(configFlags);
-            byte[] videoMode = BitConverter.GetBytes((uint)VideoForceModeIndex);
-            byte[] language = BitConverter.GetBytes((uint)LanguageIndex);
-            byte[] maxPads = BitConverter.GetBytes(4u);
-            byte[] gameID = BitConverter.GetBytes(0u);
-            byte[] wiiuGamepadSlot = BitConverter.GetBytes((uint)WiiUGamepadSlotIndex);
-
-            if (BitConverter.IsLittleEndian)
+            if (IsOptionChecked(9))
             {
-                Array.Reverse(magicBytes);
-                Array.Reverse(version);
-                Array.Reverse(config);
-                Array.Reverse(videoMode);
-                Array.Reverse(language);
-                Array.Reverse(maxPads);
-                Array.Reverse(gameID);
-                Array.Reverse(wiiuGamepadSlot);
+                configFlags |= NinConfigFlags.ForceWide | NinConfigFlags.WiiUWide;
             }
 
-            cfgFile.Write(magicBytes);
-            cfgFile.Write(version);
-            cfgFile.Write(config);
-            cfgFile.Write(videoMode);
-            cfgFile.Write(language);
-            cfgFile.Write(new byte[256]); // gamePath
-            cfgFile.Write(new byte[256]); // cheatPath
-            cfgFile.Write(maxPads);
-            cfgFile.Write(gameID);
-            cfgFile.Write((byte)MemcardBlocksIndex);
-            cfgFile.Write(videoScale);
-            cfgFile.Write((sbyte)0); // videoOffset
-            cfgFile.Write((byte)0);  // networkProfile
-            cfgFile.Write(wiiuGamepadSlot);
+            if (IsOptionChecked(10)) configFlags |= NinConfigFlags.ForceProg;
+            if (IsOptionChecked(11)) configFlags |= NinConfigFlags.SkipIpl;
+            if (IsOptionChecked(12)) configFlags |= NinConfigFlags.OsReport;
+            if (IsOptionChecked(13)) configFlags |= NinConfigFlags.Log;
+
+            if (MemcardMulti)
+            {
+                configFlags |= NinConfigFlags.McMulti;
+            }
+
+            videoFlags |= VideoForceModeIndex switch
+            {
+                1 => NinVideoModeFlags.Force,
+                2 => NinVideoModeFlags.ForceDeflicker,
+                3 => NinVideoModeFlags.None,
+                _ => NinVideoModeFlags.Auto
+            };
+
+            videoFlags |= VideoTypeModeIndex switch
+            {
+                1 => NinVideoModeFlags.ForceNtsc,
+                2 => NinVideoModeFlags.ForceMpal,
+                3 => NinVideoModeFlags.ForcePal50,
+                4 => NinVideoModeFlags.ForcePal60,
+                _ => 0
+            };
+
+            uint languageValue = LanguageIndex == 0 ? 0xFFFFFFFFu : (uint)(LanguageIndex - 1);
+            sbyte videoScale = IsOptionChecked(7) ? (sbyte)0 : (sbyte)(VideoWidth - 600);
+
+            // Nintendont ConfigFile v10 binary layout (540 bytes, Big-Endian fields)
+            byte[] buffer = new byte[540];
+            Span<byte> span = buffer.AsSpan();
+
+            BinaryPrimitives.WriteUInt32BigEndian(span.Slice(0, 4), 0x01070CF6u); // magicBytes
+            BinaryPrimitives.WriteUInt32BigEndian(span.Slice(4, 4), 10u);         // version
+            BinaryPrimitives.WriteUInt32BigEndian(span.Slice(8, 4), (uint)configFlags);
+            BinaryPrimitives.WriteUInt32BigEndian(span.Slice(12, 4), (uint)videoFlags);
+            BinaryPrimitives.WriteUInt32BigEndian(span.Slice(16, 4), languageValue);
+            // [20..275]: gamePath (256 zero bytes)
+            // [276..531]: cheatPath (256 zero bytes)
+            BinaryPrimitives.WriteUInt32BigEndian(span.Slice(532, 4), 4u);        // maxPads
+            BinaryPrimitives.WriteUInt32BigEndian(span.Slice(536, 4), 0u);        // gameID
+
+            await using var fs = new FileStream(savePath, FileMode.Create, FileAccess.Write, FileShare.None);
+            await fs.WriteAsync(buffer);
+
+            byte[] tail = new byte[8];
+            tail[0] = (byte)MemcardBlocksIndex;
+            tail[1] = unchecked((byte)videoScale);
+            tail[2] = 0; // videoOffset
+            tail[3] = 0; // networkProfile
+            BinaryPrimitives.WriteUInt32BigEndian(tail.AsSpan(4, 4), (uint)WiiUGamepadSlotIndex);
+            await fs.WriteAsync(tail);
 
             await _dialogService.ShowMessageAsync("Config generation complete.", "Information", MessageBoxButtons.Ok);
         }
@@ -341,9 +437,8 @@ internal sealed partial class SdCardViewModel : ViewModelBase
         }
     }
 
-    // ==========================================
-    // 6. Private Helper Methods
-    // ==========================================
+    private bool IsOptionChecked(int index) => index >= 0 && index < Options.Count && Options[index].IsChecked;
+
     private void InitializeOptions()
     {
         string[] opts =
@@ -356,8 +451,18 @@ internal sealed partial class SdCardViewModel : ViewModelBase
         Options.Clear();
         for (int i = 0; i < opts.Length; i++)
         {
-            bool isChecked = (i == 0 || i == 7); // Default Memcard Emulation & Auto Video Width
-            Options.Add(new OptionItem(opts[i], isChecked));
+            bool isChecked = i is 0 or 7;
+            Action? callback = i switch
+            {
+                0 => () => OnPropertyChanged(nameof(IsMemcardEnabled)),
+                7 => () =>
+                {
+                    OnPropertyChanged(nameof(IsCustomVideoWidthEnabled));
+                    OnPropertyChanged(nameof(VideoWidthText));
+                },
+                _ => null
+            };
+            Options.Add(new OptionItem(opts[i], isChecked, callback));
         }
     }
 

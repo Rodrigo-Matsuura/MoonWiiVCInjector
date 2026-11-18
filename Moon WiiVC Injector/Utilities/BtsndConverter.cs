@@ -12,7 +12,9 @@ public static class BtsndConverter
 {
     private const int TargetSampleRate = 48000;
     private const double MaxDurationSeconds = 6.0;
-    private const int MaxSamples = (int)(TargetSampleRate * MaxDurationSeconds); // 288,000 samples per channel
+    private const int MaxSamples = (int)(TargetSampleRate * MaxDurationSeconds); // 288,000 stereo frames
+    private const int AudioOutputTvAndGamepad = 2; // 0 = TV only, 1 = GamePad only, 2 = TV + GamePad
+    private const int NonLoopingTrailingSilenceFrames = 64;
 
     public class WavAudioData
     {
@@ -20,6 +22,51 @@ public static class BtsndConverter
         public int Channels { get; set; }
         public int BitsPerSample { get; set; }
         public float[][] ChannelSamples { get; set; } = []; // Normalized [-1.0f, 1.0f]
+    }
+
+    public static bool IsWavBytes(ReadOnlySpan<byte> data)
+    {
+        return data.Length >= 12 &&
+               data[0] == (byte)'R' && data[1] == (byte)'I' && data[2] == (byte)'F' && data[3] == (byte)'F' &&
+               data[8] == (byte)'W' && data[9] == (byte)'A' && data[10] == (byte)'V' && data[11] == (byte)'E';
+    }
+
+    public static bool IsWavFile(string filePath)
+    {
+        if (!File.Exists(filePath))
+            return false;
+
+        using var fs = File.OpenRead(filePath);
+        if (fs.Length < 12)
+            return false;
+
+        Span<byte> header = stackalloc byte[12];
+        fs.ReadExactly(header);
+        return IsWavBytes(header);
+    }
+
+    public static bool IsValidBtsndBytes(ReadOnlySpan<byte> data)
+    {
+        if (data.Length < 12 || ((data.Length - 8) % 4) != 0)
+            return false;
+
+        uint mode = BinaryPrimitives.ReadUInt32BigEndian(data[..4]);
+        return mode <= 2;
+    }
+
+    public static bool IsValidBtsndFile(string filePath)
+    {
+        if (!File.Exists(filePath))
+            return false;
+
+        using var fs = File.OpenRead(filePath);
+        if (fs.Length < 12 || ((fs.Length - 8) % 4) != 0)
+            return false;
+
+        Span<byte> header = stackalloc byte[8];
+        fs.ReadExactly(header);
+        uint mode = BinaryPrimitives.ReadUInt32BigEndian(header[..4]);
+        return mode <= 2;
     }
 
     /// <summary>
@@ -30,7 +77,6 @@ public static class BtsndConverter
         using var stream = File.OpenRead(wavFilePath);
         using var reader = new BinaryReader(stream);
 
-        // RIFF header
         string riff = new(reader.ReadChars(4));
         if (riff != "RIFF") throw new InvalidDataException("Invalid WAV file: missing RIFF header.");
 
@@ -45,10 +91,12 @@ public static class BtsndConverter
         int bitsPerSample = 16;
         byte[]? audioBytes = null;
 
-        while (stream.Position < stream.Length)
+        while (stream.Position + 8 <= stream.Length)
         {
             string chunkId = new(reader.ReadChars(4));
             int chunkSize = reader.ReadInt32();
+            if (chunkSize < 0)
+                throw new InvalidDataException("Invalid negative WAV chunk size.");
 
             if (chunkId == "fmt ")
             {
@@ -60,7 +108,6 @@ public static class BtsndConverter
                 reader.ReadInt16(); // BlockAlign
                 bitsPerSample = reader.ReadInt16();
 
-                // Skip any extra format bytes
                 long bytesRead = stream.Position - chunkStart;
                 if (chunkSize > bytesRead)
                 {
@@ -69,13 +116,16 @@ public static class BtsndConverter
             }
             else if (chunkId == "data")
             {
-                audioBytes = reader.ReadBytes(chunkSize);
+                int safeRead = (int)Math.Min(chunkSize, stream.Length - stream.Position);
+                audioBytes = reader.ReadBytes(safeRead);
                 break;
             }
             else
             {
-                // Skip unknown chunk
-                stream.Seek(chunkSize, SeekOrigin.Current);
+                long paddedSkip = chunkSize + (chunkSize & 1);
+                if (stream.Position + paddedSkip > stream.Length)
+                    break;
+                stream.Seek(paddedSkip, SeekOrigin.Current);
             }
         }
 
@@ -83,6 +133,9 @@ public static class BtsndConverter
             throw new InvalidDataException("WAV file does not contain a data chunk.");
 
         int bytesPerSample = bitsPerSample / 8;
+        if (bytesPerSample <= 0 || numChannels <= 0)
+            throw new InvalidDataException($"Unsupported WAV audio layout ({numChannels}ch, {bitsPerSample}-bit).");
+
         int frameSize = numChannels * bytesPerSample;
         int totalFrames = audioBytes.Length / frameSize;
 
@@ -98,7 +151,7 @@ public static class BtsndConverter
             int frameOffset = i * frameSize;
             for (int ch = 0; ch < numChannels; ch++)
             {
-                int sampleOffset = frameOffset + ch * bytesPerSample;
+                int sampleOffset = frameOffset + (ch * bytesPerSample);
                 float sampleValue = 0f;
 
                 if (bitsPerSample == 16)
@@ -151,6 +204,9 @@ public static class BtsndConverter
         float[] sourceRight = input.Channels > 1 ? input.ChannelSamples[1] : input.ChannelSamples[0];
 
         int sourceLength = sourceLeft.Length;
+        if (sourceLength == 0)
+            return ([], []);
+
         double ratio = (double)TargetSampleRate / input.SampleRate;
         int targetLength = (int)Math.Min((long)(sourceLength * ratio), MaxSamples);
 
@@ -164,16 +220,40 @@ public static class BtsndConverter
             int idx1 = Math.Min(idx0 + 1, sourceLength - 1);
             double frac = sourcePos - idx0;
 
-            // Linear interpolation
-            targetLeft[i] = (float)(sourceLeft[idx0] * (1.0 - frac) + sourceLeft[idx1] * frac);
-            targetRight[i] = (float)(sourceRight[idx0] * (1.0 - frac) + sourceRight[idx1] * frac);
+            targetLeft[i] = (float)((sourceLeft[idx0] * (1.0 - frac)) + (sourceLeft[idx1] * frac));
+            targetRight[i] = (float)((sourceRight[idx0] * (1.0 - frac)) + (sourceRight[idx1] * frac));
         }
 
         return (targetLeft, targetRight);
     }
 
     /// <summary>
-    /// Converts a WAV file to Wii U .btsnd format with optional looping.
+    /// Converts a WAV or BTSND source file to Wii U .btsnd format, respecting the loop option.
+    /// </summary>
+    public static void ConvertSoundToBtsnd(string inputSoundPath, string outputBtsndPath, bool loop = false)
+    {
+        if (IsWavFile(inputSoundPath))
+        {
+            ConvertWavToBtsnd(inputSoundPath, outputBtsndPath, loop);
+            return;
+        }
+
+        byte[] raw = File.ReadAllBytes(inputSoundPath);
+        if (raw.Length < 8)
+        {
+            throw new InvalidDataException($"Boot sound file '{inputSoundPath}' is invalid or truncated.");
+        }
+
+        if (loop)
+        {
+            // Force loop start to sample 0
+            BinaryPrimitives.WriteUInt32BigEndian(raw.AsSpan(4, 4), 0u);
+        }
+        File.WriteAllBytes(outputBtsndPath, raw);
+    }
+
+    /// <summary>
+    /// Converts a WAV file to Wii U .btsnd format with accurate 8-byte header and optional looping.
     /// </summary>
     public static void ConvertWavToBtsnd(string inputWavPath, string outputBtsndPath, bool loop = false)
     {
@@ -182,30 +262,33 @@ public static class BtsndConverter
 
         int sampleCount = left.Length;
         using var stream = File.Open(outputBtsndPath, FileMode.Create, FileAccess.Write, FileShare.None);
-        using var writer = new BinaryWriter(stream);
 
-        // 12-byte BTSND Header (Big-Endian):
-        // [0..3]: Loop flag (2 = loop, 0 = no loop)
-        // [4..7]: Loop start sample offset (0)
-        // [8..11]: Sample rate or sample count (0 or 48000)
-        byte[] header = new byte[12];
-        BinaryPrimitives.WriteInt32BigEndian(header.AsSpan(0, 4), loop ? 2 : 0);
-        BinaryPrimitives.WriteInt32BigEndian(header.AsSpan(4, 4), 0);
-        BinaryPrimitives.WriteInt32BigEndian(header.AsSpan(8, 4), 0);
-
-        writer.Write(header);
+        // Authentic 8-byte Wii U BTSND Header (Big-Endian):
+        // [0..3]: Audio output mode (2 = both TV and GamePad)
+        // [4..7]: Loop start frame offset (0 = loop from start; sampleCount = loop on trailing silence)
+        Span<byte> header = stackalloc byte[8];
+        BinaryPrimitives.WriteInt32BigEndian(header[..4], AudioOutputTvAndGamepad);
+        BinaryPrimitives.WriteUInt32BigEndian(header.Slice(4, 4), loop ? 0u : (uint)sampleCount);
+        stream.Write(header);
 
         // Write 16-bit Big-Endian PCM Stereo samples
-        byte[] pcmBuffer = new byte[4]; // 2 bytes left + 2 bytes right
+        Span<byte> pcmFrame = stackalloc byte[4];
         for (int i = 0; i < sampleCount; i++)
         {
             short sampleL = (short)Math.Clamp(Math.Round(left[i] * 32767.0), short.MinValue, short.MaxValue);
             short sampleR = (short)Math.Clamp(Math.Round(right[i] * 32767.0), short.MinValue, short.MaxValue);
 
-            BinaryPrimitives.WriteInt16BigEndian(pcmBuffer.AsSpan(0, 2), sampleL);
-            BinaryPrimitives.WriteInt16BigEndian(pcmBuffer.AsSpan(2, 2), sampleR);
+            BinaryPrimitives.WriteInt16BigEndian(pcmFrame[..2], sampleL);
+            BinaryPrimitives.WriteInt16BigEndian(pcmFrame.Slice(2, 2), sampleR);
+            stream.Write(pcmFrame);
+        }
 
-            writer.Write(pcmBuffer);
+        if (!loop)
+        {
+            // Append silent stereo frames at sampleCount so Wii U DSP loops silently after one playback
+            Span<byte> silence = stackalloc byte[NonLoopingTrailingSilenceFrames * 4];
+            silence.Clear();
+            stream.Write(silence);
         }
     }
 }

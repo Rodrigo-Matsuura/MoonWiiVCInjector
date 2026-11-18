@@ -38,8 +38,9 @@ The primary mission of this modernized edition is to provide a **clean, fast, po
 
 ### 🎮 3. Expanded Game Format & Toolchain Support
 * **Out-of-the-Box Compression Support**: Native support for compressed disk images, including **NKIT** (`.nkit.iso`) and **NASOS** (`.iso.dec` / `.dec`), without requiring manual decompression.
-* **Native Pure C# WUP Packaging Engine**: Integrated an in-process packaging engine based on **[CNUS_Packer](https://github.com/NicoAICP/CNUS_Packer)**, completely eliminating external Java (`java.exe`) and `NUSPacker.jar` execution during WUP package generation with native exception handling, real-time Avalonia UI progress reporting, and multi-run state safety.
-* **Smart Tool & JAR Resolution**: Enhanced process launcher automatically discovers local dependencies and native binaries before falling back to system environments or Wine wrappers.
+* **100% Java-Free Native C# NUS Toolchain**: Both Nintendo NUS base downloading/decryption (`NusDownloader.cs`, inspired by `JNUSTool`) and Wii U WUP package generation (`NusPacker`, based on **[CNUS_Packer](https://github.com/NicoAICP/CNUS_Packer)**) run completely in-process in native C# — zero external Java (`java` / `.jar`) runtime required!
+* **Native PowerPC & Video Patching**: In-process C# ports for Classic Controller patching (`GetExtTypePatcher`) and Smart Video Mode patching (`wii-vmc` NTSC ↔ PAL60) in `DolPatcher.cs`, eliminating legacy interactive Windows console tools.
+* **Smart WIT Resolution**: Enhanced process launcher automatically discovers bundled native `wit` binaries on Windows, Linux, and macOS (Universal `x86_64`/`arm64`) before falling back to system environments.
 
 ### ✨ 4. Enhanced User Experience & Controls
 * **Drag-and-Drop Workflow**: Drag game ROMs, icons, banners, and boot sounds directly into the interface.
@@ -56,8 +57,7 @@ The primary mission of this modernized edition is to provide a **clean, fast, po
 ## 🛠️ How to Build and Run
 
 ### Prerequisites
-* **[.NET 10.0 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)** or higher (if building from source).
-* **Java Runtime Environment (JRE or JDK 17 or higher)**: While the Wii U WUP packaging engine (`NUSPacker`) has been completely modernized into native in-process C#, Java is still currently required because other tools in the toolchain have not yet been migrated (specifically `JNUSTool`, which downloads clean base files from Nintendo NUS). Ensure `java` is accessible from your system PATH.
+* **[.NET 10.0 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)** or higher (only required if building from source; self-contained releases require **zero** external runtimes).
 
 ### Run Locally
 ```bash

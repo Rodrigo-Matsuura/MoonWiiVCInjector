@@ -4,25 +4,24 @@
         x:Class="Moon_WiiVC_Injector.SdCardMenuAvalonia"
         x:DataType="vm:SdCardViewModel"
         Title="Nintendont SD Card Menu..."
-        Width="340" Height="580">
+        Width="350" Height="610">
   <ScrollViewer>
     <StackPanel Margin="8" Spacing="8">
       <ComboBox ItemsSource="{Binding Drives}" SelectedIndex="{Binding SelectedDriveIndex}" SelectedItem="{Binding SelectedDrive}" HorizontalAlignment="Stretch"/>
       <TextBlock Text="Choose your SD Card" />
       <StackPanel Orientation="Horizontal" Spacing="8">
         <Button Content="Reload Drive List" Command="{Binding ReloadDrivesCommand}"/>
-        <TextBlock Text="Use this to format your SD Card" VerticalAlignment="Center" />
       </StackPanel>
-      <TextBlock Text="{Binding ActionStatus}" TextAlignment="Center" />
+      <TextBlock Text="{Binding ActionStatus}" TextAlignment="Center" IsVisible="{Binding ActionStatus, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
       <Button Content="Download Latest Nintendont from GitHub" Command="{Binding UpdateNintendontCommand}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
 
       <Border BorderBrush="#adadad" BorderThickness="1" CornerRadius="4" Padding="8">
         <StackPanel Spacing="8">
           <TextBlock Text="Nintendont Configuration" FontWeight="Bold"/>
           <WrapPanel>
-            <StackPanel Width="140">
+            <StackPanel Width="145" Spacing="4">
               <TextBlock Text="Memcard Blocks" HorizontalAlignment="Center" />
-              <ComboBox SelectedIndex="{Binding MemcardBlocksIndex}" HorizontalAlignment="Stretch">
+              <ComboBox SelectedIndex="{Binding MemcardBlocksIndex}" IsEnabled="{Binding IsMemcardEnabled}" HorizontalAlignment="Stretch">
                 <ComboBoxItem Content="59" />
                 <ComboBoxItem Content="123" />
                 <ComboBoxItem Content="251" />
@@ -30,9 +29,10 @@
                 <ComboBoxItem Content="1019 (Unstable)" />
                 <ComboBoxItem Content="2043 (Unstable)" />
               </ComboBox>
+              <CheckBox Content="Memcard Multi" IsChecked="{Binding MemcardMulti}" IsEnabled="{Binding IsMemcardEnabled}" Margin="0,4,0,0"/>
             </StackPanel>
 
-            <StackPanel Width="140" Margin="12,0,0,0">
+            <StackPanel Width="145" Margin="12,0,0,0">
               <TextBlock Text="Video Mode" HorizontalAlignment="Center" />
               <ComboBox SelectedIndex="{Binding VideoForceModeIndex}" HorizontalAlignment="Stretch">
                 <ComboBoxItem Content="Auto" />
@@ -40,7 +40,7 @@
                 <ComboBoxItem Content="Force (Deflicker)" />
                 <ComboBoxItem Content="None" />
               </ComboBox>
-              <ComboBox SelectedIndex="{Binding VideoTypeModeIndex}" HorizontalAlignment="Stretch" Margin="0,4,0,0">
+              <ComboBox SelectedIndex="{Binding VideoTypeModeIndex}" IsEnabled="{Binding IsVideoTypeEnabled}" HorizontalAlignment="Stretch" Margin="0,4,0,0">
                 <ComboBoxItem Content="Auto" />
                 <ComboBoxItem Content="NTSC" />
                 <ComboBoxItem Content="MPAL" />
@@ -48,7 +48,7 @@
                 <ComboBoxItem Content="PAL60" />
               </ComboBox>
               <TextBlock Text="Video Width" Margin="0,4,0,0"/>
-              <Slider Minimum="640" Maximum="720" SmallChange="2" Value="{Binding VideoWidth}" />
+              <Slider Minimum="640" Maximum="720" SmallChange="2" Value="{Binding VideoWidth}" IsEnabled="{Binding IsCustomVideoWidthEnabled}" />
               <TextBlock Text="{Binding VideoWidthText}" HorizontalAlignment="Center" />
             </StackPanel>
           </WrapPanel>

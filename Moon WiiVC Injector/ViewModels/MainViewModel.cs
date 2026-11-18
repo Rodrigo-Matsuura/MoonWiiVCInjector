@@ -13,9 +13,12 @@ using Avalonia.Media.Imaging;
 using Avalonia.Platform.Storage;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Moon_WiiVC_Injector.Core;
 using Moon_WiiVC_Injector.Models;
 using Moon_WiiVC_Injector.Properties;
 using Moon_WiiVC_Injector.Services;
+using Moon_WiiVC_Injector.Utilities;
+using SkiaSharp;
 
 namespace Moon_WiiVC_Injector.ViewModels;
 
@@ -37,10 +40,14 @@ internal sealed partial class MainViewModel : ViewModelBase, IDisposable
     private static string TempBannerPath => Path.Combine(TempSourcePath, "bootTvTex.png");
     private static string TempDrcPath => Path.Combine(TempSourcePath, "bootDrcTex.png");
     private static string TempLogoPath => Path.Combine(TempSourcePath, "bootLogoTex.png");
-    private static string TempSoundPath => Path.Combine(TempSourcePath, "bootSound.wav");
+    private static string TempSoundWavPath => Path.Combine(TempSourcePath, "bootSound.wav");
+    private static string TempSoundBtsndPath => Path.Combine(TempSourcePath, "bootSound.btsnd");
 
     private readonly IDialogService _dialogService;
-    private readonly Task _setupTask;
+    private readonly Lock _logLock = new();
+    private readonly StringBuilder _logBuffer = new(16384);
+    private bool _logFlushScheduled;
+    private Task _setupTask;
     private CancellationTokenSource? _buildCts;
 
     // Internal resolution fields
@@ -50,11 +57,15 @@ internal sealed partial class MainViewModel : ViewModelBase, IDisposable
     private string _internalGameName = string.Empty;
     private string _cucholixRepoId = string.Empty;
     private string _selectedGamePath = string.Empty;
+    private string _resolvedSoundPath = string.Empty;
     private int _titleIdInt;
     private long _gameType;
     private bool _flagGameSpecified;
     private bool _flagIconSpecified;
     private bool _flagBannerSpecified;
+    private bool _flagDrcSpecified;
+    private bool _flagLogoSpecified;
+    private bool _flagBootSoundSpecified;
     private bool _flagGc2Specified;
     private bool _flagWbfs;
 
@@ -130,7 +141,7 @@ internal sealed partial class MainViewModel : ViewModelBase, IDisposable
     {
         get;
         set => SetProperty(ref field, value);
-    } = "2nd GameCube Disc Image has not been specified";
+    } = "N/A";
 
     public string BootSoundText
     {
@@ -228,37 +239,82 @@ internal sealed partial class MainViewModel : ViewModelBase, IDisposable
     public bool NoGamePadEmu
     {
         get;
-        set => SetProperty(ref field, value);
+        set
+        {
+            if (SetProperty(ref field, value) && value)
+            {
+                LrPatch = false;
+                OnPropertyChanged(nameof(CanUseLrPatch));
+            }
+        }
     } = true;
 
     public bool ForceCC
     {
         get;
-        set => SetProperty(ref field, value);
+        set
+        {
+            if (SetProperty(ref field, value))
+            {
+                if (value)
+                {
+                    DisableTrimming = false;
+                }
+                OnPropertyChanged(nameof(CanUseLrPatch));
+                OnPropertyChanged(nameof(CanDisableTrimming));
+            }
+        }
     }
 
     public bool CcEmu
     {
         get;
-        set => SetProperty(ref field, value);
+        set
+        {
+            if (SetProperty(ref field, value))
+            {
+                OnPropertyChanged(nameof(CanUseLrPatch));
+            }
+        }
     }
 
     public bool ForceNoCC
     {
         get;
-        set => SetProperty(ref field, value);
+        set
+        {
+            if (SetProperty(ref field, value) && value)
+            {
+                LrPatch = false;
+                OnPropertyChanged(nameof(CanUseLrPatch));
+            }
+        }
     }
 
     public bool HorWiiMote
     {
         get;
-        set => SetProperty(ref field, value);
+        set
+        {
+            if (SetProperty(ref field, value) && value)
+            {
+                LrPatch = false;
+                OnPropertyChanged(nameof(CanUseLrPatch));
+            }
+        }
     }
 
     public bool VerWiiMote
     {
         get;
-        set => SetProperty(ref field, value);
+        set
+        {
+            if (SetProperty(ref field, value) && value)
+            {
+                LrPatch = false;
+                OnPropertyChanged(nameof(CanUseLrPatch));
+            }
+        }
     }
 
     public bool LrPatch
@@ -271,10 +327,30 @@ internal sealed partial class MainViewModel : ViewModelBase, IDisposable
     public bool Wiimmfi
     {
         get;
-        set => SetProperty(ref field, value);
+        set
+        {
+            if (SetProperty(ref field, value))
+            {
+                if (value) DisableTrimming = false;
+                OnPropertyChanged(nameof(CanDisableTrimming));
+            }
+        }
     }
 
     public bool WiiVMC
+    {
+        get;
+        set
+        {
+            if (SetProperty(ref field, value))
+            {
+                if (value) DisableTrimming = false;
+                OnPropertyChanged(nameof(CanDisableTrimming));
+            }
+        }
+    }
+
+    public int WiiVmcModeIndex
     {
         get;
         set => SetProperty(ref field, value);
@@ -562,6 +638,10 @@ internal sealed partial class MainViewModel : ViewModelBase, IDisposable
     public string WindowTitle => $"Moon WiiVC Injector - [{GetType().Assembly.GetName().Version?.ToString(3) ?? "2.0.1"}]";
     public bool CanSelectGame => !IsWiiNAND;
     public bool IsGCSelected => IsGCRetail;
+    public bool IsWiiRetailSelected => IsWiiRetail;
+    public bool IsGamePadEmuEnabled => IsWiiRetail || IsWiiNAND;
+    public bool CanUseLrPatch => IsGamePadEmuEnabled && (CcEmu || ForceCC);
+    public bool CanDisableTrimming => IsWiiRetail && !ForceCC && !Wiimmfi && !WiiVMC;
     public bool CanDownloadRepo => IsWiiRetail || IsGCRetail || IsWiiNAND;
     public bool CanRetryDownloadRepo => (IsWiiRetail || IsGCRetail || IsWiiNAND) && _flagGameSpecified && (RepoDownloadFailed || !_flagIconSpecified || !_flagBannerSpecified) && !IsRepoDownloading;
     public string RepoDownloadButtonText
@@ -580,59 +660,79 @@ internal sealed partial class MainViewModel : ViewModelBase, IDisposable
         _dialogService = dialogService;
         AppLogger.SetListener(AppendLogMessage);
         AppLogger.Info("Moon WiiVC Injector initialized.");
-        _setupTask = SetupEnvironmentAsync();
+        _setupTask = SetupEnvironmentAsync(forceReextractTools: false);
         LoadStoredKeys();
     }
 
-    private static async Task SetupEnvironmentAsync()
+    private static async Task SetupEnvironmentAsync(bool forceReextractTools)
     {
         await Task.Run(() =>
         {
             AppLogger.DebugLog($"Setting up temporary environment in: {TempRootPath}");
-            if (Directory.Exists(TempRootPath))
-            {
-                FileUtil.SafeDeleteDirectory(TempRootPath);
-            }
             try { Directory.CreateDirectory(TempRootPath); } catch (Exception ex) { AppLogger.Error("Failed to create TempRootPath", ex); }
 
-            try
+            string expectedWitBinary = OperatingSystem.IsWindows()
+                ? Path.Combine(TempToolsPath, "WIT", "wit.exe")
+                : OperatingSystem.IsMacOS()
+                    ? Path.Combine(TempToolsPath, "WIT", "wit-mac")
+                    : Path.Combine(TempToolsPath, "WIT", "wit");
+
+            if (forceReextractTools || !File.Exists(expectedWitBinary))
             {
-                string toolZipPath = Path.Combine(TempRootPath, "TOOLDIR.zip");
-                File.WriteAllBytes(toolZipPath, Properties.Resources.TOOLDIR);
-                ZipFile.ExtractToDirectory(toolZipPath, TempRootPath);
-                File.Delete(toolZipPath);
-
-                if (!OperatingSystem.IsWindows())
+                try
                 {
-                    string witLinuxPath = Path.Combine(TempToolsPath, "WIT", "wit");
-                    string witMacPath = Path.Combine(TempToolsPath, "WIT", "wit-mac");
-
-                    foreach (string toolPath in new[] { witLinuxPath, witMacPath })
+                    FileUtil.SafeDeleteDirectory(TempToolsPath);
+                    const string toolResourceName = "Moon_WiiVC_Injector.Resources.TOOLDIR.zip";
+                    using (var stream = typeof(MainViewModel).Assembly.GetManifestResourceStream(toolResourceName))
                     {
-                        if (File.Exists(toolPath))
+                        if (stream == null)
                         {
-                            try
+                            throw new FileNotFoundException($"Embedded tool archive '{toolResourceName}' not found.");
+                        }
+
+                        using var archive = new ZipArchive(stream, ZipArchiveMode.Read);
+                        archive.ExtractToDirectory(TempRootPath, overwriteFiles: true);
+                    }
+
+                    if (!OperatingSystem.IsWindows())
+                    {
+                        string witLinuxPath = Path.Combine(TempToolsPath, "WIT", "wit");
+                        string witMacPath = Path.Combine(TempToolsPath, "WIT", "wit-mac");
+
+                        foreach (string toolPath in new[] { witLinuxPath, witMacPath })
+                        {
+                            if (File.Exists(toolPath))
                             {
+                                try
+                                {
 #pragma warning disable CA1416
-                                File.SetUnixFileMode(toolPath, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute |
-                                                               UnixFileMode.GroupRead | UnixFileMode.GroupExecute |
-                                                               UnixFileMode.OtherRead | UnixFileMode.OtherExecute);
+                                    File.SetUnixFileMode(toolPath, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute |
+                                                                   UnixFileMode.GroupRead | UnixFileMode.GroupExecute |
+                                                                   UnixFileMode.OtherRead | UnixFileMode.OtherExecute);
 #pragma warning restore CA1416
-                            }
-                            catch
-                            {
-                                try { Process.Start("chmod", $"+x \"{toolPath}\"")?.WaitForExit(); } catch { }
+                                }
+                                catch
+                                {
+                                    try { Process.Start("chmod", $"+x \"{toolPath}\"")?.WaitForExit(); } catch { }
+                                }
                             }
                         }
                     }
-                }
 
-                AppLogger.DebugLog("Tool directory extracted.");
+                    AppLogger.DebugLog("Tool directory extracted.");
+                }
+                catch (Exception ex)
+                {
+                    AppLogger.Error("Failed to extract tools from resources", ex);
+                }
             }
-            catch (Exception ex)
+            else
             {
-                AppLogger.Error("Failed to extract tools from resources", ex);
+                AppLogger.DebugLog("Cached WIT toolchain verified; skipping extraction.");
             }
+
+            FileUtil.SafeDeleteDirectory(TempSourcePath);
+            FileUtil.SafeDeleteDirectory(TempBuildPath);
 
             try
             {
@@ -651,7 +751,6 @@ internal sealed partial class MainViewModel : ViewModelBase, IDisposable
         WiiUCommonKey = Settings.Default.WiiUCommonKey?.ToUpperInvariant() ?? string.Empty;
         AncastKey = Settings.Default.AncastKey?.ToUpperInvariant() ?? string.Empty;
 
-        // Try detecting base from legacy TitleKey or regional key
         string rawKey = !string.IsNullOrWhiteSpace(Settings.Default.TitleKey)
             ? Settings.Default.TitleKey
             : Settings.Default.GetTitleKeyForRegion(Settings.Default.BaseRegion);
@@ -812,6 +911,7 @@ internal sealed partial class MainViewModel : ViewModelBase, IDisposable
         if (value)
         {
             _systemType = "wiiware";
+            ApplySystemTypeDefaults();
             NotifySystemTypeChanged();
             _ = HandleWiiNandSelectionAsync();
         }
@@ -820,14 +920,38 @@ internal sealed partial class MainViewModel : ViewModelBase, IDisposable
     private void SetSystemType(string systemType)
     {
         _systemType = systemType;
+        ApplySystemTypeDefaults();
         NotifySystemTypeChanged();
         ResetGameSelection();
+    }
+
+    private void ApplySystemTypeDefaults()
+    {
+        if (_systemType != "wii")
+        {
+            Wiimmfi = false;
+            WiiVMC = false;
+            DisableTrimming = false;
+        }
+
+        if (_systemType is "gcn" or "dol")
+        {
+            LrPatch = false;
+        }
+        else if (!NoGamePadEmu && !CcEmu && !HorWiiMote && !VerWiiMote && !ForceCC && !ForceNoCC)
+        {
+            NoGamePadEmu = true;
+        }
     }
 
     private void NotifySystemTypeChanged()
     {
         OnPropertyChanged(nameof(CanSelectGame));
         OnPropertyChanged(nameof(IsGCSelected));
+        OnPropertyChanged(nameof(IsWiiRetailSelected));
+        OnPropertyChanged(nameof(IsGamePadEmuEnabled));
+        OnPropertyChanged(nameof(CanUseLrPatch));
+        OnPropertyChanged(nameof(CanDisableTrimming));
         OnPropertyChanged(nameof(CanDownloadRepo));
         OnPropertyChanged(nameof(CanRetryDownloadRepo));
         OnPropertyChanged(nameof(RepoDownloadButtonText));
@@ -839,6 +963,7 @@ internal sealed partial class MainViewModel : ViewModelBase, IDisposable
         _selectedGamePath = string.Empty;
         _titleIdInt = 0;
         _titleIdHex = string.Empty;
+        _titleIdText = string.Empty;
         _gameType = 0;
         _cucholixRepoId = string.Empty;
         RepoDownloadFailed = false;
@@ -850,7 +975,7 @@ internal sealed partial class MainViewModel : ViewModelBase, IDisposable
         PackedTitleLine1 = string.Empty;
         PackedTitleIDLine = string.Empty;
 
-        GC2SourceText = (_systemType == "gcn") ? "2nd GameCube Disc Image has not been specified" : "N/A";
+        CleanUpAssets();
         UpdateChecklist();
     }
 
@@ -878,15 +1003,16 @@ internal sealed partial class MainViewModel : ViewModelBase, IDisposable
             _titleIdText = inputId;
             _cucholixRepoId = inputId;
 
-            StringBuilder sb = new();
+            StringBuilder sb = new(8);
             foreach (char c in _titleIdText)
             {
                 sb.Append(((short)c).ToString("X2"));
             }
-            PackedTitleIDLine = "00050002" + sb.ToString();
+            _titleIdHex = sb.ToString();
+            PackedTitleIDLine = "00050002" + _titleIdHex;
             PackedTitleLine1 = RemoveSpecialChars(GameTdb.GetName(_cucholixRepoId) ?? string.Empty);
             InternalGameNameDisplay = PackedTitleLine1;
-            InternalGameIDDisplay = inputId;
+            InternalGameIDDisplay = $"{inputId} / {_titleIdHex}";
             _ = FetchRepoAssetsAsync(silent: true);
         }
         else
@@ -916,13 +1042,13 @@ internal sealed partial class MainViewModel : ViewModelBase, IDisposable
 
         if (_systemType == "wii")
         {
-            title = "Select Wii game dump (ISO, WBFS)";
-            filters.Add(new FilePickerFileType("Wii Game Dumps") { Patterns = ["*.iso", "*.wbfs"] });
+            title = "Select Wii game dump (ISO, WBFS, NKit, NASOS)";
+            filters.Add(new FilePickerFileType("Wii Game Dumps") { Patterns = ["*.iso", "*.wbfs", "*.dec"] });
         }
         else if (_systemType == "gcn")
         {
-            title = "Select GameCube game dump (ISO, GCM)";
-            filters.Add(new FilePickerFileType("GameCube Game Dumps") { Patterns = ["*.iso", "*.gcm"] });
+            title = "Select GameCube game dump (ISO, GCM, NKit, NASOS)";
+            filters.Add(new FilePickerFileType("GameCube Game Dumps") { Patterns = ["*.iso", "*.gcm", "*.dec"] });
         }
         else if (_systemType == "dol")
         {
@@ -939,8 +1065,9 @@ internal sealed partial class MainViewModel : ViewModelBase, IDisposable
 
     private async Task LoadGameFromFileAsync(string gamePath)
     {
+        await _setupTask;
         _selectedGamePath = gamePath;
-        CleanUpImages();
+        CleanUpAssets();
 
         GameSourceText = _selectedGamePath;
         _flagGameSpecified = true;
@@ -986,9 +1113,13 @@ internal sealed partial class MainViewModel : ViewModelBase, IDisposable
                     }
                     else
                     {
-                        uint startOffset = 0;
-                        if (idString == "WII5") startOffset = 0x1182800;
-                        else if (idString == "WII9") startOffset = 0x1FB5000;
+                        uint startOffset = idString switch
+                        {
+                            "WII5" => 0x1182800u,
+                            "WII9" => 0x1FB5000u,
+                            "GCML" => 0x2B8800u,
+                            _ => 0u
+                        };
 
                         fs.Position = startOffset;
                         fs.ReadExactly(idBytes);
@@ -1056,7 +1187,7 @@ internal sealed partial class MainViewModel : ViewModelBase, IDisposable
         UpdateChecklist();
     }
 
-    private void CleanUpImages()
+    private void CleanUpAssets()
     {
         FileUtil.SafeDeleteDirectory(TempSourcePath);
         FileUtil.SafeDeleteDirectory(TempBuildPath);
@@ -1069,16 +1200,30 @@ internal sealed partial class MainViewModel : ViewModelBase, IDisposable
 
         IconPreview = null;
         BannerPreview = null;
+        DrcPreview = null;
+        LogoPreview = null;
+
         _flagIconSpecified = false;
         _flagBannerSpecified = false;
+        _flagDrcSpecified = false;
+        _flagLogoSpecified = false;
+        _flagBootSoundSpecified = false;
+        _flagGc2Specified = false;
+        _resolvedSoundPath = string.Empty;
+
         IconSourceText = "Icon has not been specified";
         BannerSourceText = "Banner has not been specified";
+        DrcSourceText = "GamePad Banner has not been specified";
+        LogoSourceText = "Boot Logo has not been specified";
+        BootSoundText = "Boot Sound has not been specified";
+        GC2SourceText = (_systemType == "gcn") ? "2nd GameCube Disc Image has not been specified" : "N/A";
     }
 
-    private async Task<bool> ProcessImageFileAsync(string imageType, string path, string tempPath, int width, int height, Action<Bitmap?> setPreview, Action<string> setSourceText)
+    private async Task<bool> ProcessImageFileAsync(string imageType, string path, string tempPath, Action<Bitmap?> setPreview, Action<string> setSourceText)
     {
         try
         {
+            await _setupTask;
             if (!TgaReader.TryGetImageDimensions(path, out _, out _, out string? error))
             {
                 await _dialogService.ShowMessageAsync($"The selected file for {imageType.ToLowerInvariant()} is invalid or unsupported:\n{error}", "Invalid Image", MessageBoxButtons.Ok);
@@ -1090,7 +1235,11 @@ internal sealed partial class MainViewModel : ViewModelBase, IDisposable
             if (Path.GetExtension(path).Equals(".tga", StringComparison.OrdinalIgnoreCase))
             {
                 using var bmp = TgaReader.LoadTga(path);
-                TgaReader.SaveAsTga(bmp, tempPath, width, height, 32);
+                using var image = SKImage.FromBitmap(bmp);
+                using var pngData = image.Encode(SKEncodedImageFormat.Png, 100)
+                    ?? throw new InvalidOperationException("Failed to encode TGA image for preview.");
+                await using var outStream = File.Create(tempPath);
+                pngData.SaveTo(outStream);
             }
             else
             {
@@ -1112,16 +1261,37 @@ internal sealed partial class MainViewModel : ViewModelBase, IDisposable
         }
     }
 
+    private async Task<bool> SaveSoundBytesAsync(byte[] soundBytes, string displayLabel)
+    {
+        await _setupTask;
+        bool isWav = BtsndConverter.IsWavBytes(soundBytes);
+        if (!isWav && !BtsndConverter.IsValidBtsndBytes(soundBytes))
+        {
+            return false;
+        }
+
+        string targetPath = isWav ? TempSoundWavPath : TempSoundBtsndPath;
+        FileUtil.SafeDeleteFile(TempSoundWavPath);
+        FileUtil.SafeDeleteFile(TempSoundBtsndPath);
+        await File.WriteAllBytesAsync(targetPath, soundBytes);
+
+        _resolvedSoundPath = targetPath;
+        _flagBootSoundSpecified = true;
+        BootSoundText = displayLabel;
+        return true;
+    }
+
     [RelayCommand]
     public async Task SelectIconAsync()
     {
-        await _dialogService.ShowMessageAsync("Make sure your Icon is 128x128 to prevent distortion", "Icon Size Information", MessageBoxButtons.Ok);
-        var path = await _dialogService.OpenFileDialogAsync("Select Icon PNG or TGA", [new FilePickerFileType("Images") { Patterns = ["*.png", "*.tga"] }]);
+        var path = await _dialogService.OpenFileDialogAsync("Select Icon Image (128x128 recommended)", [new FilePickerFileType("Images") { Patterns = ["*.png", "*.tga", "*.jpg", "*.jpeg", "*.bmp", "*.webp"] }]);
         if (!string.IsNullOrEmpty(path))
         {
-            if (await ProcessImageFileAsync("Icon", path, TempIconPath, 128, 128, b => IconPreview = b, s => IconSourceText = s))
+            if (await ProcessImageFileAsync("Icon", path, TempIconPath, b => IconPreview = b, s => IconSourceText = s))
             {
                 _flagIconSpecified = true;
+                OnPropertyChanged(nameof(CanRetryDownloadRepo));
+                OnPropertyChanged(nameof(RepoDownloadButtonText));
                 UpdateChecklist();
             }
         }
@@ -1130,13 +1300,14 @@ internal sealed partial class MainViewModel : ViewModelBase, IDisposable
     [RelayCommand]
     public async Task SelectBannerAsync()
     {
-        await _dialogService.ShowMessageAsync("Make sure your Banner is 1280x720 to prevent distortion", "Banner Size Information", MessageBoxButtons.Ok);
-        var path = await _dialogService.OpenFileDialogAsync("Select Banner PNG or TGA", [new FilePickerFileType("Images") { Patterns = ["*.png", "*.tga"] }]);
+        var path = await _dialogService.OpenFileDialogAsync("Select TV Banner Image (1280x720 recommended)", [new FilePickerFileType("Images") { Patterns = ["*.png", "*.tga", "*.jpg", "*.jpeg", "*.bmp", "*.webp"] }]);
         if (!string.IsNullOrEmpty(path))
         {
-            if (await ProcessImageFileAsync("Banner", path, TempBannerPath, 1280, 720, b => BannerPreview = b, s => BannerSourceText = s))
+            if (await ProcessImageFileAsync("Banner", path, TempBannerPath, b => BannerPreview = b, s => BannerSourceText = s))
             {
                 _flagBannerSpecified = true;
+                OnPropertyChanged(nameof(CanRetryDownloadRepo));
+                OnPropertyChanged(nameof(RepoDownloadButtonText));
                 UpdateChecklist();
             }
         }
@@ -1145,13 +1316,18 @@ internal sealed partial class MainViewModel : ViewModelBase, IDisposable
     [RelayCommand]
     public async Task SelectGC2Async()
     {
-        var path = await _dialogService.OpenFileDialogAsync("Select 2nd GameCube Disc Image", [new FilePickerFileType("GameCube Disc") { Patterns = ["*.iso", "*.gcm"] }]);
+        var path = await _dialogService.OpenFileDialogAsync("Select 2nd GameCube Disc Image", [new FilePickerFileType("GameCube Disc") { Patterns = ["*.iso", "*.gcm", "*.dec"] }]);
         if (!string.IsNullOrEmpty(path))
         {
             try
             {
                 using var fs = File.OpenRead(path);
-                fs.Position = 0x18;
+                byte[] magic = new byte[4];
+                fs.ReadExactly(magic);
+                string idStr = Encoding.ASCII.GetString(magic);
+                uint startOffset = idStr == "GCML" ? 0x2B8800u : 0u;
+
+                fs.Position = startOffset + 0x18;
                 byte[] typeBytes = new byte[8];
                 fs.ReadExactly(typeBytes);
                 long gc2GameType = BitConverter.ToInt64(typeBytes);
@@ -1178,35 +1354,37 @@ internal sealed partial class MainViewModel : ViewModelBase, IDisposable
     [RelayCommand]
     public async Task SelectBootSoundAsync()
     {
-        await _dialogService.ShowMessageAsync("Your sound file will be cut off if it's longer than 6 seconds to prevent the Wii U from not loading it.", "Boot Sound Information", MessageBoxButtons.Ok);
-        var path = await _dialogService.OpenFileDialogAsync("Select Boot Sound (WAV)", [new FilePickerFileType("WAV Audio") { Patterns = ["*.wav"] }]);
+        var path = await _dialogService.OpenFileDialogAsync("Select Boot Sound (WAV or BTSND, max 6s)", [new FilePickerFileType("Boot Sound") { Patterns = ["*.wav", "*.btsnd"] }]);
         if (!string.IsNullOrEmpty(path))
         {
             try
             {
-                using var fs = File.OpenRead(path);
-                byte[] headerBytes = new byte[4];
-                fs.Position = 0x00;
-                fs.ReadExactly(headerBytes);
-                int wavHeader1 = BitConverter.ToInt32(headerBytes);
+                await _setupTask;
+                bool isWav = BtsndConverter.IsWavFile(path);
+                bool isBtsnd = !isWav && BtsndConverter.IsValidBtsndFile(path);
 
-                fs.Position = 0x08;
-                fs.ReadExactly(headerBytes);
-                int wavHeader2 = BitConverter.ToInt32(headerBytes);
-
-                if (wavHeader1 == 1179011410 && wavHeader2 == 1163280727)
+                if (isWav || isBtsnd)
                 {
+                    string targetPath = isWav ? TempSoundWavPath : TempSoundBtsndPath;
+                    FileUtil.SafeDeleteFile(TempSoundWavPath);
+                    FileUtil.SafeDeleteFile(TempSoundBtsndPath);
+                    File.Copy(path, targetPath, true);
+
+                    _resolvedSoundPath = targetPath;
+                    _flagBootSoundSpecified = true;
                     BootSoundText = path;
                 }
                 else
                 {
-                    await _dialogService.ShowMessageAsync("This is not a valid WAV file. It will not be loaded.", "Not a WAV File", MessageBoxButtons.Ok);
+                    await _dialogService.ShowMessageAsync("This is not a valid WAV or BTSND audio file. It will not be loaded.", "Invalid Audio File", MessageBoxButtons.Ok);
+                    _flagBootSoundSpecified = false;
+                    _resolvedSoundPath = string.Empty;
                     BootSoundText = "Boot Sound has not been specified";
                 }
             }
             catch (Exception ex)
             {
-                await _dialogService.ShowMessageAsync($"Failed to read WAV: {ex.Message}", "Error", MessageBoxButtons.Ok);
+                await _dialogService.ShowMessageAsync($"Failed to read boot sound: {ex.Message}", "Error", MessageBoxButtons.Ok);
             }
         }
     }
@@ -1214,22 +1392,26 @@ internal sealed partial class MainViewModel : ViewModelBase, IDisposable
     [RelayCommand]
     public async Task SelectLogoAsync()
     {
-        await _dialogService.ShowMessageAsync("Make sure your Boot Logo is 170x42 to prevent distortion", "Logo Size Information", MessageBoxButtons.Ok);
-        var path = await _dialogService.OpenFileDialogAsync("Select Boot Logo PNG or TGA", [new FilePickerFileType("Images") { Patterns = ["*.png", "*.tga"] }]);
+        var path = await _dialogService.OpenFileDialogAsync("Select Boot Logo Image (170x42 recommended)", [new FilePickerFileType("Images") { Patterns = ["*.png", "*.tga", "*.jpg", "*.jpeg", "*.bmp", "*.webp"] }]);
         if (!string.IsNullOrEmpty(path))
         {
-            await ProcessImageFileAsync("Logo", path, TempLogoPath, 170, 42, b => LogoPreview = b, s => LogoSourceText = s);
+            if (await ProcessImageFileAsync("Logo", path, TempLogoPath, b => LogoPreview = b, s => LogoSourceText = s))
+            {
+                _flagLogoSpecified = true;
+            }
         }
     }
 
     [RelayCommand]
     public async Task SelectDrcAsync()
     {
-        await _dialogService.ShowMessageAsync("Make sure your GamePad Banner is 854x480 to prevent distortion", "Banner Size Information", MessageBoxButtons.Ok);
-        var path = await _dialogService.OpenFileDialogAsync("Select GamePad Banner PNG or TGA", [new FilePickerFileType("Images") { Patterns = ["*.png", "*.tga"] }]);
+        var path = await _dialogService.OpenFileDialogAsync("Select GamePad Banner Image (854x480 recommended)", [new FilePickerFileType("Images") { Patterns = ["*.png", "*.tga", "*.jpg", "*.jpeg", "*.bmp", "*.webp"] }]);
         if (!string.IsNullOrEmpty(path))
         {
-            await ProcessImageFileAsync("GamePad Banner", path, TempDrcPath, 854, 480, b => DrcPreview = b, s => DrcSourceText = s);
+            if (await ProcessImageFileAsync("GamePad Banner", path, TempDrcPath, b => DrcPreview = b, s => DrcSourceText = s))
+            {
+                _flagDrcSpecified = true;
+            }
         }
     }
 
@@ -1246,6 +1428,8 @@ internal sealed partial class MainViewModel : ViewModelBase, IDisposable
             }
             return;
         }
+
+        await _setupTask;
 
         string cucholixBaseUrl = "https://raw.githubusercontent.com/cucholix/wiivc-bis/master";
         string uwuvciBaseUrl = GetUwuvciBaseUrl();
@@ -1264,7 +1448,6 @@ internal sealed partial class MainViewModel : ViewModelBase, IDisposable
             _ => ["wii", "gcn"]
         };
 
-        // Collect candidate IDs to probe (e.g. SF8P01, SF8E01, SF8J01, SF8E, SF8P, etc.)
         List<string> candidateIds = [];
         foreach (var id in GameTdb.GetAlternativeIds(_cucholixRepoId))
         {
@@ -1276,11 +1459,11 @@ internal sealed partial class MainViewModel : ViewModelBase, IDisposable
             }
         }
 
-        bool downloadedIcon = false;
-        bool downloadedBanner = false;
-        bool downloadedDrc = false;
-        bool downloadedLogo = false;
-        bool downloadedSound = false;
+        bool downloadedIcon = _flagIconSpecified;
+        bool downloadedBanner = _flagBannerSpecified;
+        bool downloadedDrc = _flagDrcSpecified;
+        bool downloadedLogo = _flagLogoSpecified;
+        bool downloadedSound = _flagBootSoundSpecified;
 
         static async Task<byte[]?> DownloadIfAvailableAsync(string url)
         {
@@ -1345,6 +1528,7 @@ internal sealed partial class MainViewModel : ViewModelBase, IDisposable
                             using var ms = new MemoryStream(drcBytes);
                             DrcPreview = new Bitmap(ms);
                             DrcSourceText = $"Downloaded from cucholix ({id})";
+                            _flagDrcSpecified = true;
                             downloadedDrc = true;
                             AppLogger.DebugLog($"[AutoDownload] GamePad Banner downloaded for {id} (from cucholix)");
                         }
@@ -1359,6 +1543,7 @@ internal sealed partial class MainViewModel : ViewModelBase, IDisposable
                             using var ms = new MemoryStream(logoBytes);
                             LogoPreview = new Bitmap(ms);
                             LogoSourceText = $"Downloaded from cucholix ({id})";
+                            _flagLogoSpecified = true;
                             downloadedLogo = true;
                             AppLogger.DebugLog($"[AutoDownload] Logo downloaded for {id} (from cucholix)");
                         }
@@ -1368,10 +1553,8 @@ internal sealed partial class MainViewModel : ViewModelBase, IDisposable
                     {
                         byte[]? soundBytes = await DownloadIfAvailableAsync($"{gameBaseUrl}/bootSound.btsnd")
                                           ?? await DownloadIfAvailableAsync($"{gameBaseUrl}/bootSound.wav");
-                        if (soundBytes != null)
+                        if (soundBytes != null && await SaveSoundBytesAsync(soundBytes, $"Downloaded from cucholix ({id})"))
                         {
-                            await File.WriteAllBytesAsync(TempSoundPath, soundBytes);
-                            BootSoundText = $"Downloaded from cucholix ({id})";
                             downloadedSound = true;
                             AppLogger.DebugLog($"[AutoDownload] Boot Sound downloaded for {id} (from cucholix)");
                         }
@@ -1390,7 +1573,6 @@ internal sealed partial class MainViewModel : ViewModelBase, IDisposable
             }
 
             // 2. Fallback search: UWUVCI-IMAGES ({uwuvciBaseUrl}/{platform}/{id})
-            // If icon, banner, or any other asset wasn't found in cucholix, search in UWUVCI-IMAGES
             if (!downloadedIcon || !downloadedBanner || !downloadedDrc || !downloadedLogo || !downloadedSound)
             {
                 AppLogger.DebugLog($"[AutoDownload] Missing assets after cucholix check. Querying fallback repo: {uwuvciBaseUrl}");
@@ -1444,6 +1626,7 @@ internal sealed partial class MainViewModel : ViewModelBase, IDisposable
                                 using var ms = new MemoryStream(drcBytes);
                                 DrcPreview = new Bitmap(ms);
                                 DrcSourceText = $"Downloaded from UWUVCI ({id})";
+                                _flagDrcSpecified = true;
                                 downloadedDrc = true;
                                 AppLogger.DebugLog($"[AutoDownload] GamePad Banner downloaded for {id} (from UWUVCI)");
                             }
@@ -1458,6 +1641,7 @@ internal sealed partial class MainViewModel : ViewModelBase, IDisposable
                                 using var ms = new MemoryStream(logoBytes);
                                 LogoPreview = new Bitmap(ms);
                                 LogoSourceText = $"Downloaded from UWUVCI ({id})";
+                                _flagLogoSpecified = true;
                                 downloadedLogo = true;
                                 AppLogger.DebugLog($"[AutoDownload] Logo downloaded for {id} (from UWUVCI)");
                             }
@@ -1468,10 +1652,8 @@ internal sealed partial class MainViewModel : ViewModelBase, IDisposable
                             byte[]? soundBytes = await DownloadIfAvailableAsync($"{gameBaseUrl}/bootSound.btsnd")
                                               ?? await DownloadIfAvailableAsync($"{gameBaseUrl}/bootSound.wav")
                                               ?? await DownloadIfAvailableAsync($"{gameBaseUrl}/BootSound");
-                            if (soundBytes != null)
+                            if (soundBytes != null && await SaveSoundBytesAsync(soundBytes, $"Downloaded from UWUVCI ({id})"))
                             {
-                                await File.WriteAllBytesAsync(TempSoundPath, soundBytes);
-                                BootSoundText = $"Downloaded from UWUVCI ({id})";
                                 downloadedSound = true;
                                 AppLogger.DebugLog($"[AutoDownload] Boot Sound downloaded for {id} (from UWUVCI)");
                             }
@@ -1490,17 +1672,15 @@ internal sealed partial class MainViewModel : ViewModelBase, IDisposable
                 }
             }
 
-            // 3. Fallback for platform default bootSound (e.g. GameCube or platform jingle)
+            // 3. Fallback for platform default bootSound (e.g. GameCube jingle)
             if (!downloadedSound)
             {
                 foreach (var platform in cucholixPlatforms)
                 {
                     byte[]? soundBytes = await DownloadIfAvailableAsync($"{cucholixBaseUrl}/{platform}/sound/bootSound.btsnd")
                                       ?? await DownloadIfAvailableAsync($"{cucholixBaseUrl}/{platform}/sound/gcnboot/bootSound.wav");
-                    if (soundBytes != null)
+                    if (soundBytes != null && await SaveSoundBytesAsync(soundBytes, $"Downloaded default from cucholix ({platform})"))
                     {
-                        await File.WriteAllBytesAsync(TempSoundPath, soundBytes);
-                        BootSoundText = $"Downloaded default from cucholix ({platform})";
                         downloadedSound = true;
                         AppLogger.DebugLog($"[AutoDownload] Default boot sound downloaded for {platform}");
                         break;
@@ -1543,11 +1723,9 @@ internal sealed partial class MainViewModel : ViewModelBase, IDisposable
             return "https://raw.githubusercontent.com/UWUVCI-PRIME/UWUVCI-IMAGES/master";
         }
 
-        // If provided as a standard github.com repo URL, transform to raw.githubusercontent.com
         if (repoSetting.StartsWith("https://github.com/", StringComparison.OrdinalIgnoreCase))
         {
             string clean = repoSetting["https://github.com/".Length..].TrimEnd('/');
-            // If branch is specified (owner/repo/tree/branch), replace /tree/ with /
             if (!clean.Contains("/tree/"))
             {
                 clean += "/master";
@@ -1565,7 +1743,6 @@ internal sealed partial class MainViewModel : ViewModelBase, IDisposable
             return repoSetting.TrimEnd('/');
         }
 
-        // If specified as "Owner/Repo" (e.g. "UWUVCI-PRIME/UWUVCI-IMAGES")
         return $"https://raw.githubusercontent.com/{repoSetting.Trim('/')}/master";
     }
 
@@ -1631,7 +1808,6 @@ internal sealed partial class MainViewModel : ViewModelBase, IDisposable
         BuildProgress = 0;
         BuildStatus = "Initializing Build Process...";
 
-        // Auto-save any valid keys that the user might not have manually clicked 'Save' for
         if (IsCommonKeyValid && !IsCommonKeyReadOnly)
         {
             SaveCommonKey();
@@ -1683,7 +1859,7 @@ internal sealed partial class MainViewModel : ViewModelBase, IDisposable
             }
         }
 
-        string selectedOutputPath = "";
+        string selectedOutputPath;
         if (!string.IsNullOrEmpty(Settings.Default.OutputPathFixed))
         {
             selectedOutputPath = Settings.Default.OutputPathFixed;
@@ -1708,14 +1884,26 @@ internal sealed partial class MainViewModel : ViewModelBase, IDisposable
 
         string gc2Path = (_systemType == "gcn" && _flagGc2Specified) ? GC2SourceText : string.Empty;
 
-        string nfsPatchFlag = "";
-        if (HorWiiMote) nfsPatchFlag = " -horizontal";
-        else if (VerWiiMote) nfsPatchFlag = " -wiimote";
-        else if (CcEmu) nfsPatchFlag = " -nocc";
-        else if (ForceCC) nfsPatchFlag = " -instantcc";
-        else if (ForceNoCC) nfsPatchFlag = " -nocc";
+        string nfsPatchFlag = string.Empty;
+        if (_systemType is "wii" or "wiiware")
+        {
+            if (HorWiiMote) nfsPatchFlag = " -horizontal";
+            else if (VerWiiMote) nfsPatchFlag = " -wiimote";
+            else if (CcEmu) nfsPatchFlag = string.Empty;
+            else if (ForceCC) nfsPatchFlag = " -instantcc";
+            else if (ForceNoCC) nfsPatchFlag = " -nocc";
+        }
 
-        string drcuse = DisableGamePad ? "65537" : "1";
+        // Wii U meta.xml <drc_use>:
+        //   "1"     = Display-only / Wii Remotes only (no GamePad controller prompt)
+        //   "65537" = Enable Wii U GamePad controller input (Classic Controller / Wiimote emu / Nintendont / Homebrew)
+        string drcuse = _systemType is "gcn" or "dol"
+            ? (DisableGamePad ? "1" : "65537")
+            : ((NoGamePadEmu || DisableGamePad) ? "1" : "65537");
+
+        VideoPatchMode wiiVmcMode = (_systemType == "wii" && WiiVMC)
+            ? (WiiVmcModeIndex == 0 ? VideoPatchMode.NtscToPal : VideoPatchMode.PalToNtsc)
+            : VideoPatchMode.None;
 
         var options = new BuildOptions
         {
@@ -1732,15 +1920,16 @@ internal sealed partial class MainViewModel : ViewModelBase, IDisposable
             PackedTitleLine1 = PackedTitleLine1,
             PackedTitleLine2 = PackedTitleLine2,
             EnablePackedLine2 = EnablePackedLine2,
-            Wiimmfi = Wiimmfi,
-            WiiVMC = WiiVMC,
-            DisableTrimming = DisableTrimming,
+            Wiimmfi = _systemType == "wii" && Wiimmfi,
+            WiiVmcMode = wiiVmcMode,
+            DisableTrimming = CanDisableTrimming && DisableTrimming,
             DisableNintendontAutoboot = DisableNintendontAutoboot,
             C2WPatch = C2WPatchFlag,
-            LRPatch = LrPatch,
-            SoundDir = BootSoundText,
-            LogoDir = LogoSourceText,
-            DrcDir = DrcSourceText,
+            LRPatch = CanUseLrPatch && LrPatch,
+            FlagBootSoundSpecified = _flagBootSoundSpecified,
+            FlagLogoSpecified = _flagLogoSpecified,
+            FlagDrcSpecified = _flagDrcSpecified,
+            SoundPath = _resolvedSoundPath,
             Gc2Path = gc2Path,
             ToggleBootSoundLoop = ToggleBootSoundLoop,
             NfsPatchFlag = nfsPatchFlag,
@@ -1834,9 +2023,46 @@ internal sealed partial class MainViewModel : ViewModelBase, IDisposable
 
     private void AppendLogMessage(string message)
     {
+        bool shouldSchedule = false;
+        lock (_logLock)
+        {
+            if (_logBuffer.Length > 0)
+            {
+                _logBuffer.AppendLine();
+            }
+            _logBuffer.Append(message);
+
+            if (_logBuffer.Length > 512 * 1024)
+            {
+                _logBuffer.Remove(0, 128 * 1024);
+            }
+
+            if (!_logFlushScheduled)
+            {
+                _logFlushScheduled = true;
+                shouldSchedule = true;
+            }
+        }
+
+        if (shouldSchedule)
+        {
+            _ = FlushLogsDelayedAsync();
+        }
+    }
+
+    private async Task FlushLogsDelayedAsync()
+    {
+        await Task.Delay(60).ConfigureAwait(false);
+        string snapshot;
+        lock (_logLock)
+        {
+            snapshot = _logBuffer.ToString();
+            _logFlushScheduled = false;
+        }
+
         Avalonia.Threading.Dispatcher.UIThread.Post(() =>
         {
-            LogOutput = string.IsNullOrEmpty(LogOutput) ? message : $"{LogOutput}{Environment.NewLine}{message}";
+            LogOutput = snapshot;
         });
     }
 
@@ -1853,6 +2079,11 @@ internal sealed partial class MainViewModel : ViewModelBase, IDisposable
     [RelayCommand]
     public void ClearLogs()
     {
+        lock (_logLock)
+        {
+            _logBuffer.Clear();
+        }
+        AppLogger.Clear();
         LogOutput = string.Empty;
     }
 
@@ -1882,7 +2113,8 @@ internal sealed partial class MainViewModel : ViewModelBase, IDisposable
         if (!string.Equals(prevTemp, newTemp, StringComparison.OrdinalIgnoreCase))
         {
             AppLogger.Info($"Temporary directory changed to: {newTemp}");
-            await SetupEnvironmentAsync();
+            _setupTask = SetupEnvironmentAsync(forceReextractTools: false);
+            await _setupTask;
         }
     }
 
@@ -1894,43 +2126,46 @@ internal sealed partial class MainViewModel : ViewModelBase, IDisposable
 
     public async Task LoadDroppedFilesAsync(IEnumerable<string> paths)
     {
-        foreach (var path in paths)
+        var pathList = paths.ToList();
+        var gameFile = pathList.FirstOrDefault(p =>
+            Path.GetExtension(p).ToLowerInvariant() is ".iso" or ".wbfs" or ".gcm" or ".dol" or ".dec");
+
+        if (!string.IsNullOrEmpty(gameFile))
         {
+            await LoadGameFromFileAsync(gameFile);
+        }
+
+        foreach (var path in pathList)
+        {
+            if (string.Equals(path, gameFile, StringComparison.Ordinal))
+                continue;
+
             string ext = Path.GetExtension(path).ToLowerInvariant();
-            if (ext is ".iso" or ".wbfs" or ".gcm" or ".dol")
-            {
-                await LoadGameFromFileAsync(path);
-                break;
-            }
-            else if (ext is ".png" or ".tga" or ".jpg" or ".jpeg" or ".bmp")
+            if (ext is ".png" or ".tga" or ".jpg" or ".jpeg" or ".bmp" or ".webp")
             {
                 if (!_flagIconSpecified)
                 {
-                    if (await ProcessImageFileAsync("Icon", path, TempIconPath, 128, 128, b => IconPreview = b, s => IconSourceText = s))
+                    if (await ProcessImageFileAsync("Icon", path, TempIconPath, b => IconPreview = b, s => IconSourceText = s))
                     {
                         _flagIconSpecified = true;
                         UpdateChecklist();
                     }
                 }
-                else if (!_flagBannerSpecified)
+                else
                 {
-                    if (await ProcessImageFileAsync("Banner", path, TempBannerPath, 1280, 720, b => BannerPreview = b, s => BannerSourceText = s))
+                    if (await ProcessImageFileAsync("Banner", path, TempBannerPath, b => BannerPreview = b, s => BannerSourceText = s))
                     {
                         _flagBannerSpecified = true;
                         UpdateChecklist();
                     }
                 }
-                else
-                {
-                    await ProcessImageFileAsync("Banner", path, TempBannerPath, 1280, 720, b => BannerPreview = b, s => BannerSourceText = s);
-                }
             }
             else if (ext is ".wav" or ".btsnd")
             {
-                BootSoundText = path;
                 try
                 {
-                    File.Copy(path, TempSoundPath, true);
+                    byte[] soundBytes = await File.ReadAllBytesAsync(path);
+                    await SaveSoundBytesAsync(soundBytes, path);
                 }
                 catch { }
             }

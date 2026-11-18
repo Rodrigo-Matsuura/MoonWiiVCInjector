@@ -4,31 +4,31 @@
         x:Class="Moon_WiiVC_Injector.SettingsWindow"
         x:DataType="vm:SettingsViewModel"
         Title="Application Settings"
-        Width="400"
-        Height="330"
+        Width="440"
+        Height="310"
         WindowStartupLocation="CenterOwner"
         CanResize="False"
-        Background="#1e1e1e">
+        Background="#f0f0f0"
+        Foreground="Black">
   <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,*,Auto" Margin="16">
-    <TextBlock Text="Banners Repository" Foreground="White" Margin="0,0,0,4"/>
-    <TextBox Grid.Row="1" Text="{Binding BannersRepository}" Width="368" HorizontalAlignment="Left" Background="#2d2d2d" Foreground="White" BorderBrush="#3f3f3f" Margin="0,0,0,16"/>
+    <TextBlock Text="Banners Repository" FontWeight="SemiBold" Margin="0,0,0,4"/>
+    <TextBox Grid.Row="1" Text="{Binding BannersRepository}" HorizontalAlignment="Stretch" Margin="0,0,0,14"/>
     
-    <TextBlock Grid.Row="2" Text="Output Directory (leave empty to always ask)" Foreground="White" Margin="0,0,0,4"/>
-    <Grid Grid.Row="3" ColumnDefinitions="*,Auto" Margin="0,0,0,16">
-      <TextBox Text="{Binding OutputDir}" Width="280" HorizontalAlignment="Left" Background="#2d2d2d" Foreground="White" BorderBrush="#3f3f3f"/>
-      <Button Grid.Column="1" Content="Browse..." Command="{Binding BrowseOutputFolderCommand}" Width="80" HorizontalContentAlignment="Center" Background="#3a3a3a" Foreground="White" Margin="8,0,0,0"/>
+    <TextBlock Grid.Row="2" Text="Output Directory (leave empty to always ask)" FontWeight="SemiBold" Margin="0,0,0,4"/>
+    <Grid Grid.Row="3" ColumnDefinitions="*,Auto" Margin="0,0,0,14">
+      <TextBox Text="{Binding OutputDir}" HorizontalAlignment="Stretch"/>
+      <Button Grid.Column="1" Content="Browse..." Command="{Binding BrowseOutputFolderCommand}" Width="84" HorizontalContentAlignment="Center" Margin="8,0,0,0"/>
     </Grid>
 
-    <TextBlock Grid.Row="4" Text="Temporary Directory (leave empty for disk default)" Foreground="White" Margin="0,0,0,4"/>
+    <TextBlock Grid.Row="4" Text="Temporary Directory (leave empty for disk default)" FontWeight="SemiBold" Margin="0,0,0,4"/>
     <Grid Grid.Row="5" ColumnDefinitions="*,Auto">
-      <TextBox Text="{Binding TempDir}" Width="280" HorizontalAlignment="Left" Background="#2d2d2d" Foreground="White" BorderBrush="#3f3f3f"/>
-      <Button Grid.Column="1" Content="Browse..." Command="{Binding BrowseTempFolderCommand}" Width="80" HorizontalContentAlignment="Center" Background="#3a3a3a" Foreground="White" Margin="8,0,0,0"/>
+      <TextBox Text="{Binding TempDir}" HorizontalAlignment="Stretch"/>
+      <Button Grid.Column="1" Content="Browse..." Command="{Binding BrowseTempFolderCommand}" Width="84" HorizontalContentAlignment="Center" Margin="8,0,0,0"/>
     </Grid>
 
     <StackPanel Grid.Row="7" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
-      <Button Content="OK" Command="{Binding SaveCommand}" Width="80" HorizontalContentAlignment="Center" Background="#007acc" Foreground="White"/>
-      <Button Content="Cancel" Command="{Binding CancelCommand}" Width="80" HorizontalContentAlignment="Center" Background="#3a3a3a" Foreground="White"/>
+      <Button Classes="accent" Content="OK" Command="{Binding SaveCommand}" Width="84" HorizontalContentAlignment="Center"/>
+      <Button Content="Cancel" Command="{Binding CancelCommand}" Width="84" HorizontalContentAlignment="Center"/>
     </StackPanel>
   </Grid>
 </Window>
-

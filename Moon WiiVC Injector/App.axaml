@@ -65,6 +65,21 @@
       <Setter Property="Foreground" Value="#a0a0a0"/>
       <Setter Property="BorderBrush" Value="#d0d0d0"/>
     </Style>
+    <Style Selector="Button.accent">
+      <Setter Property="Background" Value="#007acc"/>
+      <Setter Property="Foreground" Value="White"/>
+      <Setter Property="BorderBrush" Value="#005fa3"/>
+    </Style>
+    <Style Selector="Button.accent:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#006bb3"/>
+      <Setter Property="Foreground" Value="White"/>
+      <Setter Property="BorderBrush" Value="#004e87"/>
+    </Style>
+    <Style Selector="Button.accent:pressed /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#00558f"/>
+      <Setter Property="Foreground" Value="White"/>
+      <Setter Property="BorderBrush" Value="#003d66"/>
+    </Style>
     <Style Selector="RadioButton">
       <Setter Property="Foreground" Value="Black"/>
       <Setter Property="FontSize" Value="12"/>

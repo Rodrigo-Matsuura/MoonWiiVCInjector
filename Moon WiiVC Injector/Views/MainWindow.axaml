@@ -36,14 +36,14 @@
           <TextBox Grid.Row="0" Grid.Column="1" Name="GameSourceDirectory" IsReadOnly="True" Text="{Binding GameSourceText}" VerticalAlignment="Center" Margin="0,0,0,6"/>
 
           <!-- Icon Select -->
-          <Button Grid.Row="1" Grid.Column="0" Name="IconSourceButton" Content="Icon..." Command="{Binding SelectIconCommand}" Width="140" HorizontalContentAlignment="Center" Margin="0,0,0,6"/>
+          <Button Grid.Row="1" Grid.Column="0" Name="IconSourceButton" Content="Icon..." ToolTip.Tip="Recommended size: 128x128 (automatically resized)" Command="{Binding SelectIconCommand}" Width="140" HorizontalContentAlignment="Center" Margin="0,0,0,6"/>
           <TextBox Grid.Row="1" Grid.Column="1" Name="IconSourceDirectory" IsReadOnly="True" Text="{Binding IconSourceText}" VerticalAlignment="Center" Margin="0,0,0,6"/>
 
           <!-- Banner Select -->
-          <Button Grid.Row="2" Grid.Column="0" Name="BannerSourceButton" Content="Banner..." Command="{Binding SelectBannerCommand}" Width="140" HorizontalContentAlignment="Center" Margin="0,0,0,10"/>
+          <Button Grid.Row="2" Grid.Column="0" Name="BannerSourceButton" Content="Banner..." ToolTip.Tip="Recommended size: 1280x720 (automatically resized)" Command="{Binding SelectBannerCommand}" Width="140" HorizontalContentAlignment="Center" Margin="0,0,0,10"/>
           <TextBox Grid.Row="2" Grid.Column="1" Name="BannerSourceDirectory" IsReadOnly="True" Text="{Binding BannerSourceText}" VerticalAlignment="Center" Margin="0,0,0,10"/>
 
-          <!-- Internal Info & Generate Button -->
+          <!-- Internal Info & Settings Button -->
           <StackPanel Grid.Row="3" Grid.Column="0" Spacing="14" VerticalAlignment="Center">
             <TextBlock Name="IGNText" Text="Internal Game Name:"/>
             <TextBlock Name="ITIDText" Text="Internal Game Title ID:"/>
@@ -82,16 +82,16 @@
           <Button Grid.Row="0" Grid.Column="0" Name="GC2SourceButton" Content="2nd GC Disc" Command="{Binding SelectGC2Command}" IsEnabled="{Binding IsGCSelected}" Width="140" HorizontalContentAlignment="Center" Margin="0,0,0,6"/>
           <TextBox Grid.Row="0" Grid.Column="1" Name="GC2SourceDirectory" IsReadOnly="True" Text="{Binding GC2SourceText}" VerticalAlignment="Center" Margin="0,0,0,6"/>
 
-          <Button Grid.Row="1" Grid.Column="0" Name="BootSoundButton" Content="Boot Sound..." Command="{Binding SelectBootSoundCommand}" Width="140" HorizontalContentAlignment="Center" Margin="0,0,0,6"/>
+          <Button Grid.Row="1" Grid.Column="0" Name="BootSoundButton" Content="Boot Sound..." ToolTip.Tip="WAV or BTSND audio (trimmed to max 6 seconds)" Command="{Binding SelectBootSoundCommand}" Width="140" HorizontalContentAlignment="Center" Margin="0,0,0,6"/>
           <Grid Grid.Row="1" Grid.Column="1" ColumnDefinitions="*,Auto,Auto" Margin="0,0,0,6">
             <TextBox Grid.Column="0" Name="BootSoundDirectory" IsReadOnly="True" Text="{Binding BootSoundText}" VerticalAlignment="Center"/>
             <CheckBox Grid.Column="2" Name="ToggleBootSoundLoop" Content="Loop" IsChecked="{Binding ToggleBootSoundLoop}" Margin="8,0,0,0"/>
           </Grid>
 
-          <Button Grid.Row="2" Grid.Column="0" Name="LogoSourceButton" Content="Boot Logo..." Command="{Binding SelectLogoCommand}" Width="140" HorizontalContentAlignment="Center" Margin="0,0,0,6"/>
+          <Button Grid.Row="2" Grid.Column="0" Name="LogoSourceButton" Content="Boot Logo..." ToolTip.Tip="Recommended size: 170x42 (automatically resized)" Command="{Binding SelectLogoCommand}" Width="140" HorizontalContentAlignment="Center" Margin="0,0,0,6"/>
           <TextBox Grid.Row="2" Grid.Column="1" Name="LogoSourceDirectory" IsReadOnly="True" Text="{Binding LogoSourceText}" VerticalAlignment="Center" Margin="0,0,0,6"/>
 
-          <Button Grid.Row="3" Grid.Column="0" Name="DrcSourceButton" Content="GamePad Banner..." Command="{Binding SelectDrcCommand}" Width="140" HorizontalContentAlignment="Center" Margin="0,0,0,10"/>
+          <Button Grid.Row="3" Grid.Column="0" Name="DrcSourceButton" Content="GamePad Banner..." ToolTip.Tip="Recommended size: 854x480 (automatically resized)" Command="{Binding SelectDrcCommand}" Width="140" HorizontalContentAlignment="Center" Margin="0,0,0,10"/>
           <TextBox Grid.Row="3" Grid.Column="1" Name="DrcSourceDirectory" IsReadOnly="True" Text="{Binding DrcSourceText}" VerticalAlignment="Center" Margin="0,0,0,10"/>
 
           <!-- Optional Previews -->
@@ -115,7 +115,7 @@
       <!-- Tab 3: GamePad/Meta Options -->
       <TabItem Header="GamePad/Meta Options">
         <StackPanel Margin="10" Spacing="10">
-          <Border BorderBrush="#adadad" BorderThickness="1" Padding="10">
+          <Border BorderBrush="#adadad" BorderThickness="1" Padding="10" IsEnabled="{Binding IsGamePadEmuEnabled}">
             <StackPanel Spacing="6">
               <TextBlock Text="GamePad Emulation Mode (Only applicable for Wii Retail Injections / vWii NAND Title Launcher)" FontWeight="SemiBold"/>
               <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto,Auto">
@@ -129,13 +129,13 @@
             </StackPanel>
           </Border>
 
-          <CheckBox Name="LRPatch" Content="Swap L &amp; R with ZL &amp; ZR" IsChecked="{Binding LrPatch}"/>
+          <CheckBox Name="LRPatch" Content="Swap L &amp; R with ZL &amp; ZR" IsChecked="{Binding LrPatch}" IsEnabled="{Binding CanUseLrPatch}"/>
 
           <StackPanel Spacing="4">
-            <TextBlock Text="Name to use for Packaged Title (ACCENT CHARACTERS NOT SUPPORTED)"/>
+            <TextBlock Text="Name to use for Packaged Title"/>
             <TextBox Name="PackedTitleLine1" Text="{Binding PackedTitleLine1}"/>
             <CheckBox Name="EnablePackedLine2" Content="Use Line 2" IsChecked="{Binding EnablePackedLine2}"/>
-            <TextBox Name="PackedTitleLine2" Text="{Binding PackedTitleLine2}" PlaceholderText="(Optional) Line 2"/>
+            <TextBox Name="PackedTitleLine2" Text="{Binding PackedTitleLine2}" IsEnabled="{Binding EnablePackedLine2}" PlaceholderText="(Optional) Line 2"/>
           </StackPanel>
 
           <StackPanel Spacing="4">
@@ -148,12 +148,18 @@
       <!-- Tab 4: Advanced -->
       <TabItem Header="Advanced">
         <StackPanel Margin="10" Spacing="10">
-          <TextBlock Text="Wii Retail Injection / vWii NAND Title Launcher Patches" FontWeight="SemiBold"/>
-          <CheckBox Name="Wiimmfi" Content="Patch game to use the Wiimmfi server for online play (Wii Retail only)" IsChecked="{Binding Wiimmfi}"/>
-          <CheckBox Name="WiiVMC" Content="Patch video mode with Wii-VMC (Wii Retail only, opens new window)" IsChecked="{Binding WiiVMC}"/>
+          <TextBlock Text="Wii Retail / GameCube / vWii Patches" FontWeight="SemiBold"/>
+          <CheckBox Name="Wiimmfi" Content="Patch game to use the Wiimmfi server for online play (Wii Retail only)" IsChecked="{Binding Wiimmfi}" IsEnabled="{Binding IsWiiRetailSelected}"/>
+          <StackPanel Orientation="Horizontal" Spacing="10" IsEnabled="{Binding IsWiiRetailSelected}">
+            <CheckBox Name="WiiVMC" Content="Patch video mode with Smart Wii-VMC (Wii Retail only):" IsChecked="{Binding WiiVMC}" VerticalAlignment="Center"/>
+            <ComboBox SelectedIndex="{Binding WiiVmcModeIndex}" IsEnabled="{Binding WiiVMC}" Width="170" VerticalAlignment="Center">
+              <ComboBoxItem Content="NTSC &#x2192; PAL60"/>
+              <ComboBoxItem Content="PAL &#x2192; NTSC"/>
+            </ComboBox>
+          </StackPanel>
           <CheckBox Name="DisableGamePad" Content="Don't use GamePad as controller (Won't prompt for usage)" IsChecked="{Binding DisableGamePad}"/>
-          <CheckBox Name="DisableTrimming" Content="Don't trim game output (Wii Retail only)" IsChecked="{Binding DisableTrimming}"/>
-          <CheckBox Name="DisableNintendontAutoboot" Content="Disable Autoboot" IsChecked="{Binding DisableNintendontAutoboot}"/>
+          <CheckBox Name="DisableTrimming" Content="Don't trim game output (Wii Retail only)" IsChecked="{Binding DisableTrimming}" IsEnabled="{Binding CanDisableTrimming}"/>
+          <CheckBox Name="DisableNintendontAutoboot" Content="Disable Nintendont Autoboot (GameCube only)" IsChecked="{Binding DisableNintendontAutoboot}" IsEnabled="{Binding IsGCSelected}"/>
           <CheckBox Name="C2WPatchFlag" Content="Enable cafe2wii patching (NOT RECOMMENDED)" IsChecked="{Binding C2WPatchFlag}"/>
 
           <Border Name="AncastKeyBorder" BorderBrush="#adadad" BorderThickness="1" Padding="10" Margin="0,10,0,0" IsVisible="{Binding IsAncastKeyVisible}">

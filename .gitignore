@@ -11,6 +11,7 @@ dist/
 # Packaging outputs
 *.zip
 *.tar.gz
+!Moon WiiVC Injector/Resources/Tools/*.zip
 
 # Visual Studio Cache
 .vs/

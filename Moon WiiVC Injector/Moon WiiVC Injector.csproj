@@ -11,7 +11,6 @@
     <NoWin32Manifest>true</NoWin32Manifest>
     <Description>Wii &amp; GameCube Virtual Console Injector for Wii U</Description>
     <RepositoryUrl>https://github.com/Rodrigo-Matsuura/TeconmoonWiiVCInjector</RepositoryUrl>
-    <GenerateResourceUsePreserializedResources>true</GenerateResourceUsePreserializedResources>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
     <PublishSingleFile>true</PublishSingleFile>
@@ -26,39 +25,29 @@
     <NeutralLanguage>en-US</NeutralLanguage>
     <NoWarn>$(NoWarn);IDE0130;CA2007;CA1031;CA5350;CA5351;CA1707;CA1062;CA1051;CA1305;CA1307;CA1308;CA1310;CA1711</NoWarn>
   </PropertyGroup>
+
+  <!-- Platform-specific WIT tools packaging: embed only the target OS binary during publish to minimize executable size -->
+  <PropertyGroup>
+    <WitResourceFile>Resources\Tools\wit-all.zip</WitResourceFile>
+    <WitResourceFile Condition="'$(RuntimeIdentifier)' != '' and $([System.String]::Copy('$(RuntimeIdentifier)').ToLowerInvariant().StartsWith('win'))">Resources\Tools\wit-win.zip</WitResourceFile>
+    <WitResourceFile Condition="'$(RuntimeIdentifier)' != '' and $([System.String]::Copy('$(RuntimeIdentifier)').ToLowerInvariant().StartsWith('linux'))">Resources\Tools\wit-linux.zip</WitResourceFile>
+    <WitResourceFile Condition="'$(RuntimeIdentifier)' != '' and $([System.String]::Copy('$(RuntimeIdentifier)').ToLowerInvariant().StartsWith('osx'))">Resources\Tools\wit-osx.zip</WitResourceFile>
+  </PropertyGroup>
+
   <ItemGroup>
     <PackageReference Include="Avalonia" Version="12.1.2" />
     <PackageReference Include="Avalonia.Desktop" Version="12.1.2" />
     <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.2" />
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
-    <PackageReference Include="System.Resources.Extensions" Version="10.0.11" />
     <PackageReference Include="SkiaSharp" Version="3.119.4" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\NKit\NKit.csproj" />
   </ItemGroup>
   <ItemGroup>
-    <None Update="Resources\TOOLDIR.zip">
-      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-    </None>
-    <EmbeddedResource Update="Properties\Resources.resx">
-      <Generator>ResXFileCodeGenerator</Generator>
-      <LastGenOutput>Resources.Designer.cs</LastGenOutput>
+    <EmbeddedResource Include="$(WitResourceFile)">
+      <LogicalName>Moon_WiiVC_Injector.Resources.TOOLDIR.zip</LogicalName>
     </EmbeddedResource>
-    <Compile Update="Properties\Resources.Designer.cs">
-      <AutoGen>True</AutoGen>
-      <DependentUpon>Resources.resx</DependentUpon>
-      <DesignTime>True</DesignTime>
-    </Compile>
-    <None Update="Properties\Settings.settings">
-      <Generator>SettingsSingleFileGenerator</Generator>
-      <LastGenOutput>Settings.Designer.cs</LastGenOutput>
-    </None>
-    <Compile Update="Properties\Settings.Designer.cs">
-      <AutoGen>True</AutoGen>
-      <DependentUpon>Settings.settings</DependentUpon>
-      <DesignTimeSharedInput>True</DesignTimeSharedInput>
-    </Compile>
     <EmbeddedResource Include="Resources\wiitdb.txt" />
     <EmbeddedResource Include="Resources\Base\**\*" />
     <EmbeddedResource Include="Resources\Dol\**\*" />
