@@ -158,13 +158,13 @@ public static class NusPackerEngine
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        foreach (string file in Directory.EnumerateFiles(directory))
+        foreach (string file in Directory.EnumerateFiles(directory).OrderBy(Path.GetFileName, StringComparer.Ordinal))
         {
             FstEntry newFile = new(file);
             parent.AddChild(newFile);
         }
 
-        foreach (string dir in Directory.EnumerateDirectories(directory))
+        foreach (string dir in Directory.EnumerateDirectories(directory).OrderBy(Path.GetFileName, StringComparer.Ordinal))
         {
             FstEntry newDir = new(dir);
             parent.AddChild(newDir);

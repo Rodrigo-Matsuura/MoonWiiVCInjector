@@ -79,10 +79,9 @@ internal sealed class NusEncryption : IDisposable
         const int hashBlockSize = 0xFC00;
         long length = input.Length;
         byte[] buffer = new byte[hashBlockSize];
-        int block = 0;
-        long totalBlocks = (length / hashBlockSize) + 1;
+        long totalBlocks = length == 0 ? 1 : (length + hashBlockSize - 1) / hashBlockSize;
 
-        while (true)
+        for (int block = 0; block < totalBlocks; block++)
         {
             cancellationToken.ThrowIfCancellationRequested();
             Array.Clear(buffer, 0, hashBlockSize);
@@ -94,20 +93,14 @@ internal sealed class NusEncryption : IDisposable
                 totalRead += read;
             }
 
-            if (totalRead == 0 && block > 0)
-                break;
-
             byte[] chunk = EncryptChunkHashed(buffer, block, hashes, contentID);
             output.Write(chunk, 0, chunk.Length);
-            block++;
 
-            if (block % 100 == 0 || block >= totalBlocks)
+            int completedBlocks = block + 1;
+            if (completedBlocks % 100 == 0 || completedBlocks >= totalBlocks)
             {
-                onProgress?.Invoke($"Encrypting content ({contentID:X8})...", Math.Min(1.0, (double)block / totalBlocks));
+                onProgress?.Invoke($"Encrypting content ({contentID:X8})...", Math.Min(1.0, (double)completedBlocks / totalBlocks));
             }
-
-            if (totalRead < hashBlockSize)
-                break;
         }
     }
 
@@ -210,7 +203,7 @@ internal sealed class ContentHashes
     private void CalculateOtherHashes(int hashLevel, Dictionary<int, byte[]> inHashes, Dictionary<int, byte[]> outHashes, Action<string, double>? onProgress, CancellationToken cancellationToken)
     {
         int hashLevelPow = 1 << (4 * hashLevel);
-        int hashesCount = (_blockCount / hashLevelPow) + 1;
+        int hashesCount = Math.Max(1, (_blockCount + hashLevelPow - 1) / hashLevelPow);
 
         for (int newBlock = 0; newBlock < hashesCount; newBlock++)
         {
@@ -235,7 +228,7 @@ internal sealed class ContentHashes
         using FileStream input = new(file, FileMode.Open, FileAccess.Read, FileShare.Read);
         const int bufferSize = 0xFC00;
         byte[] buffer = new byte[bufferSize];
-        int totalBlocks = (int)(input.Length / bufferSize) + 1;
+        int totalBlocks = input.Length == 0 ? 1 : (int)((input.Length + bufferSize - 1) / bufferSize);
 
         for (int block = 0; block < totalBlocks; block++)
         {
