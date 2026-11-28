@@ -432,9 +432,10 @@ internal sealed class NusDownloader(
         bool needPreviousCipherBlock = entry.FileOffset >= 16;
         long rangeStart = needPreviousCipherBlock ? (entry.FileOffset - 16) : 0;
         long rangeEnd = entry.FileOffset + alignedLength - 1;
-        if (content.Size > 0 && rangeEnd >= content.Size)
+        long alignedContentSize = Align(content.Size, 16);
+        if (content.Size > 0 && rangeEnd >= alignedContentSize)
         {
-            rangeEnd = content.Size - 1;
+            rangeEnd = alignedContentSize - 1;
         }
 
         const int maxAttempts = 3;
